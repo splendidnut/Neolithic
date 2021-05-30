@@ -1,0 +1,4 @@
+Parser Module
+
+This directory contains the code for parsing the source code,
+currently working with a C-like language as the source language.

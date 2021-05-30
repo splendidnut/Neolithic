@@ -1,0 +1,251 @@
+=====================================================================
+Neolithic Compiler - version Alpha 1      (c) 2020 by Philip Blackman
+---------------------------------------------------------------------
+
+The Neolithic Compiler is cross-compiler that targets the 6502.
+It uses a C-like language that's been simplified to help with
+generating optimal 6502 assembly code.
+
+
+Disclaimer for Alpha release:
+    The compiler and language itself are currently in active
+    development and are subject to change at any time.  While
+    some things may work perfectly fine in one version, they
+    could potentially be changed/removed in the future.  Please
+    keep this in mind when writing code targeting this compiler.
+    
+---------------------------------------------------------------------
+
+============
+Quick Intro
+------------
+
+Writing code for the Neolithic Compiler is a lot like writing C code. In fact,
+the book "The C Programming Language: Second Edition" by Brian W. Kernighan
+and Dennis M. Ritchie was used as a reference for the design of this language.
+
+This compiler supports many C-like constructs including variables, functions,
+structures, unions, and enumerations.  Most of the basic expression and
+assignment syntax falls in line with how C works, albeit, simplified.
+Even the basic structured code elements such as IF, WHILE, DO, and FOR
+statements generally work the same.
+
+So, what are the differences?
+
+Well, in general, the language has been simplified.  Primitive types
+have been reduced to just 8-bit chars, 16-bit ints, booleans, and pointers.
+Arrays are one-dimensional.
+
+User-defined types still exist, but only consist of structs, unions, and
+enumerations; general typedefs have been eliminated.  This has been done
+to simplify code generation.  Structs and unions have been "promoted" to
+being the primary ways of defining new types.  In Neolitic, they are
+handled as typedefs without the need to use the C keyword "typedef".
+
+Another minor difference is that semicolons are optional.  They can still
+be used, but for the most part, they are not necessary.  In fact, I have
+yet to come upon a case in which they are needed.  This is great for anyone
+who doesn't like semicolons... but I still find myself magically adding them
+without a thought.  Oh well.
+
+
+
+-----------------------
+Variable definitions
+-----------------------
+
+Variables in C are defined with a typeName followed by an identifier
+for the variable.  Such as:
+
+    char playerX;       // defines a byte
+    int timer;
+    
+Neolithic essentially follows that same pattern.  The following primitive
+types are available for use:
+
+    char            - 8-bit signed
+    byte            - 8-bit unsigned
+    int             - 16-bit signed     (integer)
+    word            - 16-bit unsigned
+    bool, boolean   - 1-bit stored in a byte
+
+Since the 6502 is an 8-bit processor, only 8-bit and 16-bit primitives will
+be available.  Decimal/BCD-type primitives may potentially be added in the future.
+
+Variables can also be defined as an array, a pointer, or an array of pointers.
+
+    char enemyX[5]          // array of 5 chars (8-bit)
+    char* playerGfxPtr      // pointer to char (8-bit) data
+    char* enemyGfxPtr[5]    // array of 5 pointers to char (8-bit) data
+
+That's about as complicated as Neolithic will allow you to get.  If you want or
+need variables that are more complicated than that, you'll need to explore
+type definitions.
+
+
+-----------------------
+Type definitions
+-----------------------
+
+Both variables and type definitions have gone thru a reduction in complexity
+to help alleviate compiler development and to help focus on generating optimal
+code.  Due to the potential complexity of typedefs in C, they are not supported
+in Neolithic.
+
+BUT, structures, unions, and enumerations are.  The big difference from C is
+that they are treated exclusively as type definitions.  This helps simplify
+their usage a bit.
+
+Example of defining a structure:
+
+    struct Sprite {
+        char x
+        char y
+    }
+
+This defines a structure named Sprite that contains two variables: x and y.
+
+To use the structure:
+
+    Sprite explorer       //-- define a variable named explorer of type Sprite
+
+Then, within a function, variables can be accessed as follows:
+
+    explorer.x = 80
+    explorer.y = 20
+
+    if (leftJoyPressed) {
+        explorer.x -= 1
+    }
+
+
+Easy enough.  Unions work the same way, but they can be nameless (anonymous).
+This allows unions to be used to easily define two variables that share the
+same memory space.  This could be used to define memory-based IO registers
+with different names for reading and writing.
+
+
+--------------------------------------
+Constants and Enumeration definitions
+--------------------------------------
+
+Before delving into the details regarding enumerations, I'm going to discuss
+constants first.
+
+Ah, the elusive const... Typically, in the C89 Standard, enumerations or
+preprocessor #define(s) were used to define named-constants.  The reserved
+word 'const' was later added to be utilized to signify a variable that can't
+be changed, as well as other multiple purposes.  But, it didn't really fully
+replace the use of #define.
+
+With Neolithic, 'const' can be used with one of the simple primitives
+(char, int, etc...) to define a named-constant that is considered separate
+from a variable.  They can be read like variables, but cannot be changed.
+
+Consts can also be used for defining read-only data blocks within the code.
+
+Examples:
+
+    // define display kernel timer value (used with RIOT 64-cycle timer)
+    const char KERNEL_TIM64   = 188 * 76 / 64     //--- calculate timer value based on 188 scanlines
+
+
+    // define player sprite graphics bitmap
+    const char playerSprGfx[] = {
+        0x00,0x3C,0x7E,0xC3,0xC3,0xFF,0xDB,0x7E,0x3C
+    }
+
+
+Now enumerations still exist and can be used in the typical C way.  But
+now with Neolithic, they hold more meaning as custom type definitions that
+can limit a enumeration-based variable to only use enumerations within the
+set.
+
+    enum GameState { GS_TITLE, GS_MENU, GS_GAME_START, GS_GAME_RUN }
+
+    GameState curGameState
+
+    curGameState = GS_TITLE     // this works
+    curGameState = 0            // ERROR!
+
+
+----------------------------
+Function definitions
+----------------------------
+
+Functions, the last type of definition to describe before moving into
+the code itself.
+
+    /**
+     *   init() - Initialize system
+     */
+    void init() {
+        // insert init code here
+    }
+
+    /**
+     *  main() - Main function in program... this is where code execution starts.
+     */
+    void main() {
+
+        init()      //-- call init function
+
+        // insert main code here
+    }
+
+Functions currently follow the same conventions as C.  This may change
+in the future as there are no plans to allow functions to return anything
+beyond a single byte value or potentially integer value; that would negate
+the need for a type specifier and then functions could be indicated via
+'function' specifier.
+
+
+=====================
+Code Statements
+---------------------
+
+Neolithic contains allows several types of statements.  Besides the usual
+suspects (variable definitions, function calls, and assignment statements),
+the following can also be used:
+
+    for (init_statement ; loop_conditional ; loop_increment_statement) { ... }
+
+    do { ... } while (condition)
+
+    while (condition) { ... }
+
+    if (condition) { ... } else { ... }
+
+    switch (expr) {
+        case value: statement
+        case value: {
+            /* code block */
+        }
+        default:
+            /* default code block */
+    }
+
+    return expr
+
+
+DEV NOTE:
+    I'm on the fence about adding a requirement of parentheses for the
+    'return' statement.
+
+    Also, I'm not sure how people feel about the elimination of fall-thru
+     on the 'switch' statement.
+
+
+
+
+
+-----------------------------------------------------
+
+
+Neolithic [ nee-uh-lith-ik ] (adjective)
+    (1) Anthropology. of, relating to, or characteristic of the last phase of the Stone Age,
+        marked by the domestication of animals,
+        the development of agriculture,
+        and the manufacture of pottery and textiles
+
+    (2) belonging to or remaining from an earlier era; outdated; passé.

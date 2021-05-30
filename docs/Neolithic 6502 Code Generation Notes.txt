@@ -1,0 +1,172 @@
+============================================
+== Mingle - 6502 Code Generation samples ==
+==========================================
+
+
+==========================================================================
+16-bit Integer operations
+--------------------------------------------------------------------------
+
+
+
+
+==========================================================================
+Array and Pointer operations
+--------------------------------------------------------------------------
+
+char curX,enemyX[5];     ;-- handle character data lookup
+curX = enemyX[5];
+
+LDA  enemyX+5
+STA  curX           ;-- curX = enemyX[5];
+
+LDY  i
+LDA  enemyX,y
+STA  curX           ;-- curX = enemyX[i];
+
+-------------------------------------------------------------
+
+int curX,enemyX[5];      ;-- handle integer lookup
+curX = enemyX[5]
+
+LDA  #5
+ASL  A
+TAY
+
+LDA  enemyX,y       ;-- load 16-bit value into AX
+LDX  enemyX+1,y
+STA  curX
+STX  curX+1
+
+-----------------------------------------
+
+zeropage char *enemyPtr[5];      ;-- handle array of pointers to character data
+
+Addr = $80
++--------+
+|  $80   | enemyPtr[0] = $F080 stored at $80
+|  $F0   |
++--------+
+|  $90   | enemyPtr[1] = $F090 stored at $82
+|  $F0   |
++--------+
+|  $00   | enemyPtr[2] = $F100 stored at $84
+|  $F1   |
++--------+
+|  $80   | enemyPtr[3] = $F180 stored at $86
+|  $F1   |
++--------+
+|  $20   | enemyPtr[4] = $F220 stored at $88
+|  $F2   |
++--------+
+Next Addr = $8A
+
+enemyPtr = $80
+
+enemyPtr[0] = $F080 - returns ptr (16-bit)
+enemyPtr[0][0] = data - return char (8-bit)
+
+
+LDA x               ;3 [3]
+ASL                 ;2 [5]
+CLC                 ;2 [7]
+ADC #<enemyPtr      ;2 [9]
+STA tempPtr         ;3 [12] -- calc offset of [x] for int and pointer arrays
+LDA #>enemyPtr      ;2 [14]
+ADC #0              ;2 [16]
+STA tempPtr+1       ;3 [19] -- tempPtr = enemyPtr[x]
+LDY  y              ;3 [22] [y]
+LDA (tempPtr),y     ;5 [27] -- tempPtr[y]  -same as-   enemyPtr[x][y]
+
+
+==================================================
+Handling loading indexed ptr into ptr
+----------------------------------------------------
+
+zeropage char *enemyPtr[5];      ;-- array of pointers to character data
+char *curEnemyPtr;
+
+curEnemyPtr = enemyPtr[5];
+
+LDA  #5             ;-- 16-bit index
+ASL
+TAY                 ;--- [5]
+
+LDA  enemyPtr,y     ;-- loading 16-bit value
+LDX  enemyPtr+1,y   ;-- enemyPtr[5]
+
+STA  curEnemyPtr    ;-- storing 16-bit value
+STX  curEnemyPtr+1  ;-- curEnemyPtr = enemyPtr[5]
+
+====================================================
+----------------------------------------------------
+
+            /*
+             * char gfx[];
+                gfxPtr = &gfx[x];
+
+                CLC
+                LDA   #<gfx
+                ADC     x
+                STA     gfxPtr
+                LDA   #>gfx
+                ADC     #0
+                STA     gfxPtr+1
+             */
+
+                         /*
+             * char *levels[5];         //array of 5 pointers
+             * levelPtr = &levels[1];   //access *(levels + 2)... read two bytes
+             *
+             LDA  levelNum
+             ASL  A
+             TAY
+
+             LDA levels,y
+             STA levelPtr
+             LDA levels+1,y
+             STA levelPTr+1
+             */
+
+             
+==========================================================
+(Address Of) '&' operations
+-----------------------------
+             
+             enemyColorPtr[0] = &gooBobColors[curFrame >> 2];
+             
+             LDA  curFrame      ;-- curFrame >> 2
+             LSR
+             LSR
+             
+             CLC                    ; add [curFrame >> 2] to &gooBobColors
+             ADC  #<gooBobColors
+             LDX  #>gooBobColors   ;-- is probably 0 if var in zeropage
+             BCC  *+1
+             INX
+             
+             
+             
+==========================================================
+Optimizations for IF statements
+--------------------------------
+
+    if ((TIA.inpt4 & 0x80) && (playerState & !PLAYER_JUMP)) {
+
+    LDA  inpt4
+    AND  #80
+    BEQ  skipIf
+    LDA  playerState
+    AND  #!PLAYER_JUMP  ;--- its a constant so we can do this
+    BEQ  skipIf
+    
+
+    
+    
+    
+============================================================
+Ideas for storage specifiers
+------------------------------------
+
+storage zeropage = read&write @mem(0x00);
+storage e7ram = read @mem(0xF800),write @mem(0xF900);

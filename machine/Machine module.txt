@@ -1,0 +1,13 @@
+Machine module
+
+This directory will contain all the code to allow the compiler to support multiple target machines.
+
+Targeted machines:
+    - Atari 2600 - (Zeropage RAM, Bankswitching...)
+
+Machine Target information (configuration file?):
+    - CPU Type (6502)
+    - Memory Ranges available for variables
+        - Zeropage
+        - Stack Reservations
+    - ROM Space
