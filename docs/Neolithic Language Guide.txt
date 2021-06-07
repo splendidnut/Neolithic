@@ -1,5 +1,7 @@
 =====================================================================
-Neolithic Compiler - version Alpha 1      (c) 2020 by Philip Blackman
+Neolithic Language Guide                (c) 2021 by Philip Blackman
+
+for Neolithic Compiler - version Alpha 1
 ---------------------------------------------------------------------
 
 The Neolithic Compiler is cross-compiler that targets the 6502.
@@ -39,14 +41,12 @@ Arrays are one-dimensional.
 User-defined types still exist, but only consist of structs, unions, and
 enumerations; general typedefs have been eliminated.  This has been done
 to simplify code generation.  Structs and unions have been "promoted" to
-being the primary ways of defining new types.  In Neolitic, they are
+being the primary ways of defining new types.  In Neolithic, they are
 handled as typedefs without the need to use the C keyword "typedef".
 
 Another minor difference is that semicolons are optional.  They can still
-be used, but for the most part, they are not necessary.  In fact, I have
-yet to come upon a case in which they are needed.  This is great for anyone
-who doesn't like semicolons... but I still find myself magically adding them
-without a thought.  Oh well.
+be used, but for the most part, they are not necessary.  I have yet to
+come upon a case in which they are needed.
 
 
 
@@ -57,8 +57,8 @@ Variable definitions
 Variables in C are defined with a typeName followed by an identifier
 for the variable.  Such as:
 
-    char playerX;       // defines a byte
-    int timer;
+    char playerX;       // defines a byte (8-bit value)
+    int timer;          // defines an integer (16-bit value)
     
 Neolithic essentially follows that same pattern.  The following primitive
 types are available for use:
@@ -82,6 +82,7 @@ That's about as complicated as Neolithic will allow you to get.  If you want or
 need variables that are more complicated than that, you'll need to explore
 type definitions.
 
+Currently, multi-dimensional arrays and multi-level pointers are not supported.
 
 -----------------------
 Type definitions
@@ -156,9 +157,9 @@ Examples:
     }
 
 
-Now enumerations still exist and can be used in the typical C way.  But
-now with Neolithic, they hold more meaning as custom type definitions that
-can limit a enumeration-based variable to only use enumerations within the
+Enumerations still exist and can be used in the typical C way.  But with
+Neolithic, they hold more meaning as custom type definitions that can
+limit a enumeration-based variable to only use enumerations within the
 set.
 
     enum GameState { GS_TITLE, GS_MENU, GS_GAME_START, GS_GAME_RUN }
