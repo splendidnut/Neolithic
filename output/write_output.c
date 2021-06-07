@@ -97,7 +97,7 @@ void WO_OutputInstr(FILE *output, Instr *instr) {
         fprintf(output, "%s:\n", instr->label->name);
     }
 
-    char outStr[100], instrBuf[40];
+    char outStr[128], instrBuf[40];
     if (addressMode.mode != ADDR_NONE) {
         //----------------------------------
         // process parameters
@@ -116,9 +116,9 @@ void WO_OutputInstr(FILE *output, Instr *instr) {
 
     // append any comments
     if (instr->lineComment != NULL) {
-        sprintf(outStr, "\t%-32s\t;-- %s", instrBuf, instr->lineComment);
+        snprintf(outStr, 120, "\t%-32s\t;-- %s", instrBuf, instr->lineComment);
     } else {
-        sprintf(outStr, "\t%s", instrBuf);
+        snprintf(outStr, 120, "\t%s", instrBuf);
     }
     fprintf(output, "%s\n", outStr);
 }
