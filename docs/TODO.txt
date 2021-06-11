@@ -1,19 +1,16 @@
 Todo List as of 5-3-2021
     - Add in support for inlining functions
-    - Rework Symbol Table code
-        - Want to separate out symbol flag groups (kind, type, storage, misc)
-        - Want to potentially add separate lists for each symbol kind (vars, consts, types, functions)
     - Rework comparison logic
-    - Add in type checking
-    - Add in support to handle 16-bit expressions
+    - Add type checking
+    - Add support to handle 16-bit expressions
     - Support other 6502-based machines
         - Already have some code in place to handle multiple machines
             Currently set to handle Atari 2600 base machine only
 
-  LOW PRIORITY
-    - Simplify tokenizer
-    - Toss out preprocessor?  (only used for including other code modules)
-    - Potentially create module system
+  IN PROGRESS
+    - Rework Symbol Table code
+        - Want to separate out symbol flag groups (kind, type, storage, misc)
+        - Want to potentially add separate lists for each symbol kind (vars, consts, types, functions)
 
   BIG TASKS
     - Handle bank-switching
@@ -21,4 +18,9 @@ Todo List as of 5-3-2021
     - Handle code layout
         - Already have some code in place (separate code/data blocks)
         - Page alignment
-        - Potentially allow user to specify layout
+        - Potentially allow user to specify memory/code layout
+
+  LOW PRIORITY
+    - Simplify tokenizer
+    - Toss out preprocessor?  (only used for including other code modules)
+    - Potentially create module system

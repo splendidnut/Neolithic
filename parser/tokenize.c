@@ -196,6 +196,7 @@ SourceCodeLine getProgramLineString() {
         curProgLine[0] = '\0';
     }
 
+    // alright, we have all the information, package it up nicely for returning
     SourceCodeLine progLine;
     progLine.len = col;
     progLine.data = progLineStart;
@@ -219,14 +220,14 @@ TokenType getTokenTypeByChar(char firstChar, char secondChar) {
     return tokenType;
 }
 
-int hasToken() {
+bool hasToken() {
     return (tokenIndex < tokenStrLen-1) && (tokenStr[tokenIndex] != '\0');
 }
 
-int charInCharset(char ch, const char *charSet) {
-    int result = 0;
+bool charInCharset(char ch, const char *charSet) {
+    bool result = false;
     while ((*charSet != '\0') && !result) {
-        if (ch == *charSet) result = 1;
+        if (ch == *charSet) result = true;
         charSet++;
     }
     return result;
@@ -301,13 +302,16 @@ TokenObject *parseToken() {
                     switch (firstChar) {
                         case '<': currentToken->tokenType = TT_LESS_THAN;    break;
                         case '>': currentToken->tokenType = TT_GREATER_THAN; break;
+                        default: break;
                     }
                 }
             }
             break;
+        default: break;
 	}
     token[tokenEnd] = '\0';
 
+    // If we have a token, do a lookup for reserved words
     if (tokenEnd > 0) {
         currentToken->tokenSymbol = findTokenSymbol(token);
         isFirstTokenOnLine = false;
@@ -321,6 +325,10 @@ TokenObject *getToken() {
     return token;
 }
 
+
+//  TODO:  Create a simple token buffer to store the a couple of tokens.
+//         This would help eliminate the need for the following trickiness.
+
 TokenObject *peekToken() {
     trimWhitespaceAndComments();
 
@@ -329,6 +337,9 @@ TokenObject *peekToken() {
     tokenIndex = savedIndex;
     return token;
 }
+
+//------------------------------------------------------------------
+//--  functions to copy token into appropriate data type for use
 
 char * copyTokenStr(TokenObject *token) {
     assert(token != NULL);
@@ -344,15 +355,15 @@ int copyTokenInt(TokenObject *token) {
     char str[11];
     strncpy(str, token->tokenStr, 10);
     if (str[1] == 'x' && str[0] == '0') {
-        resultInt = strtol(str + 2, NULL, 16);    // hexadecimal
+        resultInt = (int)strtol(str + 2, NULL, 16);    // hexadecimal
     } else if (str[1] == 'b' && str[0] == '0') {
-        resultInt = strtol(str + 2, NULL, 2);    // binary
+        resultInt = (int)strtol(str + 2, NULL, 2);    // binary
     } else if (str[0] == '$') {
-        resultInt = strtol(str + 1, NULL, 16);    // ASM style hex
+        resultInt = (int)strtol(str + 1, NULL, 16);    // ASM style hex
     } else if (str[0] == '%') {
-        resultInt = strtol(str + 1, NULL, 2);   // ASM style binary
+        resultInt = (int)strtol(str + 1, NULL, 2);   // ASM style binary
     } else {
-        resultInt = strtol(str, NULL, 10);
+        resultInt = (int)strtol(str, NULL, 10);
     }
     return resultInt;
 }

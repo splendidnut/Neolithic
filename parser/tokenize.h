@@ -8,7 +8,7 @@
 #include "tokens.h"
 #include "common/common.h"
 
-#define TOKEN_LENGTH_LIMIT 80
+#define TOKEN_LENGTH_LIMIT 40
 #define TOKEN_LINE_LIMIT 120
 
 typedef enum TokenType {
@@ -126,7 +126,7 @@ extern char* getCurrentProgLine(void);
 extern SourceCodeLine getProgramLineString();
 extern TokenSymbol * findTokenSymbol(char *tokenName);
 extern const char *lookupTokenSymbol(TokenObject *token);
-extern int hasToken(void);
+extern bool hasToken(void);
 extern bool inCharset(TokenObject *token, const char *charSet);
 extern TokenObject *getToken(void);
 extern TokenObject *peekToken(void);
@@ -137,6 +137,7 @@ extern void killTokenizer(void);
 extern bool isModifierToken(TokenObject *token);
 extern bool isTypeToken(TokenObject *token);
 extern bool isIdentifier(TokenObject *token);
+
 extern bool isEquality(enum TokenType symType);
 extern bool isAddSubAsgn(enum TokenType symType);
 extern bool isShift(enum TokenType symType);

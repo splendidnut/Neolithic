@@ -11,6 +11,7 @@
  *
  *   TODO: Fix negative/positive signs (part of the previous todo)
  *
+ *   TODO: Fix "magic" numbers, i.e. clarify numeric constants...
  *
 **/
 
@@ -35,6 +36,7 @@ int parserErrorCount;
 /*-----------------------
 // general functions
 */
+const int ERR_MSG_SIZE = 120;
 const int MAX_PARSER_ERRORS = 3;
 static int errorCount = 0;
 static bool noMoreErrors = false;
@@ -42,11 +44,11 @@ void printError(const char* fmtErrorMsg, ...) {
     if (noMoreErrors) return;
 
     if (errorCount < MAX_PARSER_ERRORS) {
-        char errorMsg[120];
+        char errorMsg[ERR_MSG_SIZE];
 
         va_list argList;
         va_start(argList, fmtErrorMsg);
-        vsnprintf(errorMsg, 120, fmtErrorMsg, argList);
+        vsnprintf(errorMsg, ERR_MSG_SIZE, fmtErrorMsg, argList);
         va_end(argList);
 
         printf("Error on line %d:  %s\n", getProgLineNum(), errorMsg);
@@ -59,11 +61,11 @@ void printError(const char* fmtErrorMsg, ...) {
 
 int accept(const char *testStr) {
     char *token = getToken()->tokenStr;
-    if (strncmp(token, testStr, 32) != 0) {
+    bool tokenMatch = (strncmp(token, testStr, TOKEN_LENGTH_LIMIT) == 0);
+    if (!tokenMatch) {
         printError("Unexpected token: '%s' -- was looking for: '%s'\n", token, testStr);
-        return 0;
     }
-    return 1;
+    return tokenMatch;
 }
 
 /*------------------------
@@ -82,27 +84,20 @@ ListNode parse_identifier() {
     return node;
 }
 
-ListNode parse_list() {
-    // TODO: add support for parsing list
-    while (peekToken()->tokenStr[0] != ']') {
-        getToken();
-    }
-    accept("]");
-    return createEmptyNode();
+bool isClosingListToken(char tokenChar) {
+    return (tokenChar == '}' || tokenChar == ']');
 }
 
-ListNode parse_hashmap() {
-    // TODO: add support for parsing hashmaps and c-style lists
-
+ListNode parse_list() {
     List *items = createList(257);
     addNode(items, createParseToken(PT_LIST));
 
-    while (peekToken()->tokenStr[0] != '}') {
+    while (!isClosingListToken(peekToken()->tokenStr[0])) {
         ListNode node = parse_expr();
         addNode(items, node);
         if (peekToken()->tokenStr[0] == ',') accept(",");
     }
-    accept("}");
+    getToken(); // -- eat closing token
     return createListNode(items);
 }
 
@@ -155,12 +150,9 @@ ListNode parse_nested_primary(int allowNestedExpr, const char *tokenStr) {
             }
             break;
         case '[':
+        case '{':
             // found list
             node = parse_list();
-            break;
-        case '{':
-            // found hashmap
-            node = parse_hashmap();
             break;
         default:
             printError("Invalid symbol: %s,  expected primitive\n", tokenStr);
@@ -216,6 +208,7 @@ ListNode parse_primary_expr(bool isLValue, bool isExprAllowed, int allowNestedEx
             break;
         default:
             printError("Primitive not found....found token '%s' instead\n", tokenStr);
+            node = createEmptyNode();
     }
     return node;
 }
@@ -275,6 +268,7 @@ ListNode parse_expr_postfix(bool isLValue, int allowNestedExpr) {
                 rnode = parse_identifier();
                 opNode = createParseToken(PT_PROPERTY_REF);
                 break;
+            default: break;
         }
         list = createList(3);
         addNode(list, opNode);
@@ -290,6 +284,7 @@ ListNode parse_expr_postfix(bool isLValue, int allowNestedExpr) {
         switch (getToken()->tokenType) {
             case TT_INC: opNode = createParseToken(PT_INC); break;
             case TT_DEC: opNode = createParseToken(PT_DEC); break;
+            default: break;
         }
 
         list = createList(2);
@@ -405,6 +400,7 @@ ListNode parse_expr_shift() { // >> <<
         switch (getToken()->tokenType) {
             case TT_SHIFT_LEFT: opNode = createParseToken(PT_SHIFT_LEFT); break;
             case TT_SHIFT_RIGHT: opNode = createParseToken(PT_SHIFT_RIGHT); break;
+            default: break;
         }
         rnode = parse_expr_addSub();
 
@@ -429,6 +425,7 @@ ListNode parse_expr_bitwise() { // & | ^
             case '&': opNode = createParseToken(PT_BIT_AND); break;
             case '|': opNode = createParseToken(PT_BIT_OR); break;
             case '^': opNode = createParseToken(PT_BIT_EOR); break;
+            default: break;
         }
         rnode = parse_expr_shift();
 
@@ -460,6 +457,7 @@ ListNode parse_expr_comparison() { // == != < <= > >=
             case TT_GREATER_EQUAL:  parseToken = PT_GTE; break;
             case TT_LESS_THAN:      parseToken = PT_LT; break;
             case TT_LESS_EQUAL:     parseToken = PT_LTE; break;
+            default: break;
         }
 
         opNode = createParseToken(parseToken);
@@ -812,7 +810,7 @@ ListNode parse_func_parameters(void) {
 //    enum EnumTag { var = value, ... }
 
 ListNode parse_enum() {
-    int currentEnumValue = 0;
+    int currentEnumValue = 0;           // set initial enum value
     List *enumList = createList(260);
     accept("enum");
     addNode(enumList, createParseToken(PT_ENUM));
@@ -877,17 +875,11 @@ ListNode parse_struct_vars() {
     return createListNode(varList);
 }
 
-ListNode parse_structOrUnion() {
+ListNode parse_structOrUnion(enum ParseToken typeToken) {
     List *structBase = createList(3);
 
-    // union or struct indicator
-    if (peekToken()->tokenStr[0] == 's') {
-        accept("struct");
-        addNode(structBase, createParseToken(PT_STRUCT));
-    } else {
-        accept("union");
-        addNode(structBase, createParseToken(PT_UNION));
-    }
+    getToken(); //-- eat typeToken
+    addNode(structBase, createParseToken(typeToken));
 
     if (peekToken()->tokenStr[0] != '{') {
         char *typeName = copyTokenStr(getToken());
@@ -1076,16 +1068,22 @@ ListNode parse_stmt_block(void) {
 
     accept("{");
     while (!(inCharset(peekToken(), "}"))) {
+        bool canAdd = true;
         ListNode codeNode = parse_stmt();
 
         // process compound stmt - mainly for multiple vars declared on a single line (comma separated list)
         if (codeNode.type == N_LIST && codeNode.value.list->nodes[0].type == N_LIST) {
             List *subStmtList = codeNode.value.list;
-            for (int cnt=0; cnt<subStmtList->count; cnt++) {
-                addNode(list, subStmtList->nodes[cnt]);
+            int cnt=0;
+            while (cnt<subStmtList->count && canAdd) {
+                canAdd = addNode(list, subStmtList->nodes[cnt++]);
             }
         } else {
-            addNode(list, codeNode);
+            canAdd = addNode(list, codeNode);
+        }
+        if (!canAdd) {
+            printError("Too many statements in current block");
+            while (peekToken()->tokenStr[0] != '}') getToken();
         }
     }
     accept("}");
@@ -1123,24 +1121,27 @@ ListNode parse_program(char *sourceCode) {
 
         // we only want to peek at next token...
         //   so that it's available to the chosen parse function
+
+        // TODO: Maybe do this a different way?  TokenStr is probably duplicated to avoid
+        //         print issues (when printing errors).
+
         tokenStr[0] = '\0';
         TokenObject *token = peekToken();
         if ((token != NULL) && (token->tokenType != TT_NONE)) {
             strncpy(tokenStr, token->tokenStr, 99);
         }
+
         switch (token->tokenSymbol->tokenType) {
             case TT_ENUM:     node = parse_enum(); break;
-            case TT_STRUCT:   node = parse_structOrUnion(); break;
-            case TT_UNION:    node = parse_structOrUnion(); break;
+            case TT_STRUCT:   node = parse_structOrUnion(PT_STRUCT); break;
+            case TT_UNION:    node = parse_structOrUnion(PT_UNION); break;
             default:
                 if (isTypeToken(token) || isModifierToken(token)) {   // handle var list/initialization
                     node = parse_variable();
                 } else if (isIdentifier(token)) {
                     if (TypeList_find(token->tokenStr) != NULL) {   // handle user-defined type - var definition
                         node = parse_variable();
-                    } else {                                        // handle an expression/assignment statement
-                        //printf("Assignment: %s\n", tokenStr);
-                        //node = parse_expr_assignment();
+                    } else {
                         printError("Warning: Unknown type or unexpected identifier: %s\n", tokenStr);
                         getToken();
                     }
@@ -1154,7 +1155,9 @@ ListNode parse_program(char *sourceCode) {
                 }
         }
 
+        // eat the semicolons, they are optional
         if (peekToken()->tokenStr[0] == ';') accept(";");
+
         if (node.type != N_EMPTY) {
             // process compound stmt - mainly for multiple vars declared on a single line (comma separated list)
             if (isListNode(node)) {
