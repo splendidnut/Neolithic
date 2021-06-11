@@ -15,9 +15,9 @@ to help with generating optimal 6502 assembly code.
 >    keep this in mind when writing code targeting this compiler.
 
 
-
-## Quick Intro
 ---------------
+## Quick Intro
+
 
 This compiler supports many C-like constructs including variables, functions,
 structures, unions, and enumerations.  Most of the basic expression and
