@@ -1067,15 +1067,16 @@ ListNode parse_stmt_block(void) {
     addNode(list, createParseToken(PT_CODE));
 
     accept("{");
-    while (!(inCharset(peekToken(), "}"))) {
+    while (hasToken() && !(inCharset(peekToken(), "}"))) {
         bool canAdd = true;
+
         ListNode codeNode = parse_stmt();
 
         // process compound stmt - mainly for multiple vars declared on a single line (comma separated list)
         if (codeNode.type == N_LIST && codeNode.value.list->nodes[0].type == N_LIST) {
             List *subStmtList = codeNode.value.list;
-            int cnt=0;
-            while (cnt<subStmtList->count && canAdd) {
+            int cnt = 0;
+            while (cnt < subStmtList->count && canAdd) {
                 canAdd = addNode(list, subStmtList->nodes[cnt++]);
             }
         } else {

@@ -221,7 +221,7 @@ TokenType getTokenTypeByChar(char firstChar, char secondChar) {
 }
 
 bool hasToken() {
-    return (tokenIndex < tokenStrLen-1) && (tokenStr[tokenIndex] != '\0');
+    return (tokenIndex < tokenStrLen) && (tokenStr[tokenIndex] != '\0');
 }
 
 bool charInCharset(char ch, const char *charSet) {

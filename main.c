@@ -239,10 +239,8 @@ int main(int argc, char *argv[]) {
 #endif
 
 #ifdef DEBUG
-    projectDir = "c:\\atari2600\\projects\\bca\\";
-    projectName = "bca";
-    projectDir = "c:\\atari2600\\projects\\combat\\";
-    projectName = "combat";
+    projectDir = "c:\\atari2600\\projects\\hello\\";
+    projectName = "hello";
 #endif
 
     inFileName = genFileName(projectName, ".c");
