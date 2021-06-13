@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <codegen/gen_calltree.h>
 
 #include "data/syntax_tree.h"
 #include "machine/mem.h"
@@ -140,6 +141,11 @@ void compilePass1(char *inputSrc, char *curFileName, bool doWriteAst) {
 void compilePass2(char *inputSrc, char *srcFileName, FILE *codeOutFile, bool doWriteSym, bool doWriteAsm) {
     ListNode progNode = parse(srcFileName, inputSrc, false);
     if (parserErrorCount == 0) {
+
+        // TODO: KINDA HACKY: This is done to run generate call tree on main program only
+        //if (doWriteAsm)
+        generate_callTree(progNode);
+
         generate_code(progNode, mainSymbolTable, codeOutFile, doWriteAsm);
 
         // now show symbol list
