@@ -211,6 +211,9 @@ int mainCompiler() {
             processDependencies(preProcessInfo, 1); // Build AST and analyize symbols
             compilePass1(mainFileData, inFileName, true);
             processDependencies(preProcessInfo, 2); //   Now do full compile
+        } else {
+            // no dependencies, so just build AST and symbols for main file
+            compilePass1(mainFileData, inFileName, true);
         }
 
         //----- Compile main file
