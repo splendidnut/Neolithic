@@ -60,9 +60,12 @@ void FM_addFunctionDef(char *name) {
 
 int deepestDepth = 0;
 void FM_followChainsToCalculateDepth(FuncCallMapEntry *funcMapEntry, int depth) {
-    int cntDestFunc;
-    for (cntDestFunc = 0; cntDestFunc<funcMapEntry->cntFuncsCalled; cntDestFunc++) {
-        funcMapEntry->deepestSpotCalled = depth-1;
+
+    // mark the depth of the current function
+    funcMapEntry->deepestSpotCalled = depth-1;
+
+    int cntDestFunc = 0;
+    while (cntDestFunc<funcMapEntry->cntFuncsCalled) {
         if (depth > deepestDepth) deepestDepth = depth;
 
         char *dstName = funcMapEntry->dstFuncName[cntDestFunc];
@@ -70,6 +73,7 @@ void FM_followChainsToCalculateDepth(FuncCallMapEntry *funcMapEntry, int depth) 
         if (nextChainNode != NULL) {
             FM_followChainsToCalculateDepth(nextChainNode, depth + 1);
         }
+        cntDestFunc++;
     }
 }
 
@@ -109,19 +113,9 @@ void FM_printNormalCallTree() {
 }
 
 int FM_calculateCallTree() {
-    FuncCallMapEntry *funcMapEntry;
-    funcMapEntry = FM_findFunction("main");
+    FuncCallMapEntry *funcMapEntry = FM_findFunction("main");
     if (funcMapEntry != NULL) {
         FM_followChainsToCalculateDepth(funcMapEntry, 1);
-
-        // need to mark any bad ones at the deepest depth
-        funcMapEntry = firstFuncCallEntry;
-        while (funcMapEntry != NULL) {
-            if (funcMapEntry->deepestSpotCalled < 0) {
-                funcMapEntry->deepestSpotCalled = deepestDepth;
-            }
-            funcMapEntry = funcMapEntry->next;
-        }
     }
     return deepestDepth;
 }
