@@ -91,6 +91,40 @@ void ICG_GenericMultiplyWithConst(const SymbolRecord *varRec, const char multipl
     IL_AddInstrN(LDA, ADDR_ZP, tempOfs);
 }
 
+void ICG_MultiplyWithVar(const SymbolRecord *varRec, const SymbolRecord *varRec2) {
+    int addrMulVar = varRec->location;
+    bool isParamVar =  (IS_PARAM_VAR(varRec));
+
+    printSingleSymbol(stdout, varRec);
+
+    int tempOfs = 0x80;
+
+    // need to load variable into temp var
+    ICG_Mul_loadVariable(varRec, addrMulVar, isParamVar);
+    IL_AddInstrN(STA, ADDR_ZP, tempOfs);
+
+    //------------------------------------------------------------------------
+    //  NOTE: using relative numbers instead of labels for simplification purposes
+
+    IL_AddInstrN(LDA, ADDR_IMM, 0);             // clear out accumulator
+    IL_AddInstrN(LDX, ADDR_IMM, 8);             // 8-bits requires 8 loops
+    //-- loop start
+    IL_AddInstrB(LSR);
+    IL_AddInstrN(ROR, ADDR_ZP, tempOfs);
+    IL_AddInstrN(BCC, ADDR_REL, +4);
+    IL_AddInstrB(CLC);
+    IL_AddInstrS(ADC, CALC_ADDR_MODE(addrMulVar), varRec2->name, "", PARAM_NORMAL);
+    //-- skipped over add
+    IL_AddInstrB(DEX);
+    IL_AddComment(
+            IL_AddInstrN(BNE, ADDR_REL, -8),            // Branch back to loop start
+            "Branch back to start of multiply loop");
+
+    //-----------------------------------------------------------------------
+    IL_AddInstrB(TAX);                      // move high order byte into X
+    IL_AddInstrN(LDA, ADDR_ZP, tempOfs);
+}
+
 /**
  * Use a bunch of instruction steps to perform Multiplication
  * @param varRec

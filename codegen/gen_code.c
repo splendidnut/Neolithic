@@ -604,7 +604,14 @@ void GC_CompareOp(const List *expr, enum SymbolType destType) {
 
 void GC_MultiplyOp(const List *expr, enum SymbolType destType) {
     SymbolRecord *varSym = lookupSymbolNode(expr->nodes[1], expr->lineNum);
-    ICG_MultiplyWithConst(varSym, expr->nodes[2].value.num);
+    if (expr->nodes[2].type == N_INT) {
+        ICG_MultiplyWithConst(varSym, expr->nodes[2].value.num);
+    } else if (expr->nodes[2].type == N_STR) {
+        SymbolRecord *varSym2 = lookupSymbolNode(expr->nodes[2], expr->lineNum);
+        ICG_MultiplyWithVar(varSym, varSym2);
+    } else {
+        ErrorMessageWithNode("Multiply op not supported", expr->nodes[2], expr->lineNum);
+    }
 }
 
 //---------------------------------------------------------------------------------
