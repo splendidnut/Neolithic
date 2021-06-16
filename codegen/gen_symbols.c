@@ -562,48 +562,9 @@ void GS_Program(List *list, SymbolTable *workingSymTbl) {
 }
 
 //--------------------------------------------------------------------------
-// Walk thru symbol table (breadth first) assigning memory allocations
+// Walk thru the program node provided to add all symbols to the symbol table
 
-
-int allocateVarStorage(const SymbolTable *symbolTable, int curMemloc) {
-    SymbolRecord *curSymbol = symbolTable->firstSymbol;
-    while (curSymbol != NULL) {
-
-        // only vars need allocation storage
-        if (isVariable(curSymbol) && (curSymbol->location != 0xffff)) {
-            int varSize = calcVarSize(curSymbol);
-
-            if (curSymbol->hasLocation) {
-                printf("Var %s already has location @%d\n", curSymbol->name, curSymbol->location);
-                printf("   reassigning to @%d\n", curMemloc);
-            }
-
-            // alloc mem
-            addSymbolLocation(curSymbol, curMemloc);
-
-            // move mem allocation pointer to next spot
-            curMemloc += varSize;
-        }
-        curSymbol = curSymbol->next;
-    }
-    return curMemloc;
-}
-
-// Walk thru functions and assign memory locations to local vars
-void allocateLocalVars(const SymbolTable *symbolTable, int startMemLoc) {
-    SymbolRecord *curSymbol = symbolTable->firstSymbol;
-    while (curSymbol != NULL) {
-        if (isFunction(curSymbol)) {
-            SymbolTable *funcSymTbl = curSymbol->funcExt->localSymbolSet;
-            if (funcSymTbl != NULL) {
-                allocateVarStorage(funcSymTbl, startMemLoc);
-            }
-        }
-        curSymbol = curSymbol->next;
-    }
-}
-
-void generate_symbols(ListNode node, SymbolTable *symbolTable, MemoryRange *varStorage) {
+void generate_symbols(ListNode node, SymbolTable *symbolTable) {
     printf("Finding all symbols\n");
 
     initEvaluator(symbolTable);
@@ -614,8 +575,4 @@ void generate_symbols(ListNode node, SymbolTable *symbolTable, MemoryRange *varS
             GS_Program(program, symbolTable);
         }
     }
-
-    int curMemloc = varStorage->startAddr;
-    curMemloc = allocateVarStorage(symbolTable, curMemloc);
-    allocateLocalVars(symbolTable, curMemloc);
 }

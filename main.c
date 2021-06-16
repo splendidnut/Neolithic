@@ -7,13 +7,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <codegen/gen_calltree.h>
 
 #include "data/syntax_tree.h"
+#include "machine/machine.h"
 #include "machine/mem.h"
 #include "parser/parser.h"
 #include "parser/preprocess.h"
 #include "codegen/gen_symbols.h"
+#include "codegen/gen_alloc.h"
+#include "codegen/gen_calltree.h"
 #include "codegen/gen_code.h"
 
 //#define DEBUG
@@ -22,7 +24,7 @@
 //  Global Variables
 
 SymbolTable * mainSymbolTable;
-MemoryRange *memForAtari2600;
+MemoryArea *memForAtari2600;
 char *projectName;
 char *projectDir;
 char *inFileName;
@@ -126,25 +128,23 @@ ListNode parse(char *curFileName, char *sourceCode, bool doWriteAst) {
     return progNode;
 }
 
-void analyize(char *curFileName, ListNode progNode) {
+void compilePass1(char *inputSrc, char *curFileName, bool doWriteAst, bool isTimeToAlloc) {
+    ListNode progNode = parse(curFileName, inputSrc, doWriteAst);
     if (parserErrorCount == 0) {
-        generate_symbols(progNode, mainSymbolTable, memForAtari2600);
+        generate_symbols(progNode, mainSymbolTable);
+        if (isTimeToAlloc) {
+            generate_callTree(progNode, mainSymbolTable);
+            generate_var_allocations(mainSymbolTable, memForAtari2600);
+        }
         printf("Analysis of %s Complete\n\n", curFileName);
     }
-}
-
-void compilePass1(char *inputSrc, char *curFileName, bool doWriteAst) {
-    ListNode progNode = parse(curFileName, inputSrc, doWriteAst);
-    analyize(curFileName, progNode);
 }
 
 void compilePass2(char *inputSrc, char *srcFileName, FILE *codeOutFile, bool doWriteSym, bool doWriteAsm) {
     ListNode progNode = parse(srcFileName, inputSrc, false);
     if (parserErrorCount == 0) {
 
-        // TODO: KINDA HACKY: This is done to run generate call tree on main program only
-        //if (doWriteAsm)
-        generate_callTree(progNode);
+        //generate_callTree(progNode);
 
         generate_code(progNode, mainSymbolTable, codeOutFile, doWriteAsm);
 
@@ -152,18 +152,6 @@ void compilePass2(char *inputSrc, char *srcFileName, FILE *codeOutFile, bool doW
         if (doWriteSym) {
             writeSymbolTable(srcFileName);
         }
-    }
-}
-
-
-void compile(char *srcCode, char *srcFileName, FILE *codeOutfile, int pass) {
-    switch (pass) {
-        case 1:
-            compilePass1(srcCode, srcFileName, true);
-            break;
-        case 2:
-            compilePass2(srcCode, srcFileName, codeOutfile, false, false);
-            break;
     }
 }
 
@@ -184,7 +172,15 @@ void processDependencies(PreProcessInfo *preProcessInfo, int pass) {
         if  (subFileData != NULL) {
             printf("Compiling pass %d: %s\n", pass, curFileName);
 
-            compile(subFileData, curFileName, stdout, pass);
+            FILE *codeOutfile = stdout;
+            switch (pass) {
+                case 1:
+                    compilePass1(subFileData, curFileName, true, false);
+                    break;
+                case 2:
+                    compilePass2(subFileData, curFileName, codeOutfile, false, false);
+                    break;
+            }
             free(subFileData);
         } else {
             printf("ERROR: Missing dependency %s\n", curFileName);
@@ -195,25 +191,21 @@ void processDependencies(PreProcessInfo *preProcessInfo, int pass) {
 }
 
 int mainCompiler() {
-    PreProcessInfo *preProcessInfo;
-
-    memForAtari2600 = createMemoryRange(0x82, 0xFF);
-
     printf("\n");
     printf("Initializing symbol table\n");
     mainSymbolTable = initSymbolTable(true);
 
     char* mainFileData;
     if ((mainFileData = readSourceFile(inFileName))) {
-        preProcessInfo = preprocess(mainFileData);
+        PreProcessInfo *preProcessInfo = preprocess(mainFileData);
 
         if (preProcessInfo->numFiles > 0) {
             processDependencies(preProcessInfo, 1); // Build AST and analyize symbols
-            compilePass1(mainFileData, inFileName, true);
-            processDependencies(preProcessInfo, 2); //   Now do full compile
+            compilePass1(mainFileData, inFileName, true, true);
+            processDependencies(preProcessInfo, 2); //   Now do full subcompile
         } else {
             // no dependencies, so just build AST and symbols for main file
-            compilePass1(mainFileData, inFileName, true);
+            compilePass1(mainFileData, inFileName, true, true);
         }
 
         //----- Compile main file
@@ -221,7 +213,6 @@ int mainCompiler() {
 
         FILE *outfile = fopen(outFileName, "w");
         compilePass2(mainFileData, inFileName, outfile, true, true);
-        //compile(mainFileData, inFileName, outfile, true, true, true);
         fclose(outfile);
 
         //----- Cleanup!
@@ -234,6 +225,39 @@ int mainCompiler() {
     killSymbolTable(mainSymbolTable);
 }
 
+//===========================================================================
+//  deal with machine specific stuff
+
+void prepForMachine(enum Machines machine) {
+    MemoryArea *zeropageMem;
+
+    // TODO: remove old method
+    memForAtari2600 = createMemoryRange(0x82, 0xFF);
+
+    switch (machine) {
+        case Atari2600:
+            SMA_init(0);        // only has zeropage memory
+            zeropageMem = SMA_addMemoryRange(0x80, 0xFF);
+
+            break;
+        case Atari7800:
+            // atari7800 memory ranges:
+            //    zeropage = 0x40..0xFF
+            //      stack  = 0x140..0x1FF
+            //    mem1     = 0x1800..0x1FFF     -- 2k
+            //    mem2     = 0x2200..0x27FF     -- 1.5k
+
+            SMA_init(1);        // save zeropage memory for other things
+            zeropageMem = SMA_addMemoryRange(0x40, 0xFF);
+            SMA_addMemoryRange(0x1800, 0x1FFF);
+            SMA_addMemoryRange(0x2200, 0x27FF);
+            break;
+        default:
+            printf("Unknown machine!\n");
+    }
+    // Allocate two byte for 16-bit accumulator in zeropage space
+    SMA_allocateMemory(zeropageMem, 2);
+}
 
 int main(int argc, char *argv[]) {
     printf("Neolithic Compiler v1.0 - Simplified C Cross-compiler for the 6502\n");
@@ -255,5 +279,6 @@ int main(int argc, char *argv[]) {
     inFileName = genFileName(projectName, ".c");
     outFileName = genFileName(projectName, ".asm");
 
+    prepForMachine(Atari2600);
     mainCompiler();
 }

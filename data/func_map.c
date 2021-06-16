@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "func_map.h"
+#include "symbols.h"
 
 static FuncCallMapEntry *firstFuncCallEntry;
 static FuncCallMapEntry *curFuncCallEntry;
@@ -19,7 +20,7 @@ FuncCallMapEntry* FM_findFunction(char *funcName) {
     return funcMapEntry;
 }
 
-void FM_addNewFunc(char *srcName) {
+FuncCallMapEntry * FM_addNewFunc(char *srcName) {
     FuncCallMapEntry *newFuncCallEntry = malloc(sizeof(FuncCallMapEntry));
     newFuncCallEntry->srcFuncName = srcName;
     newFuncCallEntry->deepestSpotCalled = -1;
@@ -49,10 +50,11 @@ void FM_addCallToMap(char *srcName, char *destName) {
     FM_addFuncCall(funcCallMapEntry, destName);
 }
 
-void FM_addFunctionDef(char *name) {
+void FM_addFunctionDef(char *name, SymbolRecord *funcSym) {
     FuncCallMapEntry *funcCallMapEntry = FM_findFunction(name);
     if (funcCallMapEntry == NULL) {
-        FM_addNewFunc(name);
+        funcCallMapEntry = FM_addNewFunc(name);
+        funcCallMapEntry->funcSym = funcSym;
     }
 }
 
@@ -63,6 +65,9 @@ void FM_followChainsToCalculateDepth(FuncCallMapEntry *funcMapEntry, int depth) 
 
     // mark the depth of the current function
     funcMapEntry->deepestSpotCalled = depth-1;
+    if (funcMapEntry->funcSym != NULL) {
+        funcMapEntry->funcSym->funcExt->funcDepth = depth-1;
+    }
 
     int cntDestFunc = 0;
     while (cntDestFunc<funcMapEntry->cntFuncsCalled) {

@@ -13,6 +13,7 @@
 #include "gen_calltree.h"
 #include "data/func_map.h"
 
+static SymbolTable *mainSymTable;
 
 #define DEBUG_CALL_TREE
 
@@ -72,8 +73,9 @@ void GCT_Function(List *statement, int codeNodeIndex) {
 #ifdef DEBUG_CALL_TREE
             printf("Processing function: %s\n", funcName);
 #endif
+            SymbolRecord *funcSym = findSymbol(mainSymTable, funcName);
             List *code = codeNode.value.list;
-            FM_addFunctionDef(funcName);
+            FM_addFunctionDef(funcName, funcSym);
             GCT_CodeBlock(funcName, code);
         }
     }
@@ -96,10 +98,12 @@ void GCT_Program(List *list) {
 }
 
 
-void generate_callTree(ListNode node) {
+void generate_callTree(ListNode node, SymbolTable *symbolTable) {
     if (node.type != N_LIST) return;
 
     printf("Generating Call Tree...\n");
+    mainSymTable = symbolTable;
+
     List *program = node.value.list;
     if (program->nodes[0].value.parseToken == PT_PROGRAM) {
         GCT_Program(program);

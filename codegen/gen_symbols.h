@@ -9,6 +9,6 @@
 #include "data/symbols.h"
 #include "machine/mem.h"
 
-extern void generate_symbols(ListNode node, SymbolTable *symbolTable, MemoryRange *varStorage);
+extern void generate_symbols(ListNode node, SymbolTable *symbolTable);
 
 #endif //MODULE_GEN_SYMBOLS_H

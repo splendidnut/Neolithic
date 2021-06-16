@@ -143,7 +143,9 @@ typedef struct SymbolTableStruct {
  */
 typedef struct SymbolExtStruct {
     int cntUses;        // number of times function is used
+    int funcDepth;
     int cntParams;
+    int localVarMemUsed;   // local variable memory required
     bool isInlined;
     struct ListStruct *inlinedCode; // source of function code (for use with inlining)
     struct InstrStruct *instrList;  // compiled function code as instruction list

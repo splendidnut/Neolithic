@@ -10,10 +10,13 @@
 //
 //   {"SOURCE_FUNC", {"FUNC_CALLED2", "FUNC_CALLED2"} }
 
+#include "symbols.h"
+
 struct FuncCallMapEntryStruct;
 
 typedef struct FuncCallMapEntryStruct {
     char *srcFuncName;
+    SymbolRecord *funcSym;
     struct FuncCallMapEntryStruct *next;
 
     int cntFuncsCalled;         // number of function calls this function makes...
@@ -25,7 +28,7 @@ typedef struct FuncCallMapEntryStruct {
 
 extern void FM_addCallToMap(char *srcName, char *destName);
 extern void FM_displayCallTree();
-extern void FM_addFunctionDef(char *name);
+extern void FM_addFunctionDef(char *name, SymbolRecord *funcSym);
 extern int FM_calculateCallTree();
 
 #endif //MODULE_FUNC_MAP_H
