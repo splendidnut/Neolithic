@@ -195,8 +195,7 @@ SymbolRecord * GS_Variable(List *varDef, SymbolTable *symbolTable, bool isLocal)
                 }
 
                 /**** SPECIAL CASE: handle case of explicit address set  ****/
-                if ((initExpr->nodes[0].type == N_TOKEN)
-                    && (initExpr->nodes[0].value.parseToken == PT_ADDR_OF)
+                if (isToken(initExpr->nodes[0], PT_ADDR_OF)
                     && (initExpr->nodes[1].type == N_INT)) {
 
                     int value = initExpr->nodes[1].value.num;
@@ -506,7 +505,7 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
             ListNode stmtNode = funcCode->nodes[funcStmtNum];
             if (stmtNode.type == N_LIST) {
                 List *stmt = stmtNode.value.list;
-                if ((stmt->nodes[0].type == N_TOKEN) && (stmt->nodes[0].value.parseToken == PT_DEFINE)) {
+                if (isToken(stmt->nodes[0], PT_DEFINE)) {
                     SymbolRecord *newVar = GS_Variable(stmt, localVarTbl, true);
                     if (newVar != NULL) {
                         newVar->flags |= MF_ZEROPAGE;   // func local vars always in Zeropage

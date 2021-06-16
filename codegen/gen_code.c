@@ -748,10 +748,12 @@ enum SymbolType getAsgnDestType(const List *stmt, ListNode storeNode, enum Symbo
 
                 char *propName = storeExpr->nodes[2].value.str;
                 SymbolRecord *structVar = lookupSymbolNode(storeExpr->nodes[1], stmt->lineNum);
-                SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structVar), propName);
-                destVar = propertySym;
-                if (propertySym == NULL) {
-                    ErrorMessageWithList("Property not found", storeExpr);
+                if (structVar != NULL) {
+                    SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structVar), propName);
+                    destVar = propertySym;
+                    if (propertySym == NULL) {
+                        ErrorMessageWithList("Property not found", storeExpr);
+                    }
                 }
             } else {
                 printf("UNKNOWN dest type expression");
@@ -1443,6 +1445,11 @@ void GC_Variable(const List *varDef) {
     int hasInitializer = (varDef->count >= 4) && (varDef->nodes[4].type == N_LIST);
 
     if (hasInitializer && isArray(varSymRec)) {
+        if (!isConst(varSymRec)) {
+            ErrorMessageWithList("Non-const array cannot be initialized with data", varDef);
+            return;
+        }
+
         List *initList = varDef->nodes[4].value.list;
         if (initList->nodes[0].value.parseToken == PT_INIT) {
             ListNode valueNode = initList->nodes[1];
