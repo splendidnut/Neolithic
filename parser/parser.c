@@ -59,6 +59,23 @@ void printError(const char* fmtErrorMsg, ...) {
     }
 }
 
+void printErrorWithSourceLine(const char* errorMsg) {
+    if (noMoreErrors) return;
+
+    if (errorCount < MAX_PARSER_ERRORS) {
+        char sourceLine[ERR_MSG_SIZE];
+        SourceCodeLine sourceCodeLine = getProgramLineString();
+
+        snprintf(sourceLine, sourceCodeLine.len, sourceCodeLine.data);
+
+        printf("Error on line %d:  %s\n\t%s\n", getProgLineNum(), errorMsg, sourceLine);
+        errorCount++;
+    } else if (errorCount == MAX_PARSER_ERRORS) {
+        printf("NOTE: Error limit exceeded.  No more errors will be reported.\n\n");
+        noMoreErrors = true;
+    }
+}
+
 int accept(const char *testStr) {
     char *token = getToken()->tokenStr;
     bool tokenMatch = (strncmp(token, testStr, TOKEN_LENGTH_LIMIT) == 0);

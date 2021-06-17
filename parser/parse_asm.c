@@ -181,8 +181,12 @@ ListNode parse_asmBlock() {
             // label or equ
             char *op = getToken()->tokenStr;
             //printf("asm op: %s\n", op);
-            if (op[0] == ':') addNode(list, PA_create_label(piece));
-            if (op[0] == '=') addNode(list, PA_create_equate(piece));
+            switch (op[0]) {
+                case ':': addNode(list, PA_create_label(piece)); break;
+                case '=': addNode(list, PA_create_equate(piece)); break;
+                default:
+                    printErrorWithSourceLine("Unknown assembly operation");
+            }
         }
     }
     accept("}");

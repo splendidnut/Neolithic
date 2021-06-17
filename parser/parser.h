@@ -10,6 +10,7 @@
 extern int parserErrorCount;
 
 extern int accept(const char *testStr);
+extern void printErrorWithSourceLine(const char* errorMsg);
 extern void printError(const char* fmtErrorMsg, ...);
 
 extern ListNode parse_codeBlock(void);
