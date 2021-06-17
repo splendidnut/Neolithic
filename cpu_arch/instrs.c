@@ -552,7 +552,8 @@ void ICG_CompareVar(const SymbolRecord *varSym) {
     if (isConst(varSym)) {
         IL_AddInstrN(CMP, ADDR_IMM, varSym->constValue);
     } else {
-        IL_AddInstrS(CMP, ADDR_ZP, varSym->name, NULL, PARAM_NORMAL);
+        const char *varName = getVarName(varSym);
+        IL_AddInstrS(CMP, ADDR_ZP, varName, NULL, PARAM_NORMAL);
     }
 }
 
