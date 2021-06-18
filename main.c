@@ -18,11 +18,12 @@
 #include "codegen/gen_calltree.h"
 #include "codegen/gen_code.h"
 
-//#define DEBUG
+#define DEBUG
 
 //-------------------------------------------
 //  Global Variables
 
+CompilerOptions *compilerOptions;
 SymbolTable * mainSymbolTable;
 MemoryArea *memForAtari2600;
 char *projectName;
@@ -272,13 +273,18 @@ int main(int argc, char *argv[]) {
 #endif
 
 #ifdef DEBUG
-    projectDir = "c:\\atari2600\\projects\\hello\\";
-    projectName = "hello";
+    projectDir = "c:\\atari2600\\projects\\congo_c\\";
+    projectName = "congo";
 #endif
 
     inFileName = genFileName(projectName, ".c");
     outFileName = genFileName(projectName, ".asm");
 
+    compilerOptions = malloc(sizeof(CompilerOptions));
+    compilerOptions->entryPointFuncName = "main";
+
     prepForMachine(Atari2600);
     mainCompiler();
+
+    free(compilerOptions);
 }

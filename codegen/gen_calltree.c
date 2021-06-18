@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "common/common.h"
 #include "gen_calltree.h"
 #include "data/func_map.h"
 
@@ -36,14 +37,14 @@ void GCT_FindFuncCalls(char* srcFuncName, List *stmt) {
     }
 }
 
-
 void GCT_WalkCodeNodes(char *funcName, List *code) {
     GCT_FindFuncCalls(funcName, code);
 
     if (code->hasNestedList) {
 
         // walk into any other nodes
-        for (int codeNodeNum = 1; codeNodeNum < code->count; codeNodeNum++) {
+        //for (int codeNodeNum = 1; codeNodeNum < code->count; codeNodeNum++) {
+        for_range(codeNodeNum, 1, code->count) {
             if (code->nodes[codeNodeNum].type == N_LIST)
                 GCT_WalkCodeNodes(funcName, code->nodes[codeNodeNum].value.list);
         }
@@ -54,8 +55,8 @@ void GCT_WalkCodeNodes(char *funcName, List *code) {
 void GCT_CodeBlock(char *funcName, List *code) {
     if (code->count < 1) return;     // Exit if empty function
 
-    if (code->nodes[0].value.parseToken != PT_ASM) {
-        for (int stmtNum = 1; stmtNum < code->count; stmtNum++) {
+    if (!isToken(code->nodes[0], PT_ASM)) {
+        for_range(stmtNum, 1, code->count) {
             ListNode stmtNode = code->nodes[stmtNum];
             if (stmtNode.type == N_LIST) {
                 GCT_WalkCodeNodes(funcName, stmtNode.value.list);
@@ -82,7 +83,7 @@ void GCT_Function(List *statement, int codeNodeIndex) {
 }
 
 void GCT_Program(List *list) {
-    for (int stmtNum = 1;  stmtNum < list->count;  stmtNum++) {
+    for_range(stmtNum, 1, list->count) {
         ListNode stmt = list->nodes[stmtNum];
         if (stmt.type == N_LIST) {
             List *statement = stmt.value.list;

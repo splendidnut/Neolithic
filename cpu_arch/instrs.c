@@ -591,9 +591,24 @@ void ICG_AsmInstr(enum MnemonicCode mne, enum AddrModes addrMode, const char *pa
     }
 }
 
+//-----------------------------------------------------------------------------
+//---  System Init Code
+
+// Atari 2600:
+//      Need to reset the stack (Atari 2600 specific)
+// TODO: move into machine specific module.
+
+void ICG_SystemInitCode() {
+    IL_AddInstrB(CLD);
+    IL_AddComment(
+            IL_AddInstrN(LDX, ADDR_IMM, 0xFF), "Initialize the Stack");
+    IL_AddInstrB(TXS);
+}
+
 
 //-----------------------------------------------------------------------------
 //  Function support
+
 
 int ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym) {
     curBlock = IB_StartInstructionBlock(funcLabel->name);
@@ -602,6 +617,11 @@ int ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym) {
     IL_Label(funcLabel);
     IB_SetCodeAddr(curBlock, codeAddr);
 
+    // main function needs to run init code
+    if (strcmp(curBlock->funcSym->name, compilerOptions->entryPointFuncName) == 0) {
+        ICG_SystemInitCode();
+    }
+
     codeSize = 0;
     return codeAddr;
 }
@@ -609,7 +629,10 @@ int ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym) {
 InstrBlock* ICG_EndOfFunction() {
     InstrBlock *funcInstrBlock = curBlock;
 
-    ICG_Return();
+    // All functions except main() will need a RTS at the end
+    if (strcmp(curBlock->funcSym->name, compilerOptions->entryPointFuncName) != 0) {
+        ICG_Return();
+    }
 
     // save code size of function (to allow arrangement)
     codeSize = IL_GetCodeSize(curBlock);
