@@ -449,7 +449,8 @@ void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym) {
     } else {
         IL_AddInstrS(mne, ADDR_ZP, varName, NULL, PARAM_NORMAL);
     }
-    IL_ClearOnUpdate(varName);
+    lastUseForAReg = REG_USED_FOR_NOTHING;
+    //IL_ClearOnUpdate(varName);
 }
 
 void ICG_OpWithStack(enum MnemonicCode mne) {
