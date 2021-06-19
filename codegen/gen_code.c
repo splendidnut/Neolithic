@@ -1300,7 +1300,7 @@ void GC_AsmBlock(const List *code, enum SymbolType destType) {
 
     //  First, collect all the labels  (allows labels to be defined after usage)
 
-    for (int stmtNum = 1; stmtNum < code->count; stmtNum++) {
+    for_range (stmtNum, 1, code->count) {
         ListNode stmtNode = code->nodes[stmtNum];
         if (stmtNode.type == N_LIST) {
             List *statement = stmtNode.value.list;
@@ -1313,7 +1313,7 @@ void GC_AsmBlock(const List *code, enum SymbolType destType) {
     //-------------------------------------------------------------
     //  Now process all the code
 
-    for (int stmtNum = 1; stmtNum < code->count; stmtNum++) {
+    for_range (stmtNum, 1, code->count) {
         ListNode stmtNode = code->nodes[stmtNum];
 
         if (stmtNode.type == N_LIST) {

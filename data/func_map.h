@@ -25,7 +25,7 @@ typedef struct FuncCallMapEntryStruct {
 } FuncCallMapEntry;
 
 
-
+extern FuncCallMapEntry* FM_findFunction(char *funcName);
 extern void FM_addCallToMap(char *srcName, char *destName);
 extern void FM_displayCallTree();
 extern void FM_addFunctionDef(char *name, SymbolRecord *funcSym);

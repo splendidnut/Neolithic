@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #include "gen_alloc.h"
+#include "data/func_map.h"
 
 int calcStorageNeeded(const SymbolTable *symbolTable) {
     int sizeNeeded = 0;
@@ -71,11 +72,21 @@ void calcLocalVarAllocs(const SymbolTable *symbolTable) {
         if (isFunction(curSymbol)) {
             SymbolTable *funcSymTbl = curSymbol->funcExt->localSymbolSet;
             if (funcSymTbl != NULL) {
+
+                // figure out if this function calls other functions
+                int funcsCalled = 0;
+                FuncCallMapEntry *funcCallMapEntry = FM_findFunction(curSymbol->name);
+                if (funcCallMapEntry != NULL) {
+                    funcsCalled = funcCallMapEntry->cntFuncsCalled;
+                }
+
+
                 int localMemNeeded = calcStorageNeeded(funcSymTbl);
                 curSymbol->funcExt->localVarMemUsed = localMemNeeded;
-                printf("  Func %s (depth %d) needs %d bytes for locals\n",
+                printf("  Func %s (depth %d, calls %d funcs) needs %d bytes for locals\n",
                        curSymbol->name,
                        curSymbol->funcExt->funcDepth,
+                       funcsCalled,
                        localMemNeeded);
             }
         }

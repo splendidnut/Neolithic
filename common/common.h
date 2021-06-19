@@ -9,8 +9,7 @@
 // TODO: Maybe add to Neolithic language spec?
 
 #define for_range(varname, startvalue, endvalue) \
-    int varname = startvalue;                    \
-    while ((varname)++ < (endvalue))
+    for (int varname = startvalue; varname < endvalue; varname++)
 
 
 
