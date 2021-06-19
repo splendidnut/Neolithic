@@ -18,6 +18,8 @@
 #include "codegen/gen_calltree.h"
 #include "codegen/gen_code.h"
 
+const char *verStr = "0.1(alpha)";
+
 #define DEBUG
 
 //-------------------------------------------
@@ -261,7 +263,7 @@ void prepForMachine(enum Machines machine) {
 }
 
 int main(int argc, char *argv[]) {
-    printf("Neolithic Compiler v1.0 - Simplified C Cross-compiler for the 6502\n");
+    printf("Neolithic Compiler v%s - Simplified C Cross-compiler for the 6502\n", verStr);
 
 #ifndef DEBUG
     if (argc < 2) {

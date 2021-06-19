@@ -463,7 +463,7 @@ void GC_ShiftRight(const List *expr, enum SymbolType destType) {
     if (isGoodShiftCount(countNode)) {
         ICG_ShiftRight(shiftDest, countNode.value.num);
     } else {
-        ErrorMessageWithList("Unsupported form of Shift left: ", expr);
+        ErrorMessageWithList("Unsupported form of Shift right: ", expr);
     }
 }
 
@@ -810,10 +810,10 @@ void GC_Return(const List *stmt, enum SymbolType destType) {
     ListNode returnExprNode = stmt->nodes[1];
     switch (returnExprNode.type) {
         case N_LIST: GC_Expression(returnExprNode.value.list, destType); break;
-        case N_STR:  ICG_ReturnVar(lookupSymbolNode(returnExprNode, stmt->lineNum)); break;
-        default:
-            ICG_Return();
+        case N_STR:  ICG_LoadVar(lookupSymbolNode(returnExprNode, stmt->lineNum)); break;
+        case N_INT:  ICG_LoadConst(returnExprNode.value.num, 0); break;
     }
+    ICG_Return();
 }
 
 

@@ -574,11 +574,6 @@ void ICG_Return() {
     IL_AddInstrN(RTS, ADDR_NONE, 0);
 }
 
-void ICG_ReturnVar(const SymbolRecord *varSym) {
-    ICG_LoadVar(varSym);
-    IL_AddInstrN(RTS, ADDR_NONE, 0);
-}
-
 
 //----------------------------------------
 //  Handle inline assembly
