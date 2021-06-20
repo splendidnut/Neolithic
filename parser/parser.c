@@ -896,6 +896,21 @@ ListNode parse_enum() {
 
 ListNode parse_structOrUnion();     // Forward Declaration
 
+void unwarpNodeList(List *nodeList, ListNode *node) {
+    if ((*node).type != N_EMPTY) {
+        // process compound stmt - mainly for multiple vars declared on a single line (comma separated list)
+        if (isListNode((*node))) {
+            List *subStmtList = (*node).value.list;
+            for (int cnt=0; cnt<subStmtList->count; cnt++) {
+                addNode(nodeList, subStmtList->nodes[cnt]);
+            }
+        } else {
+            // add normal node to program (for most cases)
+            addNode(nodeList, (*node));
+        }
+    }
+}
+
 ListNode parse_struct_vars() {
     List *varList = createList(STRUCT_VAR_LIMIT);
     ListNode node;
@@ -909,7 +924,9 @@ ListNode parse_struct_vars() {
         } else {
             node = parse_variable();
         }
-        addNode(varList, node);
+
+        unwarpNodeList(varList, &node);
+
         if (peekToken()->tokenStr[0] == ';') accept(";");
     }
     return createListNode(varList);
@@ -1199,18 +1216,8 @@ ListNode parse_program(char *sourceCode) {
         // eat the semicolons, they are optional
         if (peekToken()->tokenStr[0] == ';') accept(";");
 
-        if (node.type != N_EMPTY) {
-            // process compound stmt - mainly for multiple vars declared on a single line (comma separated list)
-            if (isListNode(node)) {
-                List *subStmtList = node.value.list;
-                for (int cnt=0; cnt<subStmtList->count; cnt++) {
-                    addNode(prog, subStmtList->nodes[cnt]);
-                }
-            } else {
-                // add normal node to program (for most cases)
-                addNode(prog, node);
-            }
-        }
+        // process compound stmt - mainly for multiple vars declared on a single line (comma separated list)
+        unwarpNodeList(prog, &node);
     }
     free(tokenStr);
 
