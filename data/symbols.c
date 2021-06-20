@@ -153,10 +153,14 @@ int calcVarSize(const SymbolRecord *varSymRec) {// calculate allocation size
     bool isPtr = (varSymRec->flags & MF_POINTER);
     bool isUserDefined = (varSymRec->userTypeDef != NULL);
     bool isArray = (varSymRec->flags & MF_ARRAY);
+    bool isStruct = (varSymRec->kind == SK_STRUCT);
 
-    if (isUserDefined && !isPtr) varSize = calcVarSize(varSymRec->userTypeDef);
+    // if user defined type (non-pointer var), look up size of type
+    if (isUserDefined && !isPtr) {
+        varSize = calcVarSize(varSymRec->userTypeDef);
+    }
 
-    if (isArray) varSize = varSymRec->numElements;
+    if (isArray || isStruct) varSize = varSymRec->numElements;
 
     if ((varSymRec->flags & ST_MASK) == ST_INT || isPtr) varSize = varSize * 2;
     return varSize;
