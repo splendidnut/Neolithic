@@ -193,17 +193,36 @@ ListNode parse_primary_expr(bool isLValue, bool isExprAllowed, int allowNestedEx
     TokenType exprType = token->tokenType;
     char *tokenStr = token->tokenStr;
 
+    //  eat/handle unary +/- tokens
+    bool isNegative = false;
+    if ((exprType == TT_SYMBOL) && (inCharset(token, "+-"))) {
+        if (tokenStr[0] == '-') isNegative = true;
+
+        token = getToken();
+        exprType = token->tokenType;
+        tokenStr = token->tokenStr;
+    }
+
     switch(exprType) {
         case TT_NUMBER:      /* numeric const */
             if (!isLValue) {
-                node = createIntNode(copyTokenInt(token));
+                int number = copyTokenInt(token);
+                if (isNegative) number = -number;
+                node = createIntNode(number);
             } else {
                 printError("Improper start of statement: \"%s\"... must be an identifier\n", tokenStr);
             }
             break;
         case TT_IDENTIFIER:
             identifier = copyTokenStr(token);
-            node = createStrNode(identifier);
+            if (isNegative) {
+                List *negList = createList(2);
+                addNode(negList, createParseToken(PT_NEGATIVE));
+                addNode(negList, createStrNode(identifier));
+                node = createListNode(negList);
+            } else {
+                node = createStrNode(identifier);
+            }
             break;
         case TT_STRING:
             //node = createListNode(createStrConst());
@@ -215,10 +234,14 @@ ListNode parse_primary_expr(bool isLValue, bool isExprAllowed, int allowNestedEx
                 addNode(list, createParseToken(PT_ADDR_OF));
                 addNode(list, parse_primary_expr(isLValue, isExprAllowed, allowNestedExpr));
                 node = createListNode(list);
-            } else if ((tokenStr[0] == '-') && (peekToken()->tokenType == TT_NUMBER)) {
-                node = createIntNode(-copyTokenInt(getToken()));
             } else if (isExprAllowed) {
                 node = parse_nested_primary(allowNestedExpr, tokenStr);
+                if (isNegative) {
+                    List *negList = createList(2);
+                    addNode(negList, createParseToken(PT_NEGATIVE));
+                    addNode(negList, node);
+                    node = createListNode(negList);
+                }
             } else {
                 printError("Expression not allowed here");
             }
