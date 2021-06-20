@@ -117,6 +117,7 @@ void WO_OutputInstr(FILE *output, Instr *instr) {
     // append any comments
     if (instr->lineComment != NULL) {
         snprintf(outStr, 120, "\t%-32s\t;-- %s", instrBuf, instr->lineComment);
+        outStr[119] = '\0'; // snprintf doesn't properly terminate buffer when formatted string hits limit
     } else {
         snprintf(outStr, 120, "\t%s", instrBuf);
     }
