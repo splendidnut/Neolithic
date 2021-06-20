@@ -215,6 +215,8 @@ void GC_HandleAddrOfArray(const List *expr, enum SymbolType destType) {
     SymbolRecord *arraySymbol = getArraySymbol(expr, arrayNameNode);
     ListNode indexNode = expr->nodes[2];
 
+    if (arraySymbol == NULL) return;
+
     int addr = arraySymbol->location;
 
     switch (indexNode.type) {
