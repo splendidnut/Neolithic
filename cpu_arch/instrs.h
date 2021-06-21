@@ -50,6 +50,7 @@ extern void ICG_Negate();
 extern void ICG_PreOp(enum MnemonicCode preOp);
 extern void ICG_OpWithConst(enum MnemonicCode mne, int num);
 extern void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym);
+extern void ICG_OpWithAddr(enum MnemonicCode mne, int addr);
 extern void ICG_OpWithStack(enum MnemonicCode mne);
 extern void ICG_MoveIndexToAcc(const char srcReg);
 extern void ICG_MoveAccToIndex(const char destReg);

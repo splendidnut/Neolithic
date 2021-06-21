@@ -300,6 +300,44 @@ int GC_LookupArrayOfs(const List *expr) {
 }
 
 
+int GC_GetPropertyRefOfs(const List *expr) {
+    char *structName = expr->nodes[1].value.str;
+    char *propName = expr->nodes[2].value.str;
+
+    // setup line comment for property references
+    // TODO: Maybe add a property reference labeling system for easier to read ASM code?
+
+    if (expr->nodes[1].type == N_STR && expr->nodes[2].type == N_STR) {
+        char *propRefStr = malloc(40);
+        //printf("Two Labels\n");
+        sprintf(propRefStr, "%s.%s", expr->nodes[1].value.str, expr->nodes[2].value.str);
+        IL_SetLineComment(propRefStr);
+    }
+
+    SymbolRecord *structSymbol = findSymbol(mainSymbolTable, structName);
+    int ofs = -1;
+    if (isStructDefined(structSymbol)) {
+        ofs = structSymbol->location;
+        SymbolRecord *propertySymbol = findSymbol(getStructSymbolSet(structSymbol), propName);
+
+        if (propertySymbol != NULL) {
+            ofs = structSymbol->location + propertySymbol->location;
+        } else {
+            ErrorMessage("Missing property: ", propName, expr->lineNum);
+        }
+    } else {
+        ErrorMessage("Missing structure:", structName, expr->lineNum);
+    }
+    return ofs;
+}
+
+
+void GC_LoadPropertyRefOfs(const List *expr, enum SymbolType destType) {
+    int ofs = GC_GetPropertyRefOfs(expr);
+    ICG_LoadFromAddr(ofs);
+}
+
+
 //-------------------------------------------------------------------------
 //---  Core of Expression Operators
 //-------------------------------------------------------------------------
@@ -320,6 +358,12 @@ void GC_SimpleOP(const List *expr, enum MnemonicCode mne, enum SymbolType destTy
         default:
             ErrorMessageWithList("Invalid SimpleOp arg: ", expr);
     }
+}
+
+bool isSimplePropertyRef(ListNode arg2) {
+    return (arg2.type == N_LIST)
+               && isToken(arg2.value.list->nodes[0], PT_PROPERTY_REF)
+               && (arg2.value.list->hasNestedList == false);
 }
 
 void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, enum MnemonicCode preOp) {
@@ -351,49 +395,16 @@ void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, en
         } else {
             ErrorMessage("Unknown argument to op", arg2.value.str, expr->lineNum);
         }
+    } else if (isSimplePropertyRef(arg2)) {
+        int ofs = GC_GetPropertyRefOfs(arg2.value.list);
+        ICG_PreOp(preOp);
+        ICG_OpWithAddr(mne, ofs);
     } else if (arg2.type == N_LIST) {
         ICG_PushAcc();
         GC_Expression(arg2.value.list, destType);
         ICG_PreOp(preOp);
         ICG_OpWithStack(mne);
     }
-}
-
-int GC_GetPropertyRefOfs(const List *expr) {
-    char *structName = expr->nodes[1].value.str;
-    char *propName = expr->nodes[2].value.str;
-
-    SymbolRecord *structSymbol = findSymbol(mainSymbolTable, structName);
-    int ofs = -1;
-    if (isStructDefined(structSymbol)) {
-        ofs = structSymbol->location;
-        SymbolRecord *propertySymbol = findSymbol(getStructSymbolSet(structSymbol), propName);
-
-        if (propertySymbol != NULL) {
-            ofs = structSymbol->location + propertySymbol->location;
-        } else {
-            ErrorMessage("Missing property: ", propName, expr->lineNum);
-        }
-    } else {
-        ErrorMessage("Missing structure:", structName, expr->lineNum);
-    }
-    return ofs;
-}
-
-// TODO: Maybe add a property reference labeling system for easier to read ASM code?
-void GC_LoadPropertyRefOfs(const List *expr, enum SymbolType destType) {
-    /*printf("\nGC_LoadPropertyRefOfs: ");
-    showList(stdout, expr, 0);
-    printf("\n");*/
-
-    if (expr->nodes[1].type == N_STR && expr->nodes[2].type == N_STR) {
-        char *propRefStr = malloc(40);
-        //printf("Two Labels\n");
-        sprintf(propRefStr, "%s.%s", expr->nodes[1].value.str, expr->nodes[2].value.str);
-        IL_SetLineComment(propRefStr);
-    }
-    int ofs = GC_GetPropertyRefOfs(expr);
-    ICG_LoadFromAddr(ofs);
 }
 
 

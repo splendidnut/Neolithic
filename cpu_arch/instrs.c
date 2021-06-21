@@ -453,6 +453,10 @@ void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym) {
     //IL_ClearOnUpdate(varName);
 }
 
+void ICG_OpWithAddr(enum MnemonicCode mne, int addr) {
+    IL_AddInstrN(mne, CALC_ADDR_MODE(addr), addr);
+}
+
 void ICG_OpWithStack(enum MnemonicCode mne) {
     // Do Operation with Accumulator and value from stack
     IL_AddInstrN(TSX, ADDR_NONE, 0);
