@@ -471,12 +471,19 @@ void GC_ShiftRight(const List *expr, enum SymbolType destType) {
 
 void GC_IncStmt(const List *stmt, enum SymbolType destType) {
     if (stmt->nodes[1].type == N_LIST) {
+        int ofs;
         List *expr = stmt->nodes[1].value.list;
-        if (expr->nodes[0].value.parseToken == PT_LOOKUP) {
-            int ofs = GC_LookupArrayOfs(expr);
-            ICG_IncUsingAddr(ofs, 1);
-        } else {
-            ErrorMessageWithList("Invalid increment statement", stmt);
+        switch (expr->nodes[0].value.parseToken) {
+            case PT_LOOKUP:
+                ofs = GC_LookupArrayOfs(expr);
+                ICG_IncUsingAddr(ofs, 1);
+                break;
+            case PT_PROPERTY_REF:
+                ofs = GC_GetPropertyRefOfs(expr);
+                ICG_IncUsingAddr(ofs, 1);
+                break;
+            default:
+                ErrorMessageWithList("Invalid increment statement", stmt);
         }
     } else if (stmt->nodes[1].type == N_STR) {
         GC_Inc(stmt, destType);
@@ -485,12 +492,19 @@ void GC_IncStmt(const List *stmt, enum SymbolType destType) {
 
 void GC_DecStmt(const List *stmt, enum SymbolType destType) {
     if (stmt->nodes[1].type == N_LIST) {
+        int ofs;
         List *expr = stmt->nodes[1].value.list;
-        if (expr->nodes[0].value.parseToken == PT_LOOKUP) {
-            int ofs = GC_LookupArrayOfs(expr);
-            ICG_DecUsingAddr(ofs, 1);
-        } else {
-            ErrorMessageWithList("Invalid decrement statement", stmt);
+        switch (expr->nodes[0].value.parseToken) {
+            case PT_LOOKUP:
+                ofs = GC_LookupArrayOfs(expr);
+                ICG_DecUsingAddr(ofs, 1);
+                break;
+            case PT_PROPERTY_REF:
+                ofs = GC_GetPropertyRefOfs(expr);
+                ICG_DecUsingAddr(ofs, 1);
+                break;
+            default:
+                ErrorMessageWithList("Invalid decrement statement", stmt);
         }
     } else if (stmt->nodes[1].type == N_STR) {
         GC_Dec(stmt, destType);
