@@ -69,7 +69,6 @@ SymbolRecord * GS_Variable(List *varDef, SymbolTable *symbolTable, bool isLocal)
         }
 
         if (userTypeSymbol != NULL) {
-            printf("User defined type: %s\n", baseType);
             if (isStruct(userTypeSymbol)) {
                 symbolType = ST_STRUCT;
                 childTable = userTypeSymbol->funcExt->paramSymbolSet;
