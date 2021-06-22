@@ -1409,6 +1409,39 @@ void GC_Statement(List *stmt) {
 //-----------------------------------------------------------------------
 //  High level structure items
 
+ListNode PreProcess_Node(ListNode initExpr, int lineNum) {
+    int value;
+    ListNode resultNode;
+    resultNode.type = N_EMPTY;
+    switch (initExpr.type) {
+
+        case N_LIST: {                //---  Attempt to evaluate the expression
+            EvalResult result = evaluate_expression(initExpr.value.list);
+            if (result.hasResult) {
+                value = result.value;
+                printf("Eval result: %d\n", value);
+            } else {
+                ErrorMessageWithList("Initializer value cannot be evaluated", initExpr.value.list);
+                value = 0;
+            }
+            resultNode = createIntNode(value & 0xffff);
+        } break;
+
+        case  N_STR: {
+            SymbolRecord *symbolRecord = lookupSymbolNode(initExpr, lineNum);
+            if (symbolRecord && symbolRecord->hasValue) {
+                value = symbolRecord->constValue;
+            } else {
+                value = 0;
+            }
+            resultNode = createIntNode(value & 0xffff);
+        } break;
+
+        default: break;
+    }
+    return resultNode;
+}
+
 /**
  * Preprocess Initializer Data List in preparation for code generation
  *
@@ -1416,48 +1449,48 @@ void GC_Statement(List *stmt) {
  *
  * @param initList
  */
-void Preprocess_InitData(const List* varDef, List *initList) {
-    int value, index=1;
+void Preprocess_InitListData(const List* varDef, List *initList) {
+    int index=1;
     if (initList == NULL) {
         ErrorMessageWithList("Initializer invalid", varDef);
         return;
     }
     while (index < initList->count) {
         ListNode initExpr = initList->nodes[index];
-        switch (initExpr.type) {
-
-            case N_LIST: {                //---  Attempt to evaluate the expression
-                EvalResult result = evaluate_expression(initExpr.value.list);
-                if (result.hasResult) {
-                    value = result.value;
-                } else {
-                    ErrorMessageWithList("Initializer value cannot be evaluated", initExpr.value.list);
-                    value = 0;
-                }
-
-                // replace node
-                //printf("EvalInitList: %4X (calculated)\n",value);
-                initList->nodes[index] = createIntNode(value & 0xffff);
-            } break;
-
-            case N_INT:
-                value = initExpr.value.num;     // -- NOT NECESSARY...
-                //printf("EvalInitList: %4X (int)\n",value);
-                break;
-
-            case  N_STR: {
-                SymbolRecord *symbolRecord = lookupSymbolNode(initExpr, initList->lineNum);
-                if (symbolRecord && symbolRecord->hasValue) {
-                    value = symbolRecord->constValue;
-                } else {
-                    value = 0;
-                }
-                //printf("EvalInitList: %d (calculated)\n",value);
-                initList->nodes[index] = createIntNode(value & 0xffff);
-            } break;
+        ListNode processedNode = PreProcess_Node(initExpr, initList->lineNum);
+        if (processedNode.type != N_EMPTY) {
+            initList->nodes[index] = processedNode;
         }
         index++;
     }
+}
+
+ListNode Preprocess_InitData(const List *varDef, ListNode nestedNode) {
+    ListNode processedNode;
+    processedNode.type = N_EMPTY;
+
+    switch (nestedNode.type) {
+        case N_LIST: {
+            List *nestedValueList = nestedNode.value.list;
+            if (isToken(nestedValueList->nodes[0], PT_LIST)) {
+                Preprocess_InitListData(varDef, nestedValueList);
+            } else {
+                processedNode = PreProcess_Node(nestedNode, nestedValueList->lineNum);
+            }
+        } break;
+        case N_STR: {
+            int value;
+            SymbolRecord *constSym = lookupSymbolNode(nestedNode, varDef->lineNum);
+            if (constSym && constSym->hasValue) {
+                value = constSym->constValue;
+            } else {
+                value = 0;
+            }
+            processedNode = createIntNode(value & 0xffff);
+        } break;
+        default: break;
+    }
+    return processedNode;
 }
 
 /**
@@ -1487,12 +1520,14 @@ void GC_Variable(const List *varDef) {
                         isToken(initValueList->nodes[0], PT_LIST)) {
                     // need to loop over lists
                     for (int nestedCnt = 1; nestedCnt < initValueList->count; nestedCnt++) {
-                        List *nestedValueList = initValueList->nodes[nestedCnt].value.list;
-                        Preprocess_InitData(varDef, nestedValueList);
+                        ListNode processedNode = Preprocess_InitData(varDef, initValueList->nodes[nestedCnt]);
+                        if (processedNode.type != N_EMPTY) {
+                            initValueList->nodes[nestedCnt] = processedNode;
+                        }
                     }
                 } else {
                     // need to evaluate each list value first
-                    Preprocess_InitData(varDef, initValueList);
+                    Preprocess_InitListData(varDef, initValueList);
                 }
 
                 OutputBlock *staticData = OB_AddData(varSymRec, varName, valueNode.value.list);
