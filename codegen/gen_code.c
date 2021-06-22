@@ -1419,7 +1419,6 @@ ListNode PreProcess_Node(ListNode initExpr, int lineNum) {
             EvalResult result = evaluate_expression(initExpr.value.list);
             if (result.hasResult) {
                 value = result.value;
-                printf("Eval result: %d\n", value);
             } else {
                 ErrorMessageWithList("Initializer value cannot be evaluated", initExpr.value.list);
                 value = 0;
@@ -1432,6 +1431,7 @@ ListNode PreProcess_Node(ListNode initExpr, int lineNum) {
             if (symbolRecord && symbolRecord->hasValue) {
                 value = symbolRecord->constValue;
             } else {
+                ErrorMessageWithNode("Initializer value cannot be evaluated", initExpr, lineNum);
                 value = 0;
             }
             resultNode = createIntNode(value & 0xffff);
