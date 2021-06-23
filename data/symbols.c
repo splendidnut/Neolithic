@@ -147,6 +147,12 @@ void setStructSize(SymbolRecord *symbol, int unionSize) {
     symbol->numElements = unionSize;
 }
 
+void markFunctionUsed(SymbolRecord *funcSymbol) {
+    if (funcSymbol && funcSymbol->funcExt) {
+        funcSymbol->funcExt->cntUses++;
+    }
+}
+
 int calcVarSize(const SymbolRecord *varSymRec) {// calculate allocation size
     int varSize = 1;
 
@@ -173,8 +179,11 @@ int getBaseVarSize(const SymbolRecord *varSymRec) {
 }
 
 int getCodeSize(const SymbolRecord *funcSymRec) {
-    bool isFunc = isFunction(funcSymRec) && (funcSymRec->funcExt != NULL);
-    return isFunc ? funcSymRec->funcExt->instrBlock->codeSize : 0;
+    if (funcSymRec->funcExt == NULL) return 0;
+
+    bool isFunc = isFunction(funcSymRec);
+    bool isCodeUsed = (funcSymRec->funcExt->cntUses > 0);
+    return (isFunc && isCodeUsed) ? funcSymRec->funcExt->instrBlock->codeSize : 0;
 }
 
 void addSymbolLocation(SymbolRecord *symbolRecord, int location) {
@@ -190,6 +199,8 @@ void addSymbolExt(SymbolRecord *funcSym, SymbolTable *paramTbl, SymbolTable *loc
     funcExt->localSymbolSet = localSymTbl;
     funcExt->isInlined = false;
     funcExt->inlinedCode = NULL;
+    funcExt->cntUses = 0;
+
     funcSym->funcExt = funcExt;
 }
 
@@ -245,6 +256,10 @@ bool isStruct(const SymbolRecord *symbol) {
 
 bool isUnion(const SymbolRecord *symbol) {
     return (symbol->kind == SK_UNION);
+}
+
+bool isMainFunction(const SymbolRecord *symbol) {
+    return (strcmp(symbol->name, "main")==0);
 }
 
 

@@ -23,7 +23,7 @@ static SymbolTable *mainSymTable;
 //
 //   {"SOURCE_FUNC", "DEST_FUNC"}
 
-void GCT_FindFuncCalls(char* srcFuncName, List *stmt) {
+void GCT_FindFuncCalls(List *stmt, SymbolRecord *srcFunc) {
     // [if, expr, codeblock, codeblock]
     // [funcCall, name, params]
 
@@ -33,33 +33,33 @@ void GCT_FindFuncCalls(char* srcFuncName, List *stmt) {
 #ifdef DEBUG_CALL_TREE
         printf("\tFound Call: %s\n", destFuncName);
 #endif
-        FM_addCallToMap(srcFuncName, destFuncName);
+        SymbolRecord *destFuncSym = findSymbol(mainSymTable, destFuncName);
+        FM_addCallToMap(srcFunc, destFuncSym);
     }
 }
 
-void GCT_WalkCodeNodes(char *funcName, List *code) {
-    GCT_FindFuncCalls(funcName, code);
+void GCT_WalkCodeNodes(List *code, SymbolRecord *funcSym) {
+    GCT_FindFuncCalls(code, funcSym);
 
     if (code->hasNestedList) {
 
         // walk into any other nodes
-        //for (int codeNodeNum = 1; codeNodeNum < code->count; codeNodeNum++) {
         for_range(codeNodeNum, 1, code->count) {
             if (code->nodes[codeNodeNum].type == N_LIST)
-                GCT_WalkCodeNodes(funcName, code->nodes[codeNodeNum].value.list);
+                GCT_WalkCodeNodes(code->nodes[codeNodeNum].value.list, funcSym);
         }
     }
 }
 
 
-void GCT_CodeBlock(char *funcName, List *code) {
+void GCT_CodeBlock(List *code, SymbolRecord *funcSym) {
     if (code->count < 1) return;     // Exit if empty function
 
     if (!isToken(code->nodes[0], PT_ASM)) {
         for_range(stmtNum, 1, code->count) {
             ListNode stmtNode = code->nodes[stmtNum];
             if (stmtNode.type == N_LIST) {
-                GCT_WalkCodeNodes(funcName, stmtNode.value.list);
+                GCT_WalkCodeNodes(stmtNode.value.list, funcSym);
             }
         }
     }
@@ -75,9 +75,8 @@ void GCT_Function(List *statement, int codeNodeIndex) {
             printf("Processing function: %s\n", funcName);
 #endif
             SymbolRecord *funcSym = findSymbol(mainSymTable, funcName);
-            List *code = codeNode.value.list;
-            FM_addFunctionDef(funcName, funcSym);
-            GCT_CodeBlock(funcName, code);
+            FM_addFunctionDef(funcSym);
+            GCT_CodeBlock(codeNode.value.list, funcSym);
         }
     }
 }

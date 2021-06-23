@@ -1610,9 +1610,15 @@ void GC_Function(const List *function, int codeNodeIndex) {
     if (function->count >= codeNodeIndex) {
         ListNode codeNode = function->nodes[codeNodeIndex];
         if (codeNode.type == N_LIST) {
-            printf("Processing function: %s\n", funcName);
-            List *code = codeNode.value.list;
-            GC_ProcessFunction(funcName, code);
+
+            SymbolRecord *funcSym = findSymbol(mainSymbolTable, funcName);
+            if (!isMainFunction(funcSym) && (funcSym->funcExt->cntUses == 0)) {
+                printf("Skipping unused function %s\n", funcName);
+            } else {
+                printf("Processing function: %s\n", funcName);
+                List *code = codeNode.value.list;
+                GC_ProcessFunction(funcName, code);
+            }
         } else {
             printf("Processing function definition: %s\n", funcName);
         }

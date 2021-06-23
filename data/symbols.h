@@ -162,6 +162,7 @@ extern SymbolTable *initSymbolTable(bool isGlobalTable);
 extern SymbolRecord * addSymbol(SymbolTable *, char *name, enum SymbolKind kind, enum SymbolType type, unsigned int flags);
 extern void setSymbolArraySize(SymbolRecord *symbol, int arraySize);
 extern void setStructSize(SymbolRecord *symbol, int unionSize);
+extern void markFunctionUsed(SymbolRecord *funcSymbol);
 extern int calcVarSize(const SymbolRecord *varSymRec);
 extern int getBaseVarSize(const SymbolRecord *varSymRec);
 extern void addSymbolLocation(SymbolRecord *symbolRecord, int location);
@@ -176,6 +177,7 @@ extern bool isPointer(const SymbolRecord *symbol);
 extern bool isArray(const SymbolRecord *symbol);
 extern bool isStruct(const SymbolRecord *symbol);
 extern bool isUnion(const SymbolRecord *symbol);
+extern bool isMainFunction(const SymbolRecord *symbol);
 
 extern enum SymbolType getType(const SymbolRecord *symbol);
 extern void addSymbolExt(SymbolRecord *funcSym, SymbolTable *paramTbl, SymbolTable *localSymTbl);

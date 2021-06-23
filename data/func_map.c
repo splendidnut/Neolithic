@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+
 #include "func_map.h"
-#include "symbols.h"
 
 static FuncCallMapEntry *firstFuncCallEntry;
 static FuncCallMapEntry *curFuncCallEntry;
@@ -34,26 +34,29 @@ FuncCallMapEntry * FM_addNewFunc(char *srcName) {
         curFuncCallEntry->next = newFuncCallEntry;
     }
     curFuncCallEntry = newFuncCallEntry;
+
+    return newFuncCallEntry;
 }
 
 void FM_addFuncCall(FuncCallMapEntry *mapEntry, char *destName) {
     mapEntry->dstFuncName[mapEntry->cntFuncsCalled++] = destName;
 }
 
-void FM_addCallToMap(char *srcName, char *destName) {
-    FuncCallMapEntry *funcCallMapEntry = FM_findFunction(srcName);
+void FM_addCallToMap(SymbolRecord *srcFuncSym, SymbolRecord *dstFuncSym) {
+    FuncCallMapEntry *funcCallMapEntry = FM_findFunction(srcFuncSym->name);
 
     if (funcCallMapEntry == NULL) {
-        FM_addNewFunc(srcName);
+        FM_addNewFunc(srcFuncSym->name);
         funcCallMapEntry = curFuncCallEntry;
     }
-    FM_addFuncCall(funcCallMapEntry, destName);
+    markFunctionUsed(dstFuncSym);
+    FM_addFuncCall(funcCallMapEntry, dstFuncSym->name);
 }
 
-void FM_addFunctionDef(char *name, SymbolRecord *funcSym) {
-    FuncCallMapEntry *funcCallMapEntry = FM_findFunction(name);
+void FM_addFunctionDef(SymbolRecord *funcSym) {
+    FuncCallMapEntry *funcCallMapEntry = FM_findFunction(funcSym->name);
     if (funcCallMapEntry == NULL) {
-        funcCallMapEntry = FM_addNewFunc(name);
+        funcCallMapEntry = FM_addNewFunc(funcSym->name);
         funcCallMapEntry->funcSym = funcSym;
     }
 }
@@ -106,7 +109,11 @@ void FM_printChainNode(FuncCallMapEntry *funcMapEntry, int depth) {
 void FM_printNormalCallTree() {
     FuncCallMapEntry *funcMapEntry = firstFuncCallEntry;
     while (funcMapEntry != NULL) {
-        printf(" * %s (depth %d):\n", funcMapEntry->srcFuncName, funcMapEntry->deepestSpotCalled);
+        SymbolRecord *funcSym = funcMapEntry->funcSym;
+        printf(" * %s (depth %d, used %d):\n",
+               funcMapEntry->srcFuncName,
+               funcMapEntry->deepestSpotCalled,
+               funcSym->funcExt->cntUses);
 
         int cntDestFunc;
         for (cntDestFunc = 0; cntDestFunc<funcMapEntry->cntFuncsCalled; cntDestFunc++) {
