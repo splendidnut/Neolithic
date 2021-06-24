@@ -580,7 +580,7 @@ ListNode parse_expr_assignment() {
 
     // check if assignment OR just a definition or function call
     bool isBasicAsgnEqual = inCharset(peekToken(), "=");
-    bool isAsgnOpEqual = isAddSubAsgn(peekToken()->tokenType);
+    bool isAsgnOpEqual = isOpAsgn(peekToken()->tokenType);
 
     if (isBasicAsgnEqual || isAsgnOpEqual) {
 
@@ -610,6 +610,12 @@ ListNode parse_expr_assignment() {
                     break;
                 case TT_SUB_FROM:
                     addNode(innerList, createParseToken(PT_SUB));
+                    break;
+                case TT_AND_WITH:
+                    addNode(innerList, createParseToken(PT_BIT_AND));
+                    break;
+                case TT_OR_WITH:
+                    addNode(innerList, createParseToken(PT_BIT_OR));
                     break;
                 default:
                     addNode(innerList, opNode);

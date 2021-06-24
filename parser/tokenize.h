@@ -67,8 +67,8 @@ typedef enum TokenType {
     TT_MINUS,
 
     // double symbols:      (2 groups)
-    //    == != <= >= += -=   all end in equal char
-    //    >> << && || ++ --   both chars are the same
+    //    == != <= >= += -= &= |=   all end in equal char
+    //    >> << && || ++ --         both chars are the same
 
     TT_EQUAL,
     TT_NOT_EQUAL,
@@ -76,6 +76,8 @@ typedef enum TokenType {
     TT_LESS_EQUAL,
     TT_ADD_TO,
     TT_SUB_FROM,
+    TT_AND_WITH,
+    TT_OR_WITH,
     TT_SHIFT_RIGHT,
     TT_SHIFT_LEFT,
     TT_BOOL_AND,
@@ -139,7 +141,7 @@ extern bool isTypeToken(TokenObject *token);
 extern bool isIdentifier(TokenObject *token);
 
 extern bool isEquality(enum TokenType symType);
-extern bool isAddSubAsgn(enum TokenType symType);
+extern bool isOpAsgn(enum TokenType symType);
 extern bool isShift(enum TokenType symType);
 extern bool isBoolAndOr(enum TokenType symType);
 extern bool isIncDec(enum TokenType symType);

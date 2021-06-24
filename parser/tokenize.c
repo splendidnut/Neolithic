@@ -392,8 +392,11 @@ bool isEquality(TokenType symType) {
             (symType == TT_GREATER_EQUAL) ||
             (symType == TT_LESS_EQUAL));
 }
-bool isAddSubAsgn(enum TokenType symType) {
-    return ((symType == TT_ADD_TO) || (symType == TT_SUB_FROM));
+bool isOpAsgn(enum TokenType symType) {
+    return ((symType == TT_ADD_TO) ||
+            (symType == TT_SUB_FROM) ||
+            (symType == TT_OR_WITH) ||
+            (symType == TT_AND_WITH));
 }
 
 bool isShift(enum TokenType symType) {
@@ -483,7 +486,7 @@ void trimWhitespaceAndComments() {
 TokenType getDoubleSymbolTokenType(char *token, char firstChar, int tokenEnd) {
     TokenType tokenType = TT_SYMBOL;
     char secondChar = tokenStr[tokenIndex];
-    if ((secondChar == '=') && charInCharset(firstChar, "=!<>+-")) {
+    if ((secondChar == '=') && charInCharset(firstChar, "=!<>+-&|")) {
         token[tokenEnd] = secondChar;
         switch(firstChar) {
             case '=': tokenType = TT_EQUAL; break;
@@ -492,6 +495,8 @@ TokenType getDoubleSymbolTokenType(char *token, char firstChar, int tokenEnd) {
             case '>': tokenType = TT_GREATER_EQUAL; break;
             case '+': tokenType = TT_ADD_TO; break;
             case '-': tokenType = TT_SUB_FROM; break;
+            case '&': tokenType = TT_AND_WITH; break;
+            case '|': tokenType = TT_OR_WITH; break;
         }
     } else if ((firstChar == secondChar) && charInCharset(firstChar,"><&|+-")) {
         token[tokenEnd] = secondChar;
