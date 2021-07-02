@@ -40,7 +40,7 @@ extern void ICG_AdjustStack(int ofs);
 
 extern void ICG_StoreToAddr(int ofs, int size);
 extern void ICG_StoreVarOffset(const SymbolRecord *varSym, int ofs);
-extern void ICG_StoreVarIndexed(const SymbolRecord *varSym, int size);
+extern void ICG_StoreVarIndexed(const SymbolRecord *varSym);
 extern void ICG_StoreVarSym(const SymbolRecord *varSym);
 
 extern void ICG_Branch(enum MnemonicCode mne, const Label *label);

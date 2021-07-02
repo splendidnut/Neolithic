@@ -53,6 +53,7 @@ SymbolRecord *lookupSymbolNode(const ListNode symbolNode, int lineNum) {
     return symRec;
 }
 
+// TODO: This method could use some more cleanup.
 SymbolRecord* getArraySymbol(const List *expr, ListNode arrayNode) {
     SymbolRecord *arraySymbol = NULL;
     switch (arrayNode.type) {
@@ -69,11 +70,9 @@ SymbolRecord* getArraySymbol(const List *expr, ListNode arrayNode) {
             return NULL;
     }
 
-    if (arraySymbol == NULL) {
-        return NULL;
-    } else if (!isArray(arraySymbol) && !isPointer(arraySymbol)) {
+    if ((arraySymbol != NULL) && (!isArray(arraySymbol) && !isPointer(arraySymbol))) {
         ErrorMessageWithNode("Not an array or pointer", arrayNode, expr->lineNum);
-        return NULL;
+        arraySymbol = NULL;
     }
     return arraySymbol;
 }
@@ -108,21 +107,18 @@ void GC_LoadParamVar(ListNode loadNode, const char *varName, int lineNum) {
 
 void GC_LoadPrimitive(ListNode loadNode, enum SymbolType destType, int lineNum) {
     int destSize = (destType == ST_INT) ? 2 : 1;
-    switch (loadNode.type) {
-        case N_STR: {
-            char *varName = loadNode.value.str;
-            if (isParam(varName)) {
-                GC_LoadParamVar(loadNode, varName, lineNum);
-            } else {
-                SymbolRecord *varRec = lookupSymbolNode(loadNode, lineNum);
-                if (varRec != NULL) ICG_LoadVar(varRec);
-            }
-        } break;
-        case N_INT:
-            ICG_LoadConst(loadNode.value.num, destSize);
-            break;
-        default:
-            ErrorMessageWithList("Error loading primitive", wrapNode(loadNode));
+    if (loadNode.type == N_STR) {
+        char *varName = loadNode.value.str;
+        if (isParam(varName)) {
+            GC_LoadParamVar(loadNode, varName, lineNum);
+        } else {
+            SymbolRecord *varRec = lookupSymbolNode(loadNode, lineNum);
+            if (varRec != NULL) ICG_LoadVar(varRec);
+        }
+    } else if (loadNode.type == N_INT) {
+        ICG_LoadConst(loadNode.value.num, destSize);
+    } else {
+        ErrorMessageWithList("Error loading primitive", wrapNode(loadNode));
     }
 }
 
@@ -631,6 +627,9 @@ void GC_CompareOp(const List *expr, enum SymbolType destType) {
 
 void GC_MultiplyOp(const List *expr, enum SymbolType destType) {
     SymbolRecord *varSym = lookupSymbolNode(expr->nodes[1], expr->lineNum);
+
+    if (varSym == NULL) return;
+
     if (expr->nodes[2].type == N_INT) {
         ICG_MultiplyWithConst(varSym, expr->nodes[2].value.num);
     } else if (expr->nodes[2].type == N_STR) {
@@ -732,14 +731,12 @@ void GC_ExpressionForStore(const List *expr, enum SymbolType destType) {
                 break;
             case PT_LOOKUP: {
                 SymbolRecord *varSymRec = lookupSymbolNode(expr->nodes[1], expr->lineNum);
-                int varSize = getBaseVarSize(varSymRec);
+                IL_SetLineComment(varSymRec->name);
 
                 int ofs = GC_LookupArrayOfs(expr);
                 if (ofs == -1000) { // means that index has already been loaded
-                    IL_SetLineComment(varSymRec->name);
-                    ICG_StoreVarIndexed(varSymRec, varSize);
+                    ICG_StoreVarIndexed(varSymRec);
                 } else {
-                    IL_SetLineComment(varSymRec->name);
                     ICG_StoreVarOffset(varSymRec, ofs - varSymRec->location);
                 }
             } break;

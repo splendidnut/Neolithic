@@ -390,10 +390,10 @@ void ICG_StoreVarOffset(const SymbolRecord *varSym, int ofs) {
     IL_AddInstrS(STA, addrMode, varName, numToStr(ofs), paramExt + PARAM_ADD);
 }
 
-void ICG_StoreVarIndexed(const SymbolRecord *varSym, int size) {
+void ICG_StoreVarIndexed(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);
     IL_AddInstrS(STA, ADDR_ABY, varName, NULL, PARAM_NORMAL);
-    if (size == 2) {
+    if (getBaseVarSize(varSym) == 2) {
         enum AddrModes addrMode = (varSym->location < 0x100 ? ADDR_ZPY : ADDR_ABY);
         enum ParamExt paramExt = (addrMode == ADDR_ZPY ? PARAM_LO : PARAM_NORMAL);
         IL_AddInstrS(STX, addrMode, varName, "1", PARAM_ADD + paramExt);
