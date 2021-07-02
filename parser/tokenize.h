@@ -18,9 +18,33 @@ typedef enum TokenType {
     TT_SYMBOL,
     TT_STRING,
     TT_IDENTIFIER,
+    TT_BUILTIN,
+
+    // -- single symbols
+    TT_HASH         = '#',
+    TT_AMPERSAND    = '&',
+    TT_OPEN_PAREN   = '(',
+    TT_CLOSE_PAREN  = ')',
+    TT_MULTIPLY     = '*',
+    TT_PLUS         = '+',
+    TT_COMMA        = ',',
+    TT_MINUS        = '-',
+    TT_PERIOD       = '.',
+    TT_DIVIDE       = '/',
+    TT_COLON        = ':',
+    TT_SEMICOLON    = ';',
+    TT_LESS_THAN    = '<',
+    TT_ASSIGN       = '=',
+    TT_GREATER_THAN = '>',
+    TT_QUESTION     = '?',
+    TT_AT_SIGN      = '@',
+    TT_OPEN_BRACKET = '[',
+    TT_CLOSE_BRACKET= ']',
+    TT_OPEN_BRACE   = '{',
+    TT_CLOSE_BRACE  = '}',
 
     // --- reserved words
-    TT_ASM,
+    TT_ASM = 256,
     TT_BOOLEAN,
     TT_BREAK,
     TT_BYTE,
@@ -89,27 +113,13 @@ typedef enum { TF_NONE, TF_OP, TF_MODIFIER, TF_TYPE } TokenFlags;
 
 
 /**
- * TokenSymbol struct -
- *
- * object from a static data table providing more specific information
- * about the token that was captured
- *
- */
-typedef struct TokenSymbolStruct {
-    char *symbol;
-    enum TokenType tokenType;
-    TokenFlags tokenFlags;
-} TokenSymbol;
-
-/**
  * TokenObject struct - base object used by the tokenizer to provide the user with a token
  */
-typedef struct TokenObjectStruct {
-    int tokenPos;
+typedef struct {
+    char tokenStr[TOKEN_LENGTH_LIMIT];
     enum TokenType tokenType;
-    TokenSymbol *tokenSymbol;
-    //enum ParseToken token;
-	char tokenStr[TOKEN_LENGTH_LIMIT];
+    TokenFlags tokenFlags;
+    int tokenPos;
 } TokenObject;
 
 /*-----------------------------------------
@@ -119,8 +129,7 @@ typedef struct TokenObjectStruct {
 extern void initTokenizer(char *);
 extern int getProgLineNum(void);
 extern SourceCodeLine getProgramLineString();
-extern TokenSymbol * findTokenSymbol(char *tokenName);
-extern const char *lookupTokenSymbol(TokenObject *token);
+extern const char *lookupTokenSymbol(TokenType tokenType);
 extern bool hasToken(void);
 extern bool inCharset(TokenObject *token, const char *charSet);
 extern TokenObject *getToken(void);
@@ -128,6 +137,7 @@ extern TokenObject *peekToken(void);
 extern char * copyTokenStr(TokenObject *token);
 extern int copyTokenInt(TokenObject *token);
 extern void killTokenizer(void);
+extern TokenType getTokenSymbolType(TokenObject *token);
 
 extern bool isModifierToken(TokenObject *token);
 extern bool isTypeToken(TokenObject *token);
