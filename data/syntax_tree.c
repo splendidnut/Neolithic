@@ -112,8 +112,6 @@ List *wrapNode(ListNode node) {
     return wrappedList;
 }
 
-const char OPEN_DELIM = '(';
-const char CLOSE_DELIM = ')';
 
 void showList(FILE *outputFile, const List *list, int indentLevel) {
     ListNode node;
@@ -125,7 +123,7 @@ void showList(FILE *outputFile, const List *list, int indentLevel) {
         for (int i=0; i<indentLevel; i++) fprintf(outputFile,"  ");
     }
 
-    fprintf(outputFile, "%c", OPEN_DELIM);
+    fprintf(outputFile, "(");
     if (list->count > 0) for (index=0; index<list->count; index++) {
         if (index>0) {
             fprintf(outputFile, ", ");
@@ -151,7 +149,7 @@ void showList(FILE *outputFile, const List *list, int indentLevel) {
                 fprintf(outputFile, "%d",node.value.num);
         }
     }
-    fprintf(outputFile, "%c", CLOSE_DELIM);
+    fprintf(outputFile, ")");
 }
 
 void destroyList(List *list) {

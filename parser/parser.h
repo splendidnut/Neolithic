@@ -6,10 +6,12 @@
 #define MODULE_PARSER
 
 #include "data/syntax_tree.h"
+#include "tokenize.h"
 
 extern int parserErrorCount;
 
-extern int accept(const char *testStr);
+extern bool acceptToken(TokenType tokenType);
+extern bool acceptOptionalToken(TokenType tokenType);
 extern void printErrorWithSourceLine(const char* errorMsg);
 extern void printError(const char* fmtErrorMsg, ...);
 

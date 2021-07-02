@@ -76,13 +76,21 @@ void printErrorWithSourceLine(const char* errorMsg) {
     }
 }
 
-int accept(const char *testStr) {
-    char *token = getToken()->tokenStr;
-    bool tokenMatch = (strncmp(token, testStr, TOKEN_LENGTH_LIMIT) == 0);
+
+bool acceptToken(TokenType tokenType) {
+    TokenObject *token = getToken();
+    bool tokenMatch = (token->tokenType == tokenType);
     if (!tokenMatch) {
-        printError("Unexpected token: '%s' -- was looking for: '%s'\n", token, testStr);
+        const char *tokenStr = lookupTokenSymbol(tokenType);
+        printError("Unexpected token: '%s' -- was looking for: '%s'\n", token->tokenStr, tokenStr);
     }
     return tokenMatch;
+}
+
+bool acceptOptionalToken(TokenType tokenType) {
+    bool foundToken = (peekToken()->tokenType == tokenType);
+    if (foundToken) getToken();
+    return foundToken;
 }
 
 /*------------------------
@@ -101,18 +109,19 @@ ListNode parse_identifier() {
     return node;
 }
 
-bool isClosingListToken(char tokenChar) {
-    return (tokenChar == '}' || tokenChar == ']');
+bool isClosingListToken(TokenObject *token) {
+    TokenType tokenType = token->tokenType;
+    return ((tokenType == TT_CLOSE_BRACE) || (tokenType == TT_CLOSE_BRACKET));
 }
 
 ListNode parse_list() {
     List *items = createList(257);
     addNode(items, createParseToken(PT_LIST));
 
-    while (!isClosingListToken(peekToken()->tokenStr[0])) {
+    while (!isClosingListToken(peekToken())) {
         ListNode node = parse_expr();
         addNode(items, node);
-        if (peekToken()->tokenStr[0] == ',') accept(",");
+        acceptOptionalToken(TT_COMMA);
     }
     getToken(); // -- eat closing token
     return createListNode(items);
@@ -122,11 +131,11 @@ ListNode parse_cast_op() {
     List *castingList = createList(10);
 
     // capture all casting tokens
-    while (peekToken()->tokenStr[0] != ')') {
+    while (peekToken()->tokenType != TT_CLOSE_PAREN) {
         char *castToken = copyTokenStr(getToken());
         addNode(castingList, createStrNode(castToken));
     }
-    accept(")");
+    acceptToken(TT_CLOSE_PAREN);
     return createListNode(castingList);
 }
 
@@ -137,10 +146,10 @@ ListNode parse_cast_expr() {
     addNode(castExprList, parse_cast_op());
 
     // if parenthesis follows, parse that expression
-    if (peekToken()->tokenStr[0] == '(') {
-        accept("(");
+    if (peekToken()->tokenType == TT_OPEN_PAREN) {
+        acceptToken(TT_OPEN_PAREN);
         addNode(castExprList, parse_expr());
-        accept(")");
+        acceptToken(TT_CLOSE_PAREN);
     } else {
         addNode(castExprList, parse_expr());
     }
@@ -148,10 +157,10 @@ ListNode parse_cast_expr() {
     return node;
 }
 
-ListNode parse_nested_primary(int allowNestedExpr, const char *tokenStr) {
-    ListNode node;
-    switch (tokenStr[0]) {
-        case '(':
+ListNode parse_nested_primary(int allowNestedExpr, TokenType tokenType) {
+    ListNode node = createEmptyNode();
+    switch (tokenType) {
+        case TT_OPEN_PAREN:
             if (allowNestedExpr) {
                 //printf("found parenthetical expression\n");
                 TokenObject *ptoken = peekToken();
@@ -159,21 +168,18 @@ ListNode parse_nested_primary(int allowNestedExpr, const char *tokenStr) {
                     node = parse_cast_expr();
                 } else {
                     node = parse_expr();
-                    accept(")");
+                    acceptToken(TT_CLOSE_PAREN);
                 }
             } else {
                 printError("nested expression not allowed here\n");
-                node = createEmptyNode();
             }
             break;
-        case '[':
-        case '{':
+        case TT_OPEN_BRACKET:
+        case TT_OPEN_BRACE:
             // found list
             node = parse_list();
             break;
-        default:
-            printError("Invalid symbol: %s,  expected primitive\n", tokenStr);
-            node = createEmptyNode();
+        default: break;
     }
     return node;
 }
@@ -195,8 +201,8 @@ ListNode parse_primary_expr(bool isLValue, bool isExprAllowed, int allowNestedEx
 
     //  eat/handle unary +/- tokens
     bool isNegative = false;
-    if ((exprType == TT_SYMBOL) && (inCharset(token, "+-"))) {
-        if (tokenStr[0] == '-') isNegative = true;
+    if ((exprType == TT_MINUS) || (exprType == TT_PLUS)) {
+        isNegative = (exprType == TT_MINUS);
 
         token = getToken();
         exprType = token->tokenType;
@@ -228,14 +234,20 @@ ListNode parse_primary_expr(bool isLValue, bool isExprAllowed, int allowNestedEx
             //node = createListNode(createStrConst());
             printError("found string const: %s\n", tokenStr);
             break;
-        case TT_SYMBOL:
-            if (tokenStr[0] == '&') {
+        case TT_AMPERSAND:
+            if (!isLValue) {
                 List *list = createList(2);
                 addNode(list, createParseToken(PT_ADDR_OF));
                 addNode(list, parse_primary_expr(isLValue, isExprAllowed, allowNestedExpr));
                 node = createListNode(list);
-            } else if (isExprAllowed) {
-                node = parse_nested_primary(allowNestedExpr, tokenStr);
+            } else {
+                printError("Cannot use '&' on left side of assignment expression: %s\n", tokenStr);
+            }
+            break;
+        case TT_OPEN_PAREN:
+        case TT_OPEN_BRACE:
+            if (isExprAllowed) {
+                node = parse_nested_primary(allowNestedExpr, exprType);
                 if (isNegative) {
                     List *negList = createList(2);
                     addNode(negList, createParseToken(PT_NEGATIVE));
@@ -254,12 +266,12 @@ ListNode parse_primary_expr(bool isLValue, bool isExprAllowed, int allowNestedEx
 }
 
 ListNode parse_arguments() {
-    if (!(inCharset(peekToken(), ")"))) {
+    if (peekToken()->tokenType != TT_CLOSE_PAREN) {
         List *list = createList(20);
         addNode(list, parse_expr());
 
-        while (inCharset(peekToken(), ",")) {
-            accept(",");
+        while (peekToken()->tokenType == TT_COMMA) {
+            acceptToken(TT_COMMA);
             addNode(list, parse_expr());
         }
         return createListNode(list);
@@ -288,20 +300,20 @@ ListNode parse_expr_postfix(bool isLValue, int allowNestedExpr) {
         // handle right node depending on which path we're taking;
         switch (tokenChar) {
             case '[':
-                if (!inCharset(peekToken(), "]")) {
+                if (peekToken()->tokenType != TT_CLOSE_BRACKET) {
                     rnode = parse_expr();
-                    accept("]");
+                    acceptToken(TT_CLOSE_BRACKET);
                     opNode = createParseToken(PT_LOOKUP);
                 } else {
                     // TODO: this is only useful for var definitions
-                    accept("]");
+                    acceptToken(TT_CLOSE_BRACKET);
                     opNode = createParseToken(PT_ARRAY);
                     rnode = createEmptyNode();
                 }
                 break;
             case '(':
                 rnode = parse_arguments();
-                accept(")");
+                acceptToken(TT_CLOSE_PAREN);
                 opNode = createParseToken(PT_FUNC_CALL);
                 break;
             case '.':
@@ -385,14 +397,15 @@ ListNode parse_expr_conditonal(void) {}  //  x ? y : z
 ListNode parse_expr_mulDiv() {  // * /
     ListNode lnode, rnode, opNode;
     List *list;
-    char tokenChar;
 
     lnode = parse_expr_unary();
     while (inCharset(peekToken(), "*/")) {
-        tokenChar = getToken()->tokenStr[0];
-        if (tokenChar == '*') opNode = createParseToken(PT_MULTIPLY);
-        else if (tokenChar == '/') opNode = createParseToken(PT_DIVIDE);
-        else opNode = createCharNode(tokenChar);
+        TokenType tokenType = getToken()->tokenType;
+        switch (tokenType) {
+            case TT_MULTIPLY: opNode = createParseToken(PT_MULTIPLY); break;
+            case TT_DIVIDE:   opNode = createParseToken(PT_DIVIDE);   break;
+            default: opNode = createEmptyNode();
+        }
         rnode = parse_expr_unary();
 
         list = createList(3);
@@ -410,14 +423,20 @@ ListNode parse_expr_mulDiv() {  // * /
 ListNode parse_expr_addSub() { // + -
     ListNode lnode, rnode, opNode;
     List *list;
-    char tokenChar;
 
     lnode = parse_expr_mulDiv();
     while (inCharset(peekToken(), "+-")) {
-        tokenChar = getToken()->tokenStr[0];
-        if (tokenChar == '+') opNode = createParseToken(PT_ADD);
-        else if (tokenChar == '-') opNode = createParseToken(PT_SUB);
-        else opNode = createCharNode(tokenChar);
+        TokenType tokenType = getToken()->tokenType;
+        switch (tokenType) {
+            case TT_PLUS:
+                opNode = createParseToken(PT_ADD);
+                break;
+            case TT_MINUS:
+                opNode = createParseToken(PT_SUB);
+                break;
+            default:
+                opNode = createEmptyNode();
+        }
         rnode = parse_expr_mulDiv();
 
         list = createList(3);
@@ -524,7 +543,7 @@ ListNode parse_expr_logical() { // && ||
             case TT_BOOL_AND: opNode = createParseToken(PT_BOOL_AND); break;
             case TT_BOOL_OR:  opNode = createParseToken(PT_BOOL_OR); break;
             default:
-                opNode = createStrNode(lookupTokenSymbol(token));
+                opNode = createStrNode(lookupTokenSymbol(token->tokenType));
         }
         rnode = parse_expr_comparison();
 
@@ -545,11 +564,11 @@ ListNode parse_expr_conditonal() {  //  x ? y : z
     List *list;
 
     lnode = parse_expr_logical();
-    if (inCharset(peekToken(), "?")) {
-        accept("?");
+    if (peekToken()->tokenType == TT_QUESTION) {
+        acceptToken(TT_QUESTION);
         opNode = createStrNode("ifExpr");
         mnode = parse_expr_logical();
-        accept(":");
+        acceptToken(TT_COLON);
         rnode = parse_expr();
 
         list = createList(4);
@@ -572,14 +591,13 @@ ListNode parse_expr() {
 }
 
 ListNode parse_expr_assignment() {
-    TokenType specialAsgnType;
     ListNode lnode, rnode, opNode;
     List *list;
 
     lnode = parse_expr_postfix(true, 0);  // parse lvalue
 
     // check if assignment OR just a definition or function call
-    bool isBasicAsgnEqual = inCharset(peekToken(), "=");
+    bool isBasicAsgnEqual = (peekToken()->tokenType == TT_ASSIGN);
     bool isAsgnOpEqual = isOpAsgn(peekToken()->tokenType);
 
     if (isBasicAsgnEqual || isAsgnOpEqual) {
@@ -587,39 +605,32 @@ ListNode parse_expr_assignment() {
         list = createList(3);
 
         if (isBasicAsgnEqual) {
-            accept("=");
+            acceptToken(TT_ASSIGN);
             opNode = createParseToken(PT_SET);
-            specialAsgnType = TT_EQUAL;
         } else {
             //--- Handle special assignment:  += -=
-            //--- need to save the tokenType since token buffer will get overwritten
-            //---   when rnode is processed
-
-            TokenObject *asgnToken = getToken();
-            specialAsgnType = asgnToken->tokenType;
-            opNode = createStrNode(lookupTokenSymbol(asgnToken));
+            switch (getToken()->tokenType) {
+                case TT_ADD_TO:
+                    opNode = createParseToken(PT_ADD);
+                    break;
+                case TT_SUB_FROM:
+                    opNode = createParseToken(PT_SUB);
+                    break;
+                case TT_AND_WITH:
+                    opNode = createParseToken(PT_BIT_AND);
+                    break;
+                case TT_OR_WITH:
+                    opNode = createParseToken(PT_BIT_OR);
+                    break;
+                default: break;
+            }
         }
         rnode = parse_expr();
 
         /* for add_to/sub_from, need to build sub expression*/
         if (isAsgnOpEqual) {
             List *innerList = createList(3);
-            switch (specialAsgnType) {
-                case TT_ADD_TO:
-                    addNode(innerList, createParseToken(PT_ADD));
-                    break;
-                case TT_SUB_FROM:
-                    addNode(innerList, createParseToken(PT_SUB));
-                    break;
-                case TT_AND_WITH:
-                    addNode(innerList, createParseToken(PT_BIT_AND));
-                    break;
-                case TT_OR_WITH:
-                    addNode(innerList, createParseToken(PT_BIT_OR));
-                    break;
-                default:
-                    addNode(innerList, opNode);
-            }
+            addNode(innerList, opNode);
             addNode(innerList, lnode);
             addNode(innerList, rnode);
             rnode = createListNode(innerList);
@@ -633,14 +644,10 @@ ListNode parse_expr_assignment() {
     return lnode;
 }
 
-bool isVarAsgnNext() {
-    return inCharset(peekToken(), "=");
-}
-
 ListNode parse_var_assignment() {
     List *list = createList(3);
 
-    accept("=");
+    acceptToken(TT_ASSIGN);
     addNode(list, createParseToken(PT_INIT));
     addNode(list, parse_expr());
     return createListNode(list);
@@ -665,9 +672,9 @@ ListNode parse_func_parameters(void);
 
 ListNode parse_array_node() {
     ListNode arrayNode = createEmptyNode();
-    if (inCharset(peekToken(), "[")) {
-        accept("[");
-        if (!inCharset(peekToken(), "]")) {
+    if (peekToken()->tokenType == TT_OPEN_BRACKET) {
+        acceptToken(TT_OPEN_BRACKET);
+        if (peekToken()->tokenType != TT_CLOSE_BRACKET) {
             TokenObject *token = getToken();
             if (token->tokenType == TT_NUMBER) {
                 int arraySize = copyTokenInt(token);
@@ -678,7 +685,7 @@ ListNode parse_array_node() {
         } else {
             arrayNode = createParseToken(PT_ARRAY);
         }
-        accept("]");
+        acceptToken(TT_CLOSE_BRACKET);
     }
     return arrayNode;
 }
@@ -692,17 +699,11 @@ ListNode parse_var_node(const char *baseType, const List *modList, const char *r
     addNode(typeList, createStrNode(baseType));
 
     // handle memory hint
-    int memAddr = 0;
-    bool hasMemHint = false;
-    if (inCharset(peekToken(), "@")) {
-        accept("@");
-        memAddr = copyTokenInt(getToken());
-        hasMemHint = true;
-    }
+    bool hasMemHint = acceptOptionalToken(TT_AT_SIGN);
+    int memAddr = hasMemHint ? copyTokenInt(getToken()) : 0;
 
     // handle pointer reference
-    if (inCharset(peekToken(), "*")) {
-        accept("*");
+    if (acceptOptionalToken(TT_MULTIPLY)) {
         addNode(typeList, createParseToken(PT_PTR));
     }
 
@@ -724,7 +725,7 @@ ListNode parse_var_node(const char *baseType, const List *modList, const char *r
     }
 
     // handle function declarator
-    if (peekToken()->tokenStr[0] == '(') {
+    if (peekToken()->tokenType == TT_OPEN_PAREN) {
         paramNode = parse_func_parameters();
         isFunctionDef = true;
     } else {
@@ -732,7 +733,7 @@ ListNode parse_var_node(const char *baseType, const List *modList, const char *r
     }
 
     // handle initializer
-    asgnNode = (isVarAsgnNext() ? parse_var_assignment() : createEmptyNode());
+    asgnNode = ((peekToken()->tokenType == TT_ASSIGN) ? parse_var_assignment() : createEmptyNode());
 
     // build a variable node
     //list = createList(6);
@@ -746,8 +747,7 @@ ListNode parse_var_node(const char *baseType, const List *modList, const char *r
         addNode(list, createIntNode(memAddr));
     }
 
-    if (isFunctionDef && (peekToken()->tokenStr[0] == '{'
-                            || (strncmp(peekToken()->tokenStr, "asm", 3) == 0)) ) {
+    if (isFunctionDef && (peekToken()->tokenType == TT_OPEN_BRACE || peekToken()->tokenType == TT_ASM)) {
         addNode(list, parse_codeBlock());
     }
 
@@ -761,7 +761,7 @@ List *parse_mod_list() {// Process all modifiers
         // create a copy of each modifier and stick it in the list
         TokenObject *modToken = getToken();
         enum ParseToken parseToken = PT_EMPTY;
-        switch (findTokenSymbol(modToken->tokenStr)->tokenType) {
+        switch (modToken->tokenType) {
             case TT_CONST:    parseToken = PT_CONST;    break;
             case TT_ZEROPAGE: parseToken = PT_ZEROPAGE; break;
             case TT_SIGNED:   parseToken = PT_SIGNED;   break;
@@ -787,16 +787,13 @@ ListNode parse_variable(void) {
     ListNode varNode = parse_var_node(baseType, modList, NULL);
 
     //----- at this point, we can have multiple parameters separated by commas
-    if (inCharset(peekToken(), ",")) {
+    if (peekToken()->tokenType == TT_COMMA) {
         List *varList = createList(20);
         addNode(varList, varNode);
-        do {
-            accept(",");
-
+        while (acceptOptionalToken(TT_COMMA)) {
             varNode = parse_var_node(baseType, modList, NULL);
             addNode(varList, varNode);
-
-        } while (inCharset(peekToken(), ","));
+        }
         return createListNode(varList);
     } else {
         return varNode;
@@ -810,9 +807,8 @@ ListNode parse_parameter() {
 
         char *baseType = copyTokenStr(getToken());
         char *regHint = NULL;
-        if (peekToken()->tokenStr[0] == '@') {
+        if (acceptOptionalToken(TT_AT_SIGN)) {
             // it's a register hint
-            accept("@");
             regHint = copyTokenStr(getToken());
         }
         return parse_var_node(baseType, modList, regHint);
@@ -827,8 +823,7 @@ ListNode parse_parameters() {
     addNode(list, createParseToken(PT_PARAMLIST));
     addNode(list, parse_parameter());
 
-    while (inCharset(peekToken(), ",")) {
-        accept(",");
+    while (acceptOptionalToken(TT_COMMA)) {
         addNode(list, parse_parameter());
     }
 
@@ -837,16 +832,16 @@ ListNode parse_parameters() {
 
 ListNode parse_func_parameters(void) {
     ListNode funcParams;
-    accept("(");
-    char *tokenStr = peekToken()->tokenStr;
-    bool isVoid = (strncmp(tokenStr, "void", 4) == 0);
-    if (!isVoid && tokenStr[0] != ')') {
+    acceptToken(TT_OPEN_PAREN);
+    TokenType tokenType = peekToken()->tokenType;
+    bool isVoid = (tokenType == TT_VOID);
+    if (!isVoid && (tokenType != TT_CLOSE_PAREN)) {
         funcParams = parse_parameters();
     } else {
-        if (isVoid) accept("void");
+        if (isVoid) acceptToken(TT_VOID);
         funcParams = createEmptyNode();
     }
-    accept(")");
+    acceptToken(TT_CLOSE_PAREN);
     return funcParams;
 }
 
@@ -858,21 +853,20 @@ ListNode parse_func_parameters(void) {
 ListNode parse_enum() {
     int currentEnumValue = 0;           // set initial enum value
     List *enumList = createList(260);
-    accept("enum");
+    acceptToken(TT_ENUM);
     addNode(enumList, createParseToken(PT_ENUM));
 
     char *enumName = copyTokenStr(getToken());
     addNode(enumList, createStrNode(enumName));  // enum name
     TypeList_add(enumName);
 
-    accept("{");
-    while (!inCharset(peekToken(), "}")) {
+    acceptToken(TT_OPEN_BRACE);
+    while (peekToken()->tokenType != TT_CLOSE_BRACE) {
         List *enumNode = createList(2);
         char *valueName = copyTokenStr(getToken());
 
         // did user set enumeration value?
-        if (peekToken()->tokenStr[0] == '=') {
-            accept("=");
+        if (acceptOptionalToken(TT_ASSIGN)) {
             currentEnumValue = copyTokenInt(getToken());
         }
 
@@ -882,9 +876,9 @@ ListNode parse_enum() {
         addNode(enumList, createListNode(enumNode));
         currentEnumValue++;
 
-        if (peekToken()->tokenStr[0] == ',') accept(",");
+        acceptOptionalToken(TT_COMMA);
     }
-    accept("}");
+    acceptToken(TT_CLOSE_BRACE);
     return createListNode(enumList);
 }
 
@@ -923,9 +917,9 @@ ListNode parse_struct_vars() {
 
     addNode(varList, createParseToken(PT_VARS));
 
-    while (!inCharset(peekToken(), "}")) {
-        char *token = peekToken()->tokenStr;
-        if ((strcmp(token, "struct") == 0) || (strcmp(token, "union") == 0)) {
+    while (peekToken()->tokenType != TT_CLOSE_BRACE) {
+        TokenObject *token = peekToken();
+        if ((token->tokenType == TT_STRUCT) || (token->tokenType == TT_UNION)) {
             node = parse_structOrUnion();
         } else {
             node = parse_variable();
@@ -933,7 +927,7 @@ ListNode parse_struct_vars() {
 
         unwarpNodeList(varList, &node);
 
-        if (peekToken()->tokenStr[0] == ';') accept(";");
+        acceptOptionalToken(TT_SEMICOLON);
     }
     return createListNode(varList);
 }
@@ -944,16 +938,16 @@ ListNode parse_structOrUnion(enum ParseToken typeToken) {
     getToken(); //-- eat typeToken
     addNode(structBase, createParseToken(typeToken));
 
-    if (peekToken()->tokenStr[0] != '{') {
+    if (peekToken()->tokenType != TT_OPEN_BRACE) {
         char *typeName = copyTokenStr(getToken());
         TypeList_add(typeName);
         addNode(structBase, createStrNode(typeName));
     } else {
         addNode(structBase, createEmptyNode()); // struct/union has no tag name
     }
-    accept("{");
+    acceptToken(TT_OPEN_BRACE);
     addNode(structBase, parse_struct_vars());
-    accept("}");
+    acceptToken(TT_CLOSE_BRACE);
     return createListNode(structBase);
 }
 
@@ -974,60 +968,53 @@ ListNode parse_structOrUnion(enum ParseToken typeToken) {
 
 //-------------------------------------------
 // for ( initStmt; condExpr; incStmt )
-// for ( type varName in expr )
 ListNode parse_stmt_for() {
     List *forStmt = createList(5);
-    accept("for");
+    acceptToken(TT_FOR);
+    acceptToken(TT_OPEN_PAREN);
+
     addNode(forStmt, createParseToken(PT_FOR));
 
-    if (!accept("(")) return createEmptyNode();
+    addNode(forStmt, parse_expr_assignment());
+    acceptToken(TT_SEMICOLON);
+    addNode(forStmt, parse_expr_logical());
+    acceptToken(TT_SEMICOLON);
+    addNode(forStmt, parse_expr_assignment());
 
-    if (!(inCharset(peekToken(),";)"))) {
-        addNode(forStmt, parse_expr_assignment());
-    } else {
-        addNode(forStmt, createEmptyNode());
-    }
-    if (!accept(";")) return createEmptyNode();
-
-    if (!(inCharset(peekToken(),";)"))) {
-        // parse loop comparison
-        addNode(forStmt, parse_expr_logical());
-    } else {
-        addNode(forStmt, createEmptyNode());
-    }
-    if (!accept(";")) return createEmptyNode();
-
-    if (!(inCharset(peekToken(),")"))) {
-        // parse looped expression
-        addNode(forStmt, parse_expr_assignment());
-    } else {
-        addNode(forStmt, createEmptyNode());
-    }
-    accept(")");
+    acceptToken(TT_CLOSE_PAREN);
     addNode(forStmt, parse_codeBlock());
     return createListNode(forStmt);
 }
 
+/*
+ListNode parse_stmt_loop() {
+    List *loopNode = createList(5);
+    acceptToken(TT_FOR);
+    acceptToken(TT_OPEN_PAREN);
+
+    addNode(loopNode, createParseToken(PT_FOR));
+}*/
+
 ListNode parse_stmt_while() {
     List *whileStmt = createList(3);
-    accept("while");
+    acceptToken(TT_WHILE);
     addNode(whileStmt, createParseToken(PT_WHILE));
-    accept("(");
+    acceptToken(TT_OPEN_PAREN);
     addNode(whileStmt, parse_expr_logical());
-    accept(")");
+    acceptToken(TT_CLOSE_PAREN);
     addNode(whileStmt, parse_codeBlock());
     return createListNode(whileStmt);
 }
 
 ListNode parse_stmt_do() {
     List *doStmt = createList(3);
-    accept("do");
+    acceptToken(TT_DO);
     addNode(doStmt, createParseToken(PT_DOWHILE));
     addNode(doStmt, parse_codeBlock());
-    accept("while");
-    accept("(");
+    acceptToken(TT_WHILE);
+    acceptToken(TT_OPEN_PAREN);
     addNode(doStmt, parse_expr_logical());
-    accept(")");
+    acceptToken(TT_CLOSE_PAREN);
     return createListNode(doStmt);
 }
 
@@ -1037,25 +1024,25 @@ ListNode parse_stmt_do() {
 //    [switch, [expr], [case, value, [code]], [case, value, [code]], ..., [default, [code]] ]
 ListNode parse_stmt_switch() {
     List *switchStmt = createList(20);
-    accept("switch");
+    acceptToken(TT_SWITCH);
     addNode(switchStmt, createParseToken(PT_SWITCH));
-    accept("(");
+    acceptToken(TT_OPEN_PAREN);
     addNode(switchStmt, parse_expr());
-    accept(")");
-    accept("{");
+    acceptToken(TT_CLOSE_PAREN);
+    acceptToken(TT_OPEN_BRACE);
     bool switchError = false;
-    while ((peekToken()->tokenStr[0] != '}') && !switchError) {
+    while ((peekToken()->tokenType != TT_CLOSE_BRACE) && !switchError) {
         List *caseStmt = createList(3);
-        if (strcmp(peekToken()->tokenStr, "case") == 0) {
-            accept("case");
+        if (peekToken()->tokenType == TT_CASE) {
+            acceptToken(TT_CASE);
             addNode(caseStmt, createParseToken(PT_CASE));
             addNode(caseStmt, parse_primary_expr(false, false, false));
-            accept(":");
+            acceptToken(TT_COLON);
             addNode(caseStmt, parse_codeBlock());
-        } else if (strcmp(peekToken()->tokenStr, "default") == 0) {
-            accept("default");
+        } else if (peekToken()->tokenType == TT_DEFAULT) {
+            acceptToken(TT_DEFAULT);
             addNode(caseStmt, createParseToken(PT_DEFAULT));
-            accept(":");
+            acceptToken(TT_COLON);
             addNode(caseStmt, parse_codeBlock());
         } else switchError = true;
         addNode(switchStmt, createListNode(caseStmt));
@@ -1063,21 +1050,21 @@ ListNode parse_stmt_switch() {
     if (switchError) {
         printError("Error parsing switch statement");
     }
-    accept("}");
+    acceptToken(TT_CLOSE_BRACE);
     return createListNode(switchStmt);
 }
 
 
 ListNode parse_stmt_if() {
     List *ifStmt = createList(4);
-    accept("if");
+    acceptToken(TT_IF);
     addNode(ifStmt, createParseToken(PT_IF));
-    accept("(");
+    acceptToken(TT_OPEN_PAREN);
     addNode(ifStmt, parse_expr_logical());
-    accept(")");
+    acceptToken(TT_CLOSE_PAREN);
     addNode(ifStmt, parse_codeBlock());
-    if (!strncmp(peekToken()->tokenStr, "else", 4)) {
-        accept("else");
+    if (peekToken()->tokenType == TT_ELSE) {
+        acceptToken(TT_ELSE);
         addNode(ifStmt, parse_codeBlock());
     }
     return createListNode(ifStmt);
@@ -1085,7 +1072,7 @@ ListNode parse_stmt_if() {
 
 ListNode parse_stmt_return() {
     List *retStmt = createList(2);
-    accept("return");
+    acceptToken(TT_RETURN);
     addNode(retStmt, createParseToken(PT_RETURN));
     addNode(retStmt, parse_expr());
     return createListNode(retStmt);
@@ -1093,7 +1080,7 @@ ListNode parse_stmt_return() {
 
 ListNode parse_strobe() {
     List *strobeStmt = createList(2);
-    accept("strobe");
+    acceptToken(TT_STROBE);
     addNode(strobeStmt, createParseToken(PT_STROBE));
     addNode(strobeStmt, parse_expr());
     return createListNode(strobeStmt);
@@ -1103,7 +1090,7 @@ ListNode parse_stmt() {
     ListNode node = createEmptyNode();
     TokenObject *token = peekToken();
 
-    switch (token->tokenSymbol->tokenType) {
+    switch (getTokenSymbolType(token)) {
         case TT_FOR:    node = parse_stmt_for(); break;
         case TT_ASM:    node = parse_asmBlock(); break;
         case TT_DO:     node = parse_stmt_do();  break;
@@ -1116,12 +1103,12 @@ ListNode parse_stmt() {
             if (isTypeToken(token) || isModifierToken(token)) {
                 // handle var list/initialization
                 node = parse_variable();
-            } else if (!(inCharset(token, ";"))) {
+            } else if (token->tokenType != TT_SEMICOLON) {
                 // handle an expression/assignment statement
                 node = parse_expr_assignment();
             }
     }
-    if (peekToken()->tokenStr[0] == ';') accept(";");
+    acceptOptionalToken(TT_SEMICOLON);
     return node;
 }
 
@@ -1129,8 +1116,8 @@ ListNode parse_stmt_block(void) {
     List *list = createList(300);   // TODO: need to make list auto expand!!!
     addNode(list, createParseToken(PT_CODE));
 
-    accept("{");
-    while (hasToken() && !(inCharset(peekToken(), "}"))) {
+    acceptToken(TT_OPEN_BRACE);
+    while (hasToken() && (peekToken()->tokenType != TT_CLOSE_BRACE)) {
         bool canAdd = true;
 
         ListNode codeNode = parse_stmt();
@@ -1147,18 +1134,19 @@ ListNode parse_stmt_block(void) {
         }
         if (!canAdd) {
             printError("Too many statements in current block");
-            while (peekToken()->tokenStr[0] != '}') getToken();
+            while (peekToken()->tokenType != TT_CLOSE_BRACE) getToken();
         }
     }
-    accept("}");
+    acceptToken(TT_CLOSE_BRACE);
 
     return createListNode(list);
 }
 
 ListNode parse_codeBlock() {
-    if (strncmp(peekToken()->tokenStr, "asm", 3) == 0) {
+    TokenObject *token = peekToken();
+    if (token->tokenType == TT_ASM) {
         return parse_asmBlock();
-    } else if (inCharset(peekToken(), "{")) {
+    } else if (token->tokenType == TT_OPEN_BRACE) {
         return parse_stmt_block();
     } else {
         List *list = createList(2);
@@ -1195,7 +1183,7 @@ ListNode parse_program(char *sourceCode) {
             strncpy(tokenStr, token->tokenStr, 99);
         }
 
-        switch (token->tokenSymbol->tokenType) {
+        switch (getTokenSymbolType(token)) {
             case TT_ENUM:     node = parse_enum(); break;
             case TT_STRUCT:   node = parse_structOrUnion(PT_STRUCT); break;
             case TT_UNION:    node = parse_structOrUnion(PT_UNION); break;
@@ -1211,16 +1199,16 @@ ListNode parse_program(char *sourceCode) {
                     }
                 } else {
                     // handle case where no token came back: blank line/comments
-                    if (tokenStr[0] != '\0' && tokenStr[0] != '\r' && tokenStr[0] != '\n') {  // ignore null strings
+                    //if (tokenStr[0] != '\0' && tokenStr[0] != '\r' && tokenStr[0] != '\n') {  // ignore null strings
                         printError("Warning: bad token: %s %d\n", tokenStr, tokenStr[0]);
-                    }
+                    //}
                     getToken();
                     node = createEmptyNode();
                 }
         }
 
         // eat the semicolons, they are optional
-        if (peekToken()->tokenStr[0] == ';') accept(";");
+        acceptOptionalToken(TT_SEMICOLON);
 
         // process compound stmt - mainly for multiple vars declared on a single line (comma separated list)
         unwarpNodeList(prog, &node);

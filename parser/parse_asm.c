@@ -16,12 +16,10 @@
 
 char* getIndirectAddrMode() {
     char *addrModeStr = "IND";
-    char tokenChar = peekToken()->tokenStr[0];
-    switch (tokenChar) {
-        case ')': {   // handle basic (indirect) or (indirect),y
-            accept(")");
-            if (peekToken()->tokenStr[0] == ',') {
-                accept(",");
+    switch (peekToken()->tokenType) {
+        case TT_CLOSE_PAREN: {   // handle basic (indirect) or (indirect),y
+            acceptToken(TT_CLOSE_PAREN);
+            if (acceptOptionalToken(TT_COMMA)) {
                 char reg = getToken()->tokenStr[0];
                 if (reg == 'y' || reg == 'Y') {
                     addrModeStr = "IY";
@@ -30,16 +28,17 @@ char* getIndirectAddrMode() {
                 }
             }
         } break;
-        case ',': {
-            accept(",");
+        case TT_COMMA: {
+            acceptToken(TT_COMMA);
             char reg = getToken()->tokenStr[0];
             if (!(reg == 'x' || reg == 'X')) {
                 printError("Expected X register for indexed indirect addressing mode");
             } else {
                 addrModeStr = "IX";
             }
-            accept(")");
+            acceptToken(TT_CLOSE_PAREN);
         } break;
+        default:break;
     }
     return addrModeStr;
 }
@@ -47,8 +46,7 @@ char* getIndirectAddrMode() {
 char *getDirectAddrMode(bool forceAbs) {
     char *addrModeStr;
     addrModeStr = forceAbs ? "ABS" : "ZP";
-    if (inCharset(peekToken(), ",")) {
-        accept(",");
+    if (acceptOptionalToken(TT_COMMA)) {
         if (inCharset(peekToken(), "XYxy")) {
             char reg = getToken()->tokenStr[0];
             if (reg == 'x' || reg == 'X') {
@@ -78,7 +76,7 @@ ListNode parse_asm_instr(enum MnemonicCode instrCode) {
     addNode(asmInstr, createStrNode(Mnemonics[instrCode].name));
 
     /*** EXIT if assembly block has ended */
-    if (inCharset(peekToken(), "}")) return createListNode(asmInstr);
+    if (peekToken()->tokenType == TT_CLOSE_BRACE) return createListNode(asmInstr);
 
     /*** EXIT if we've hit next assembly instruction */
     if (lookupMnemonic(peekToken()->tokenStr) != MNE_NONE) return createListNode(asmInstr);
@@ -88,8 +86,7 @@ ListNode parse_asm_instr(enum MnemonicCode instrCode) {
 
     // process any mnemonic extensions
     bool forceAbs = false;
-    if (peekToken()->tokenStr[0] == '.') {
-        accept(".");
+    if (acceptOptionalToken(TT_PERIOD)) {
         char *mneExt = getToken()->tokenStr;
         switch (mneExt[0]) {
             case 'w': forceAbs = true; break;
@@ -101,17 +98,17 @@ ListNode parse_asm_instr(enum MnemonicCode instrCode) {
     ListNode paramNode;
     switch (peekToken()->tokenStr[0]) {
         case '#':                   // handle Immediate op
-            accept("#");
+            acceptToken(TT_HASH);
             addrModeStr = "IMM";
             paramNode = parse_expr();
             break;
         case '(':                   // handle Indirect op
-            accept("(");
+            acceptToken(TT_OPEN_PAREN);
             paramNode = parse_expr();
             addrModeStr = getIndirectAddrMode();
             break;
         case '<':
-            accept("<");
+            acceptToken(TT_LESS_THAN);
             // TODO: this should force zeropage mode (currently unnecessary since that's the default)
         default: {
             //param = copyTokenStr(getToken());
@@ -158,19 +155,19 @@ ListNode parse_pseudo_op(char *opName) {
 
 ListNode parse_asmBlock() {
     List *list = createList(200);
-    accept("asm");
+    acceptToken(TT_ASM);
     addNode(list, createParseToken(PT_ASM));
 
     // get name of asm block (causes it to create a macro)
-    if (peekToken()->tokenStr[0] != '{') {
+    if (peekToken()->tokenType != TT_OPEN_BRACE) {
         addNode(list, createStrNode(getToken()->tokenStr));
     } else {
         addNode(list, createEmptyNode());
     }
 
     // read asm block
-    accept("{");
-    while (peekToken()->tokenStr[0] != '}') {
+    acceptToken(TT_OPEN_BRACE);
+    while (peekToken()->tokenType != TT_CLOSE_BRACE) {
         char *piece = copyTokenStr(getToken());
         enum MnemonicCode mnemonicCode = lookupMnemonic(piece);
         if (piece[0] == '.') {
@@ -189,6 +186,6 @@ ListNode parse_asmBlock() {
             }
         }
     }
-    accept("}");
+    acceptToken(TT_CLOSE_BRACE);
     return createListNode(list);
 }

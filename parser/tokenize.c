@@ -25,7 +25,8 @@
 /*------------------------------------------
      Local Variables
 */
-static TokenObject *currentToken;
+static TokenObject *tokenStorage;
+static TokenObject *currentToken;       // either tokenStorage or one of the builtin tokens
 static char *tokenStr;
 static int tokenStrLen;
 static int tokenIndex;
@@ -36,14 +37,33 @@ static char *curProgLine;       // contents of current program line
 static char *progLineStart;     // start in file buffer for current program line
 static int progLineNum;         // line number of current program line
 
-static const TokenSymbol TokenSymbols[] = {
-        {"", TT_NONE, TF_NONE},
+static const TokenObject TokenSymbols[] = {
+        {"",   TT_NONE,         TF_NONE},
 
         // single symbols
-        {"<", TT_LESS_THAN,         TF_OP},
-        {">", TT_GREATER_THAN,      TF_OP},
-        {"+", TT_PLUS,              TF_OP},
-        {"-", TT_MINUS,             TF_OP},
+        {"#",  TT_HASH,         TF_OP},
+        {"&",  TT_AMPERSAND,    TF_OP},
+        {"(",  TT_OPEN_PAREN,   TF_OP},
+        {")",  TT_CLOSE_PAREN,  TF_OP},
+        {"*",  TT_MULTIPLY,     TF_OP},
+        {"+",  TT_PLUS,         TF_OP},
+        {",",  TT_COMMA,        TF_OP},
+        {"-",  TT_MINUS,        TF_OP},
+        {".",  TT_PERIOD,       TF_OP},
+        {"/",  TT_DIVIDE,       TF_OP},
+        {":",  TT_COLON,        TF_OP},
+        {";",  TT_SEMICOLON,    TF_OP},
+        {"<",  TT_LESS_THAN,    TF_OP},
+        {"=",  TT_ASSIGN,       TF_OP},
+        {">",  TT_GREATER_THAN, TF_OP},
+        {"?",  TT_QUESTION,     TF_OP},
+        {"@",  TT_AT_SIGN,      TF_OP},
+
+        // NOTE:  brackets then braces
+        {"[",  TT_OPEN_BRACKET,  TF_OP},
+        {"]",  TT_CLOSE_BRACKET, TF_OP},
+        {"{",  TT_OPEN_BRACE,    TF_OP},
+        {"}",  TT_CLOSE_BRACE,   TF_OP},
 
         // double symbols
         {"==", TT_EQUAL,            TF_OP},
@@ -102,9 +122,8 @@ static const TokenSymbol TokenSymbols[] = {
         {"zeropage",TT_ZEROPAGE,    TF_MODIFIER},
 };
 
-static const int NumTokenSymbols = sizeof(TokenSymbols) / sizeof(TokenSymbol);
+static const int NumTokenSymbols = sizeof(TokenSymbols) / sizeof(TokenObject);
 
-//TokenObject EMPTY_TOKEN = {-1, TT_NONE, 0, ""};
 
 /* ------------------------------------------
  *    Internal Function declarations
@@ -118,20 +137,20 @@ TokenType getDoubleSymbolTokenType(char *token, char firstChar, int tokenEnd);
         Functions
  */
 
-TokenSymbol * findTokenSymbol(char *tokenName) {
+TokenObject * findTokenSymbol(char *tokenName) {
     int index;
     for (index=1; index < NumTokenSymbols; index++) {
-        if (strncmp(tokenName, TokenSymbols[index].symbol, TOKEN_LENGTH_LIMIT) == 0) break;
+        if (strncmp(tokenName, TokenSymbols[index].tokenStr, TOKEN_LENGTH_LIMIT) == 0) break;
     }
     if (index >= NumTokenSymbols) index = 0;
-    return (TokenSymbol *)&TokenSymbols[index];
+    return (TokenObject *)&TokenSymbols[index];
 }
 
-const char *lookupTokenSymbol(TokenObject *token) {
+const char *lookupTokenSymbol(TokenType tokenType) {
     int i=0;
     do {
-        if (TokenSymbols[i].tokenType == token->tokenType)
-            return TokenSymbols[i].symbol;
+        if (TokenSymbols[i].tokenType == tokenType)
+            return TokenSymbols[i].tokenStr;
     } while (++i < NumTokenSymbols);
     return "";
 }
@@ -146,7 +165,8 @@ void initTokenizer(char *theInputStr) {
 	while (tokenStr[tokenStrLen] != '\0') tokenStrLen++;
 
     // alloc memory for currentToken
-	currentToken = (TokenObject *)malloc(TOKEN_LINE_LIMIT);
+	tokenStorage = (TokenObject *)malloc(TOKEN_LINE_LIMIT);
+	currentToken = tokenStorage;
 
 	// alloc memory for currentLine
     curProgLine = (char *)malloc(TOKEN_LINE_LIMIT + 10);        // Need space for Line Number
@@ -164,16 +184,6 @@ int getProgLineNum() {
     return progLineNum;
 }
 
-char* getCurrentProgLine() {
-    int col = 0;
-    while (progLineStart[col] != '\n' && col < (TOKEN_LINE_LIMIT-2)) col++;
-
-    strncpy(curProgLine, progLineStart, col);
-    curProgLine[col] = '\n';
-    curProgLine[col+1] = '\0';
-
-    return curProgLine;
-}
 
 /**
  * Get the current program line for use in the ASM output
@@ -240,10 +250,10 @@ bool inCharset(TokenObject *token, const char *charSet) {
 
 // reset current token
 void resetToken() {
+    currentToken = tokenStorage;
     currentToken->tokenType = TT_NONE;
     currentToken->tokenStr[0] = '\0';
     currentToken->tokenPos = tokenIndex;
-    currentToken->tokenSymbol = (TokenSymbol *)&TokenSymbols[0];
 }
 
 TokenObject *parseToken() {
@@ -313,7 +323,10 @@ TokenObject *parseToken() {
 
     // If we have a token, do a lookup for reserved words
     if (tokenEnd > 0) {
-        currentToken->tokenSymbol = findTokenSymbol(token);
+        TokenObject *foundToken = findTokenSymbol(token);
+        if (foundToken && foundToken->tokenType != TT_NONE) {
+            currentToken = foundToken;
+        }
         isFirstTokenOnLine = false;
     }
     return currentToken;
@@ -336,6 +349,11 @@ TokenObject *peekToken() {
     TokenObject *token = parseToken();
     tokenIndex = savedIndex;
     return token;
+}
+
+
+TokenType getTokenSymbolType(TokenObject *token) {
+    return token->tokenType;
 }
 
 //------------------------------------------------------------------
@@ -373,11 +391,11 @@ int copyTokenInt(TokenObject *token) {
 //  Simple token test/compare functions
 
 bool isModifierToken(TokenObject *token) {
-    return token->tokenSymbol && (token->tokenSymbol->tokenFlags == TF_MODIFIER);
+    return token && (token->tokenFlags == TF_MODIFIER);
 }
 
 bool isTypeToken(TokenObject *token) {
-    return token->tokenSymbol && (token->tokenSymbol->tokenFlags == TF_TYPE);
+    return token && (token->tokenFlags == TF_TYPE);
 }
 
 bool isIdentifier(TokenObject *token) {

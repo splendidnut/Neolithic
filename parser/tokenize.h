@@ -60,12 +60,6 @@ typedef enum TokenType {
     TT_WORD,
     TT_ZEROPAGE,    // 6502 specific
 
-    // -- single symbols
-    TT_LESS_THAN,
-    TT_GREATER_THAN,
-    TT_PLUS,
-    TT_MINUS,
-
     // double symbols:      (2 groups)
     //    == != <= >= += -= &= |=   all end in equal char
     //    >> << && || ++ --         both chars are the same
@@ -124,7 +118,6 @@ typedef struct TokenObjectStruct {
 
 extern void initTokenizer(char *);
 extern int getProgLineNum(void);
-extern char* getCurrentProgLine(void);
 extern SourceCodeLine getProgramLineString();
 extern TokenSymbol * findTokenSymbol(char *tokenName);
 extern const char *lookupTokenSymbol(TokenObject *token);
