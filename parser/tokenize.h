@@ -11,6 +11,7 @@
 #define TOKEN_LENGTH_LIMIT 40
 #define TOKEN_LINE_LIMIT 120
 
+// TODO: Potentially split builtin tokens from tokenType
 typedef enum TokenType {
     //--- very generic token types
     TT_NONE,
