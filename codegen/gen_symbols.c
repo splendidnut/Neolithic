@@ -251,7 +251,7 @@ int GS_ProcessUnionList(SymbolTable *symbolTable, const List *varList, int ofs) 
 int GS_UnionWithName(List *varList, SymbolTable *symbolTable, char* unionName, int ofs) {
     SymbolRecord *unionSym = addSymbol(symbolTable, unionName, SK_UNION, ST_NONE, 0);
 
-    SymbolTable *unionSymTbl = initSymbolTable(false);
+    SymbolTable *unionSymTbl = initSymbolTable(unionName, false);
     unionSymTbl->parentTable = symbolTable;
 
     int unionSize = GS_ProcessUnionList(unionSymTbl, varList, ofs);
@@ -337,7 +337,7 @@ void GS_Structure(List *structDef, SymbolTable *symbolTable) {
 
         int numVars = varList->count; // vars in struct...
 
-        SymbolTable *structSymTbl = initSymbolTable(false);
+        SymbolTable *structSymTbl = initSymbolTable(structName, false);
         structSymTbl->parentTable = symbolTable;
 
         int index = 1;
@@ -481,7 +481,7 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
 
         if (paramCnt > 3) printf("\tToo many function parameters defined\n");
 
-        paramListTbl = initSymbolTable(false);
+        paramListTbl = initSymbolTable(funcName, false);
 
         // go thru parameter list and process entry as a variable
         for (int paramIndex = 1; paramIndex < paramList->count; paramIndex++) {
@@ -497,7 +497,7 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
         ListNode funcCodeNode = funcDef->nodes[5];
         List *funcCode = funcCodeNode.value.list;
 
-        localVarTbl = initSymbolTable(false);
+        localVarTbl = initSymbolTable(funcName, false);
 
         // go thru function code block, find vars, and process them as local vars.
         for (int funcStmtNum = 1; funcStmtNum < funcCode->count; funcStmtNum++) {

@@ -99,8 +99,9 @@ SymbolRecord * addBooleanConst(SymbolTable *symbolTable, char *name, int value) 
     return varSymRec;
 }
 
-SymbolTable *initSymbolTable(bool isGlobalTable) {
+SymbolTable *initSymbolTable(char *name, bool isGlobalTable) {
     SymbolTable *newTable = malloc(sizeof(SymbolTable));
+    newTable->name = name;
     newTable->firstSymbol = NULL;
     newTable->lastSymbol = NULL;
     newTable->parentTable = NULL;

@@ -131,6 +131,7 @@ typedef struct SymbolRecordStruct {
 typedef struct SymbolTableStruct {
     SymbolRecord *firstSymbol;
     SymbolRecord *lastSymbol;
+    char *name;
 
     struct SymbolTableStruct *parentTable;
 } SymbolTable;
@@ -158,7 +159,7 @@ typedef struct SymbolExtStruct {
 extern char *getSymbolKindName(enum SymbolKind symbolKind);
 extern enum SymbolType getSymbolType(const char *baseType);
 
-extern SymbolTable *initSymbolTable(bool isGlobalTable);
+extern SymbolTable *initSymbolTable(char *name, bool isGlobalTable);
 extern SymbolRecord * addSymbol(SymbolTable *, char *name, enum SymbolKind kind, enum SymbolType type, unsigned int flags);
 extern void setSymbolArraySize(SymbolRecord *symbol, int arraySize);
 extern void setStructSize(SymbolRecord *symbol, int unionSize);

@@ -196,7 +196,7 @@ void processDependencies(PreProcessInfo *preProcessInfo, int pass) {
 int mainCompiler() {
     printf("\n");
     printf("Initializing symbol table\n");
-    mainSymbolTable = initSymbolTable(true);
+    mainSymbolTable = initSymbolTable("main", true);
 
     char* mainFileData;
     if ((mainFileData = readSourceFile(inFileName))) {
