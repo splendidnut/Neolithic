@@ -741,7 +741,7 @@ ListNode parse_var_node(const char *baseType, const List *modList, const char *r
     addNode(list, createParseToken(isFunctionDef ? PT_DEFUN : PT_DEFINE));
     addNode(list, varNameNode);
     addNode(list, createListNode(typeList));
-    addNode(list, createListNode((List *) modList));
+    addNode(list, (modList != NULL) ? createListNode((List *) modList) : createEmptyNode());
     addNode(list, isFunctionDef ? paramNode : asgnNode);
     if (hasMemHint) {
         addNode(list, createIntNode(memAddr));
@@ -801,10 +801,17 @@ ListNode parse_variable(void) {
 }
 
 ListNode parse_parameter() {
-    if (isTypeToken(peekToken()) || isModifierToken(peekToken())) {
-        // handle mod list
-        List *modList = parse_mod_list();
+    TokenObject *token = peekToken();
 
+    List *modList = NULL;
+    if (isModifierToken(token)) {
+        modList = parse_mod_list();
+        token = peekToken();
+    }
+
+    if (isTypeToken(token) ||
+        (isIdentifier(token) && TypeList_find(token->tokenStr) != NULL)) {
+        // handle mod list
         char *baseType = copyTokenStr(getToken());
         char *regHint = NULL;
         if (acceptOptionalToken(TT_AT_SIGN)) {
@@ -813,8 +820,7 @@ ListNode parse_parameter() {
         }
         return parse_var_node(baseType, modList, regHint);
     } else {
-        char *varName = copyTokenStr(getToken());
-        return createStrNode(varName);
+        printError("Unknown or missing type: %s\n", token->tokenStr);
     }
 }
 
@@ -834,11 +840,10 @@ ListNode parse_func_parameters(void) {
     ListNode funcParams;
     acceptToken(TT_OPEN_PAREN);
     TokenType tokenType = peekToken()->tokenType;
-    bool isVoid = (tokenType == TT_VOID);
+    bool isVoid = acceptOptionalToken(TT_VOID);         // TODO: Potentially remove this
     if (!isVoid && (tokenType != TT_CLOSE_PAREN)) {
         funcParams = parse_parameters();
     } else {
-        if (isVoid) acceptToken(TT_VOID);
         funcParams = createEmptyNode();
     }
     acceptToken(TT_CLOSE_PAREN);

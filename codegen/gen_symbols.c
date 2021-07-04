@@ -120,7 +120,7 @@ SymbolRecord * GS_Variable(List *varDef, SymbolTable *symbolTable, bool isLocal)
     }
 
     List *modList = varDef->nodes[3].value.list;
-    bool isTypeModified = (modList->count > 0);
+    bool isTypeModified = (modList != NULL) && (modList->count > 0);
     if (isTypeModified) {
 
         // loop thru Modifier List, and process the results, setting the appropriate flags for the symbol
