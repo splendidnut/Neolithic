@@ -201,7 +201,7 @@ void addSymbolExt(SymbolRecord *funcSym, SymbolTable *paramTbl, SymbolTable *loc
     funcExt->isInlined = false;
     funcExt->inlinedCode = NULL;
     funcExt->cntUses = 0;
-
+    funcExt->funcDepth = 0;
     funcSym->funcExt = funcExt;
 }
 
@@ -441,7 +441,11 @@ bool isStructDefined(const SymbolRecord *structSymbol) {
 }
 
 SymbolTable *getStructSymbolSet(const SymbolRecord *structSymbol) {
-    return structSymbol->userTypeDef->funcExt->paramSymbolSet;
+    if (structSymbol->userTypeDef != NULL) {
+        return structSymbol->userTypeDef->funcExt->paramSymbolSet;
+    } else {
+        return NULL;
+    }
 }
 
 const char *getVarName(const SymbolRecord *varSym) {

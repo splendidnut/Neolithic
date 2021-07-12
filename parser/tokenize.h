@@ -139,6 +139,7 @@ extern char * copyTokenStr(TokenObject *token);
 extern int copyTokenInt(TokenObject *token);
 extern void killTokenizer(void);
 extern TokenType getTokenSymbolType(TokenObject *token);
+extern void tokenizer_nextLine();
 
 extern bool isModifierToken(TokenObject *token);
 extern bool isTypeToken(TokenObject *token);

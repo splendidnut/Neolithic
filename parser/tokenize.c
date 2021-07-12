@@ -446,8 +446,8 @@ bool isStartOfComment() {
 }
 
 bool isStartOfLineComment() {
-    return (tokenStr[tokenIndex] == '/' && tokenStr[tokenIndex+1] == '/') ||
-           (tokenStr[tokenIndex] == '#' && isFirstTokenOnLine);
+    return (tokenStr[tokenIndex] == '/' && tokenStr[tokenIndex+1] == '/');/* ||
+           (tokenStr[tokenIndex] == '#' && isFirstTokenOnLine);*/
 }
 
 bool isEol(char c) {
@@ -479,6 +479,11 @@ void removeComment() {
     tokenIndex += 2;        // skip comment end token
 }
 
+void tokenizer_nextLine() {
+    removeLineComment();
+    nextLine();
+}
+
 void trimWhitespaceAndComments() {
     /* trim whitespace and kill comments -- in a loop to compensate for multiple lines */
 
@@ -493,10 +498,7 @@ void trimWhitespaceAndComments() {
         // make sure we still have tokens before trying to remove comments
         if (hasToken()) {
             if (isStartOfComment()) removeComment();
-            if (isStartOfLineComment()) {
-                removeLineComment();
-                nextLine();
-            }
+            if (isStartOfLineComment()) tokenizer_nextLine();
         }
     }
 }

@@ -144,7 +144,7 @@ void GC_StoreInVar(const ListNode symbolNode, enum SymbolType destType, int line
 void GC_LoadFromArray(const SymbolRecord *srcSym) {
     if (srcSym == NULL) return;
     if (isPointer(srcSym)) {
-        ICG_LoadIndirect(srcSym);
+        ICG_LoadIndirect(srcSym, 0);
     } else {
         ICG_LoadIndexed(srcSym);
     }
@@ -297,20 +297,25 @@ int GC_LookupArrayOfs(const List *expr) {
 
 
 int GC_GetPropertyRefOfs(const List *expr) {
-    char *structName = expr->nodes[1].value.str;
+    if (expr->nodes[2].type != N_STR) {
+        ErrorMessageWithNode("Invalid property - not an identifier", expr->nodes[2], expr->lineNum);
+        return -1;
+    }
+
     char *propName = expr->nodes[2].value.str;
 
     // setup line comment for property references
     // TODO: Maybe add a property reference labeling system for easier to read ASM code?
 
-    if (expr->nodes[1].type == N_STR && expr->nodes[2].type == N_STR) {
+    if (expr->nodes[1].type == N_STR) {
+        char *structName = expr->nodes[1].value.str;
         char *propRefStr = malloc(40);
         //printf("Two Labels\n");
-        sprintf(propRefStr, "%s.%s", expr->nodes[1].value.str, expr->nodes[2].value.str);
+        sprintf(propRefStr, "%s.%s", structName, propName);
         IL_SetLineComment(propRefStr);
     }
 
-    SymbolRecord *structSymbol = findSymbol(mainSymbolTable, structName);
+    SymbolRecord *structSymbol = lookupSymbolNode(expr->nodes[1], expr->lineNum);
     int ofs = -1;
     if (isStructDefined(structSymbol)) {
         ofs = structSymbol->location;
@@ -321,8 +326,6 @@ int GC_GetPropertyRefOfs(const List *expr) {
         } else {
             ErrorMessage("Missing property: ", propName, expr->lineNum);
         }
-    } else {
-        ErrorMessage("Missing structure:", structName, expr->lineNum);
     }
     return ofs;
 }
@@ -332,6 +335,22 @@ void GC_LoadPropertyRefOfs(const List *expr, enum SymbolType destType) {
     int ofs = GC_GetPropertyRefOfs(expr);
     ICG_LoadFromAddr(ofs);
 }
+
+
+void GC_LoadPropertyRef(const List *expr, enum SymbolType destType) {
+    SymbolRecord *structSymbol = lookupSymbolNode(expr->nodes[1], expr->lineNum);
+    if (isStructDefined(structSymbol) && IS_PARAM_VAR(structSymbol)) {
+        char *propName = expr->nodes[2].value.str;
+        SymbolRecord *propertySymbol = findSymbol(getStructSymbolSet(structSymbol), propName);
+        int propSize = getBaseVarSize(propertySymbol);
+        //ICG_LoadIndexVar(propertySymbol, getBaseVarSize(propertySymbol));
+        ICG_LoadRegConst('Y', propertySymbol->location);
+        ICG_LoadIndirect(structSymbol, 0);
+    } else {
+        GC_LoadPropertyRefOfs(expr, destType);
+    }
+}
+
 
 
 //-------------------------------------------------------------------------
@@ -643,7 +662,7 @@ void GC_MultiplyOp(const List *expr, enum SymbolType destType) {
 //---------------------------------------------------------------------------------
 
 ParseFuncTbl exprFunction[] = {
-        {PT_PROPERTY_REF,   &GC_LoadPropertyRefOfs},
+        {PT_PROPERTY_REF,   &GC_LoadPropertyRef},
         {PT_ADDR_OF,        &GC_AddrOf},
         {PT_LOOKUP,         &GC_Lookup},
         {PT_BIT_AND,        &GC_And},
@@ -714,11 +733,15 @@ void GC_StoreToStructProperty(const List *expr) {
     if (structSym == NULL) return;
 
     int ofs = 0;
+    int destSize = 1;
     if (isStructDefined(structSym)) {
         SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propName);
-        if (propertySym != NULL) ofs = propertySym->location;
+        if (propertySym != NULL) {
+            ofs = propertySym->location;
+            destSize = getBaseVarSize(propertySym);
+        }
     }
-    ICG_StoreVarOffset(structSym, ofs);
+    ICG_StoreVarOffset(structSym, ofs, destSize);
 }
 
 /*** Process Storage Expression - (Left-side of assignment) */
@@ -737,7 +760,7 @@ void GC_ExpressionForStore(const List *expr, enum SymbolType destType) {
                 if (ofs == -1000) { // means that index has already been loaded
                     ICG_StoreVarIndexed(varSymRec);
                 } else {
-                    ICG_StoreVarOffset(varSymRec, ofs - varSymRec->location);
+                    ICG_StoreVarOffset(varSymRec, ofs - varSymRec->location, getBaseVarSize(varSymRec));
                 }
             } break;
             case PT_INC:  GC_Inc(expr, ST_NONE);   break;
@@ -935,6 +958,11 @@ void GC_HandleCondExpr(const ListNode ifExprNode, enum SymbolType destType, Labe
         return;
     }
 
+    // handle constant
+    if (ifExprNode.type == N_INT) {
+        if (ifExprNode.value.num == 0) ICG_Jump(skipLabel, "skipping code");
+    }
+
     // only other thing supported is list, so leave if not a list
     if (ifExprNode.type != N_LIST) return;
 
@@ -1127,8 +1155,17 @@ void GC_DoWhile(const List *stmt, enum SymbolType destType) {
     }
 }
 
+/**
+ * Handling loading parameters to pass into function call
+ *
+ * @param paramNode
+ * @param destReg
+ * @param lineNum
+ */
 void GC_HandleParamLoad(const ListNode paramNode, const char destReg, int lineNum) {
     IL_SetLineComment("loading param");
+
+    // handle loading constants
     if (paramNode.type == N_INT) {
         if (destReg == 'S') {
             GC_HandleLoad(paramNode, ST_NONE, lineNum);
@@ -1137,6 +1174,18 @@ void GC_HandleParamLoad(const ListNode paramNode, const char destReg, int lineNu
             ICG_LoadRegConst(destReg, paramNode.value.num);
         }
     } else {
+
+        // first check to see if user is passing a struct variable.
+        //   If so, we need to do something special to pass the pointer of the struct (16-bit value)
+        //   TODO: fix this when 16-bit support is figured out
+        if (paramNode.type == N_STR) {
+            SymbolRecord *varSym = findSymbol(mainSymbolTable, paramNode.value.str);
+            if (varSym && isStructDefined(varSym)) {
+                IL_AddCommentToCode("Handle struct/pointer being passed");
+                ICG_LoadPointerAddr(varSym);
+                return;
+            }
+        }
         GC_HandleLoad(paramNode, ST_NONE, lineNum);
         switch (destReg) {
             case 'X': ICG_MoveAccToIndex('X'); break;

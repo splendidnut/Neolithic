@@ -270,7 +270,7 @@ void ICG_LoadVar(const SymbolRecord *varRec) {
                 (char *)varName);
     } else {
         IL_AddInstrS(LDA, ADDR_ZP, varName, NULL, PARAM_NORMAL);
-        if (getBaseVarSize(varRec) == 2) {
+        if ((getBaseVarSize(varRec) == 2) || isStructDefined(varRec)) {
             IL_AddInstrS(LDX, ADDR_ZP, varName, "1", PARAM_ADD);
         }
     }
@@ -317,8 +317,18 @@ void ICG_LoadAddrPlusIndex(const SymbolRecord *varSym, unsigned char index) {
     IL_AddInstrS(LDX, ADDR_IMM, varName, numToStr(index), PARAM_ADD + PARAM_HI);
 }
 
-void ICG_LoadIndirect(const SymbolRecord *varSym) {
+void ICG_LoadIndirect(const SymbolRecord *varSym, int destSize) {
     const char *varName = getVarName(varSym);
+    if (destSize == 2) {
+        IL_AddComment(
+                IL_AddInstrB(INY),
+                "load indirect - high byte first");
+        IL_AddComment(
+                IL_AddInstrS(LDA, ADDR_IY, varName, NULL, PARAM_NORMAL),
+                "load from pointer location using index");
+        IL_AddInstrB(TAX);
+        IL_AddInstrB(DEY);
+    }
     IL_AddComment(
             IL_AddInstrS(LDA, ADDR_IY, varName, NULL, PARAM_NORMAL),
             "load from pointer location using index");
@@ -346,9 +356,11 @@ void ICG_LoadRegConst(const char destReg, int ofs) {
         case 'A': IL_AddInstrN(LDA, ADDR_IMM, ofs); break;
         case 'X': IL_AddInstrN(LDX, ADDR_IMM, ofs); break;
         case 'Y':
-            IL_AddInstrN(LDY, ADDR_IMM, ofs);
-            lastUseForYReg.loadedWith = LW_CONST;
-            lastUseForYReg.constValue = ofs;
+            if (!((lastUseForYReg.loadedWith == LW_CONST) && (lastUseForYReg.constValue == ofs))) {
+                IL_AddInstrN(LDY, ADDR_IMM, ofs);
+                lastUseForYReg.loadedWith = LW_CONST;
+                lastUseForYReg.constValue = ofs;
+            }
             break;
     }
 }
@@ -358,6 +370,14 @@ void ICG_LoadFromStack(int ofs) {
     IL_AddComment(
         IL_AddInstrN(LDA, ADDR_ABX, 0x100 + ofs),
         "load param from stack");
+}
+
+void ICG_LoadPointerAddr(const SymbolRecord *varSym) {
+    IL_SetLineComment(varSym->name);
+    ICG_LoadConst(varSym->location & 0xff, 1);
+    ICG_PushAcc();
+    ICG_LoadConst(varSym->location >> 8, 1);
+    ICG_PushAcc();
 }
 
 void ICG_AdjustStack(int ofs) {
@@ -378,16 +398,27 @@ void ICG_StoreToAddr(int ofs, int size) {
     }
 }
 
-void ICG_StoreVarOffset(const SymbolRecord *varSym, int ofs) {
+void ICG_StoreVarOffset(const SymbolRecord *varSym, int ofs, int destSize) {
     const char *varName = getVarName(varSym);
-    bool isZP = ((varSym->location + ofs) < 0x100);
-    enum AddrModes addrMode = (isZP ? ADDR_ZP : ADDR_ABS);
-    enum ParamExt paramExt = (isZP ? PARAM_LO : PARAM_NORMAL);
 
-    if (getBaseVarSize(varSym) == 2) {
-        IL_AddInstrS(STX, addrMode, varName, numToStr(ofs), paramExt + PARAM_ADD + PARAM_PLUS_ONE);
+    if (isPointer(varSym) && isStructDefined(varSym)) {
+        ICG_LoadRegConst('Y', ofs);
+        IL_AddInstrS(STA, ADDR_IY, varName, NULL, PARAM_NORMAL);
+        if (destSize == 2) {
+            IL_AddInstrB(TXA);
+            IL_AddInstrB(INY);
+            IL_AddInstrS(STA, ADDR_IY, varName, NULL, PARAM_NORMAL);
+        }
+    } else {
+        bool isZP = ((varSym->location + ofs) < 0x100);
+        enum AddrModes addrMode = (isZP ? ADDR_ZP : ADDR_ABS);
+        enum ParamExt paramExt = (isZP ? PARAM_LO : PARAM_NORMAL);
+
+        if (destSize == 2) {
+            IL_AddInstrS(STX, addrMode, varName, numToStr(ofs), paramExt + PARAM_ADD + PARAM_PLUS_ONE);
+        }
+        IL_AddInstrS(STA, addrMode, varName, numToStr(ofs), paramExt + PARAM_ADD);
     }
-    IL_AddInstrS(STA, addrMode, varName, numToStr(ofs), paramExt + PARAM_ADD);
 }
 
 void ICG_StoreVarIndexed(const SymbolRecord *varSym) {
@@ -616,6 +647,10 @@ int ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym) {
 
     IL_Label(funcLabel);
     IB_SetCodeAddr(curBlock, codeAddr);
+
+    // reset register trackers
+    lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastUseForYReg = REG_USED_FOR_NOTHING;
 
     // main function needs to run init code
     if (strcmp(curBlock->funcSym->name, compilerOptions->entryPointFuncName) == 0) {

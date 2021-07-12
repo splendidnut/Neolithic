@@ -39,7 +39,7 @@ void GS_Enumeration(List *enumDef, SymbolTable *symbolTable);
 
 //-----------------------------------------------------
 
-SymbolRecord * GS_Variable(List *varDef, SymbolTable *symbolTable, bool isLocal) {
+SymbolRecord * GS_Variable(List *varDef, SymbolTable *symbolTable) {
     unsigned int modFlags = 0;
     char *varName = strdup(varDef->nodes[1].value.str);
 
@@ -62,7 +62,7 @@ SymbolRecord * GS_Variable(List *varDef, SymbolTable *symbolTable, bool isLocal)
     SymbolRecord *userTypeSymbol = NULL;
     if (symbolType == ST_NONE) {
 
-        // TODO: need to look up user defined type
+        // look up user defined type
         userTypeSymbol = findSymbol(symbolTable, baseType);
         if (userTypeSymbol == NULL && symbolTable->parentTable != NULL) {
             userTypeSymbol = findSymbol(symbolTable->parentTable, baseType);
@@ -149,7 +149,7 @@ SymbolRecord * GS_Variable(List *varDef, SymbolTable *symbolTable, bool isLocal)
 
     // create the new variable
     SymbolRecord *varSymRec = addSymbol(symbolTable, varName, symbolKind, symbolType, modFlags);
-    varSymRec->isLocal = isLocal;
+    varSymRec->isLocal = false;
     varSymRec->userTypeDef = userTypeSymbol;
     setSymbolArraySize(varSymRec, arraySize);
 
@@ -235,7 +235,7 @@ int GS_ProcessUnionList(SymbolTable *symbolTable, const List *varList, int ofs) 
         } else if (isToken(varDefType, PT_STRUCT)) {
             GS_Structure(varDef, symbolTable);
         } else {
-            SymbolRecord *symRec = GS_Variable(varDef, symbolTable, false);
+            SymbolRecord *symRec = GS_Variable(varDef, symbolTable);
             printf("Adding union variable: %s @%d\n", symRec->name, ofs);
             if (symRec != NULL) {
                 int varSize = calcVarSize(symRec);
@@ -340,22 +340,20 @@ void GS_Structure(List *structDef, SymbolTable *symbolTable) {
         SymbolTable *structSymTbl = initSymbolTable(structName, false);
         structSymTbl->parentTable = symbolTable;
 
-        int index = 1;
-        while (index < numVars) {
+        for_range(index, 1, numVars) {
             List *varDef = varList->nodes[index].value.list;
             ListNode varDefType = varDef->nodes[0];
 
-            if ((varDefType.type == N_TOKEN) && (varDefType.value.parseToken == PT_UNION)){
+            if (isToken(varDefType, PT_UNION)) {
                 int unionSize = GS_Union(varDef, structSymTbl, memOfs);
                 memOfs += unionSize;
             } else {
-                SymbolRecord *symRec = GS_Variable(varDef, structSymTbl, false);
+                SymbolRecord *symRec = GS_Variable(varDef, structSymTbl);
                 if (symRec != NULL) {
                     addSymbolLocation(symRec, memOfs);
                     memOfs += calcVarSize(symRec);
                 }
             }
-            index++;
         }
         addSymbolExt(structSym, structSymTbl, NULL);
     }
@@ -482,10 +480,11 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
         if (paramCnt > 3) printf("\tToo many function parameters defined\n");
 
         paramListTbl = initSymbolTable(funcName, false);
+        paramListTbl->parentTable = symbolTable;
 
         // go thru parameter list and process entry as a variable
-        for (int paramIndex = 1; paramIndex < paramList->count; paramIndex++) {
-            SymbolRecord *paramVar = GS_Variable(paramList->nodes[paramIndex].value.list, paramListTbl, false);
+        for_range ( paramIndex, 1, paramList->count) {
+            SymbolRecord *paramVar = GS_Variable(paramList->nodes[paramIndex].value.list, paramListTbl);
             paramVar->flags |= MF_PARAM;
         }
     }
@@ -498,18 +497,20 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
         List *funcCode = funcCodeNode.value.list;
 
         localVarTbl = initSymbolTable(funcName, false);
+        localVarTbl->parentTable = symbolTable;
 
         // go thru function code block, find vars, and process them as local vars.
-        for (int funcStmtNum = 1; funcStmtNum < funcCode->count; funcStmtNum++) {
+        for_range (funcStmtNum, 1, funcCode->count) {
             ListNode stmtNode = funcCode->nodes[funcStmtNum];
             if (stmtNode.type == N_LIST) {
                 List *stmt = stmtNode.value.list;
                 if (isToken(stmt->nodes[0], PT_DEFINE)) {
-                    SymbolRecord *newVar = GS_Variable(stmt, localVarTbl, true);
+                    SymbolRecord *newVar = GS_Variable(stmt, localVarTbl);
                     if (newVar != NULL) {
+                        newVar->isLocal = true;
                         newVar->flags |= MF_ZEROPAGE;   // func local vars always in Zeropage
                     }
-                } // TODO: else GS_FindFuncCalls(stmt);
+                }
             }
         }
 
@@ -530,7 +531,7 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
 
 
 void GS_Program(List *list, SymbolTable *workingSymTbl) {
-    for (int stmtNum = 1;  stmtNum < list->count;  stmtNum++) {
+    for_range (stmtNum, 1, list->count) {
         ListNode stmt = list->nodes[stmtNum];
         if (stmt.type == N_LIST) {
             List *statement = stmt.value.list;
@@ -538,7 +539,7 @@ void GS_Program(List *list, SymbolTable *workingSymTbl) {
                 enum ParseToken token = statement->nodes[0].value.parseToken;
                 switch (token) {
                     case PT_DEFINE:
-                        GS_Variable(statement, workingSymTbl, false);
+                        GS_Variable(statement, workingSymTbl);
                         break;
                     case PT_DEFUN:
                     case PT_FUNCTION:
@@ -569,7 +570,7 @@ void generate_symbols(ListNode node, SymbolTable *symbolTable) {
 
     if (node.type == N_LIST) {
         List *program = node.value.list;
-        if (program->nodes[0].value.parseToken == PT_PROGRAM) {
+        if (isToken(program->nodes[0], PT_PROGRAM)) {
             GS_Program(program, symbolTable);
         }
     }

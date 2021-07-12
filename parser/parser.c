@@ -994,10 +994,17 @@ ListNode parse_stmt_for() {
 /*
 ListNode parse_stmt_loop() {
     List *loopNode = createList(5);
-    acceptToken(TT_FOR);
+    acceptToken(TT_FOR_COUNT);
     acceptToken(TT_OPEN_PAREN);
-
-    addNode(loopNode, createParseToken(PT_FOR));
+    addNode(loopNode, createParseToken(PT_FOR_COUNT));
+    addNode(loopNode, copyTokenStr(getToken()));
+    acceptToken(TT_COMMA);
+    addNode(loopNode, parse_expr());
+    acceptToken(TT_COMMA);
+    addNode(loopNode, parse_expr());
+    acceptToken(TT_CLOSE_PAREN);
+    addNode(forStmt, parse_codeBlock());
+    return createListNode(forStmt);
 }*/
 
 ListNode parse_stmt_while() {
@@ -1108,6 +1115,11 @@ ListNode parse_stmt() {
             if (isTypeToken(token) || isModifierToken(token)) {
                 // handle var list/initialization
                 node = parse_variable();
+            } else if (token->tokenStr[0] == '#') {
+                getToken(); // EAT '#'
+                printf("Missing support for %s\n", getToken()->tokenStr);
+                tokenizer_nextLine();
+                node = createEmptyNode();
             } else if (token->tokenType != TT_SEMICOLON) {
                 // handle an expression/assignment statement
                 node = parse_expr_assignment();
@@ -1127,19 +1139,21 @@ ListNode parse_stmt_block(void) {
 
         ListNode codeNode = parse_stmt();
 
-        // process compound stmt - mainly for multiple vars declared on a single line (comma separated list)
-        if (codeNode.type == N_LIST && codeNode.value.list->nodes[0].type == N_LIST) {
-            List *subStmtList = codeNode.value.list;
-            int cnt = 0;
-            while (cnt < subStmtList->count && canAdd) {
-                canAdd = addNode(list, subStmtList->nodes[cnt++]);
+        if (codeNode.type != N_EMPTY) {
+            // process compound stmt - mainly for multiple vars declared on a single line (comma separated list)
+            if (codeNode.type == N_LIST && codeNode.value.list->nodes[0].type == N_LIST) {
+                List *subStmtList = codeNode.value.list;
+                int cnt = 0;
+                while (cnt < subStmtList->count && canAdd) {
+                    canAdd = addNode(list, subStmtList->nodes[cnt++]);
+                }
+            } else {
+                canAdd = addNode(list, codeNode);
             }
-        } else {
-            canAdd = addNode(list, codeNode);
-        }
-        if (!canAdd) {
-            printError("Too many statements in current block");
-            while (peekToken()->tokenType != TT_CLOSE_BRACE) getToken();
+            if (!canAdd) {
+                printError("Too many statements in current block");
+                while (peekToken()->tokenType != TT_CLOSE_BRACE) getToken();
+            }
         }
     }
     acceptToken(TT_CLOSE_BRACE);
@@ -1202,11 +1216,13 @@ ListNode parse_program(char *sourceCode) {
                         printError("Warning: Unknown type or unexpected identifier: %s\n", tokenStr);
                         getToken();
                     }
+                } else if (tokenStr[0] == '#') {
+                    getToken(); // EAT '#'
+                    printf("Missing support for %s\n", getToken()->tokenStr);
+                    tokenizer_nextLine();
+                    node = createEmptyNode();
                 } else {
-                    // handle case where no token came back: blank line/comments
-                    //if (tokenStr[0] != '\0' && tokenStr[0] != '\r' && tokenStr[0] != '\n') {  // ignore null strings
-                        printError("Warning: bad token: %s %d\n", tokenStr, tokenStr[0]);
-                    //}
+                    printError("Warning: bad token: %s %d\n", tokenStr, tokenStr[0]);
                     getToken();
                     node = createEmptyNode();
                 }
