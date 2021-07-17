@@ -20,7 +20,7 @@
 
 const char *verStr = "0.1(alpha)";
 
-#define DEBUG
+//#define DEBUG
 
 //-------------------------------------------
 //  Global Variables

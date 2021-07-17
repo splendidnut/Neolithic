@@ -213,8 +213,6 @@ void GC_HandleAddrOfArray(const List *expr, enum SymbolType destType) {
 
     if (arraySymbol == NULL) return;
 
-    int addr = arraySymbol->location;
-
     switch (indexNode.type) {
         case N_STR: {
             /*** Array indexed via Variable:  &arrayName[varName] ***/
@@ -224,17 +222,14 @@ void GC_HandleAddrOfArray(const List *expr, enum SymbolType destType) {
                 ICG_AddToInt(arrayIndexSymbol);     // TODO: need to check if datatype size is needed
             }
         } break;
-        case N_INT: {
+        case N_INT:
             /*** Array indexed with number:  &arrayName[num] ***/
-
-            // Handle array reference
-            int arrayIndex = indexNode.value.num;
-
             if (!isPointer(arraySymbol)) {
                 int arrayElementSize = getBaseVarSize(arraySymbol);
+                int arrayIndex = indexNode.value.num;
                 ICG_LoadAddrPlusIndex(arraySymbol, arrayIndex * arrayElementSize);
             }
-        } break;
+            break;
         case N_LIST:
             /*** Array indexed with expression:  &arrayName[expr] ***/
             //printf("GC_HandleAddrOfArray: &%s[expr]\n", arrayNameNode.value.str);
