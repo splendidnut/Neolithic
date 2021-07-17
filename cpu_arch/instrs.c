@@ -664,9 +664,10 @@ int ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym) {
 InstrBlock* ICG_EndOfFunction() {
     InstrBlock *funcInstrBlock = curBlock;
 
-    // All functions except main() will need a RTS at the end
+    // All functions except main() will need a RTS at the end.
+    //    Add the RTS if it's not already there
     if (strcmp(curBlock->funcSym->name, compilerOptions->entryPointFuncName) != 0) {
-        ICG_Return();
+        if (curBlock->curInstr->mne != RTS) ICG_Return();
     }
 
     // save code size of function (to allow arrangement)
