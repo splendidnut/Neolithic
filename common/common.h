@@ -11,7 +11,8 @@
 #define for_range(varname, startvalue, endvalue) \
     for (int varname = startvalue; varname < endvalue; varname++)
 
-
+#define freeIfNotNull(data) \
+    if ((data) != NULL) free(data);
 
 /**
  * Simple structure to encapsulate information to retrieve lines from the source code file

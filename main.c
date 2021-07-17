@@ -33,6 +33,45 @@ char *projectDir;
 char *inFileName;
 char *outFileName;
 
+//------------------------------------------
+//  Cache all the source files
+
+typedef struct {
+    char *name;
+    char *sourceCode;
+    ListNode ast;
+} SourceFile;
+
+SourceFile parsedFiles[20];
+int numSrcFiles;
+
+void SourceFileList_init() {
+    memset(parsedFiles, 0, sizeof parsedFiles);
+    numSrcFiles = 0;
+}
+
+ListNode SourceFileList_lookupAST(char *astFileName) {
+    for_range(curAST, 0, numSrcFiles) {
+        if (strcmp(astFileName, parsedFiles[curAST].name) == 0) {
+            return parsedFiles[curAST].ast;
+        }
+    }
+    return createEmptyNode();
+}
+
+void SourceFileList_add(char *name, char *srcCode, ListNode ast) {
+    parsedFiles[numSrcFiles].name = name;
+    parsedFiles[numSrcFiles].sourceCode = srcCode;
+    parsedFiles[numSrcFiles].ast = ast;
+    numSrcFiles++;
+}
+
+void SourceFileList_cleanup() {
+    for_range(idx, 0, numSrcFiles) {
+        freeIfNotNull(parsedFiles[numSrcFiles].sourceCode);
+    }
+}
+
 //----------------------------------------------------------------------
 
 char* readSourceFile(const char* fileName) {
@@ -101,10 +140,11 @@ void writeParseTree(ListNode treeRoot, char *name) {
     // write out the abstract syntax tree
     char *astFileName = genFileName(name, ".ast");
     FILE *astFile = fopen(astFileName, "w");
-    showParseTree(treeRoot, astFile);
-    fclose(astFile);
-
-    free(astFileName);
+    if (astFile) {
+        showParseTree(treeRoot, astFile);
+        fclose(astFile);
+    }
+    freeIfNotNull(astFileName);
 }
 
 
@@ -113,109 +153,110 @@ void writeSymbolTable(const char *name) {
 
     char *symFileName = genFileName(name, ".sym");
     FILE *symFile = fopen(symFileName, "w");
-    showSymbolTable(symFile, mainSymbolTable);
-    fclose(symFile);
+    if (symFile) {
+        showSymbolTable(symFile, mainSymbolTable);
+        fclose(symFile);
+    }
 
-    free(symFileName);
+    freeIfNotNull(symFileName);
 }
 
 //----------------------------------------------------------------------------------------
 
-ListNode parse(char *curFileName, char *sourceCode, bool doWriteAst) {
-    ListNode progNode = parse_program(sourceCode);
-
-    // now print the parse tree
-    if (doWriteAst) {
-        writeParseTree(progNode, curFileName);
+ListNode parse(char *curFileName, char *sourceCode) {
+    ListNode progNode = SourceFileList_lookupAST(curFileName);
+    if (progNode.type == N_EMPTY) {
+        progNode = parse_program(sourceCode);
+        SourceFileList_add(curFileName, sourceCode, progNode);
     }
     return progNode;
 }
 
-void compilePass1(char *inputSrc, char *curFileName, bool doWriteAst, bool isTimeToAlloc) {
-    ListNode progNode = parse(curFileName, inputSrc, doWriteAst);
-    if (parserErrorCount == 0) {
-        generate_symbols(progNode, mainSymbolTable);
-        if (isTimeToAlloc) {
-            generate_callTree(progNode, mainSymbolTable);
-            generate_var_allocations(mainSymbolTable, memForAtari2600);
-        }
-        printf("Analysis of %s Complete\n\n", curFileName);
-    }
-}
 
-void compilePass2(char *inputSrc, char *srcFileName, FILE *codeOutFile, bool doWriteSym, bool doWriteAsm) {
-    ListNode progNode = parse(srcFileName, inputSrc, false);
-    if (parserErrorCount == 0) {
+void loadAndParseAllDependencies(PreProcessInfo *preProcessInfo) {
+    char *srcFileName, *srcFileData;
+    for_range(curFileNum, 0, preProcessInfo->numFiles) {
+        srcFileName = preProcessInfo->includedFiles[curFileNum];
+        printf("Loading and parsing %s\n", srcFileName);
 
-        //generate_callTree(progNode);
-
-        generate_code(progNode, mainSymbolTable, codeOutFile, doWriteAsm);
-
-        // now show symbol list
-        if (doWriteSym) {
-            writeSymbolTable(srcFileName);
-        }
-    }
-}
-
-
-/*---------------------------
-//   Main method
-*/
-
-
-void processDependencies(PreProcessInfo *preProcessInfo, int pass) {
-    int cntDependencies = preProcessInfo->numFiles;
-    int curFileNum = 0;
-
-    printf("\nProcessing dependencies: %d\n", cntDependencies);
-    while (curFileNum < cntDependencies) {
-        char *curFileName = preProcessInfo->includedFiles[curFileNum];
-        char *subFileData = readSourceFile(curFileName);
-        if  (subFileData != NULL) {
-            printf("Compiling pass %d: %s\n", pass, curFileName);
-
-            FILE *codeOutfile = stdout;
-            switch (pass) {
-                case 1:
-                    compilePass1(subFileData, curFileName, true, false);
-                    break;
-                case 2:
-                    compilePass2(subFileData, curFileName, codeOutfile, false, false);
-                    break;
-            }
-            free(subFileData);
-        } else {
-            printf("ERROR: Missing dependency %s\n", curFileName);
+        srcFileData = readSourceFile(srcFileName);
+        if (srcFileData == NULL) {
+            printf("ERROR: Missing dependency %s\n", srcFileName);
             exit(-1);
         }
-        curFileNum++;
+        ListNode progNode = parse(srcFileName, srcFileData);
+
+        writeParseTree(progNode, srcFileName);
+
+        if (parserErrorCount != 0) break;
+    }
+}
+
+void collectSymbolsFromDependency(PreProcessInfo *preProcessInfo) {
+    for_range(curFileIdx, 0, preProcessInfo->numFiles) {
+        char *curFileName = preProcessInfo->includedFiles[curFileIdx];
+        ListNode progNode = SourceFileList_lookupAST(curFileName);
+        generate_symbols(progNode, mainSymbolTable);
+    }
+}
+
+void generateCodeForDependencies(PreProcessInfo *preProcessInfo) {
+    for_range(curFileIdx, 0, preProcessInfo->numFiles) {
+        char *curFileName = preProcessInfo->includedFiles[curFileIdx];
+        ListNode progNode = SourceFileList_lookupAST(curFileName);
+        generate_code(progNode, mainSymbolTable, stdout, false);
     }
 }
 
 int mainCompiler() {
+    SourceFileList_init();
+
     printf("\n");
     printf("Initializing symbol table\n");
     mainSymbolTable = initSymbolTable("main", true);
 
     char* mainFileData;
     if ((mainFileData = readSourceFile(inFileName))) {
-        PreProcessInfo *preProcessInfo = preprocess(mainFileData);
 
-        if (preProcessInfo->numFiles > 0) {
-            processDependencies(preProcessInfo, 1); // Build AST and analyize symbols
-            compilePass1(mainFileData, inFileName, true, true);
-            processDependencies(preProcessInfo, 2); //   Now do full subcompile
-        } else {
-            // no dependencies, so just build AST and symbols for main file
-            compilePass1(mainFileData, inFileName, true, true);
+        PreProcessInfo *preProcessInfo = preprocess(mainFileData);
+        bool hasDependencies = (preProcessInfo->numFiles > 0);
+
+        if (hasDependencies) {
+            // Build and output AST, then process and analyze symbols
+            loadAndParseAllDependencies(preProcessInfo);
+            collectSymbolsFromDependency(preProcessInfo);
+        }
+
+        // now build AST and symbols for main file
+        ListNode mainProgNode = parse(inFileName, mainFileData);
+        writeParseTree(mainProgNode, inFileName);
+
+        if (parserErrorCount != 0) return -1;
+
+        //--------------------------------------------------------
+        //--- Now compile!
+
+        generate_symbols(mainProgNode, mainSymbolTable);
+        generate_callTree(mainProgNode, mainSymbolTable);
+        generate_var_allocations(mainSymbolTable, memForAtari2600);
+
+        printf("Analysis of %s Complete\n\n", inFileName);
+
+        //   Now do full compile on any dependencies
+        if (hasDependencies) {
+            generateCodeForDependencies(preProcessInfo);
         }
 
         //----- Compile main file
         printf("Compiling %s to %s\n", inFileName, outFileName);
+        ListNode progNode = SourceFileList_lookupAST(inFileName);
+
+        //------------------------------------------
+        // Output ASM code and SYM file
 
         FILE *outfile = fopen(outFileName, "w");
-        compilePass2(mainFileData, inFileName, outfile, true, true);
+        generate_code(progNode, mainSymbolTable, outfile, true);
+        writeSymbolTable(inFileName);
         fclose(outfile);
 
         //----- Cleanup!
@@ -225,6 +266,7 @@ int mainCompiler() {
         printf("Unable to open file\n");
     }
     printf("Cleaning up\n");
+    SourceFileList_cleanup();
     killSymbolTable(mainSymbolTable);
 }
 
@@ -286,7 +328,8 @@ int main(int argc, char *argv[]) {
     compilerOptions->entryPointFuncName = "main";
 
     prepForMachine(Atari2600);
-    mainCompiler();
+    int result = mainCompiler();
 
     free(compilerOptions);
+    return result;
 }
