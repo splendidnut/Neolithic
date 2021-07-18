@@ -9,6 +9,6 @@
 #include <data/symbols.h>
 #include <machine/mem.h>
 
-extern void generate_var_allocations(SymbolTable *symbolTable, MemoryArea *varStorage);
+extern void generate_var_allocations(SymbolTable *symbolTable);
 
 #endif //MODULE_GEN_ALLOC_H

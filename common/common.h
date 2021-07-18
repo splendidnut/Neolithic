@@ -9,7 +9,7 @@
 // TODO: Maybe add to Neolithic language spec?
 
 #define for_range(varname, startvalue, endvalue) \
-    for (int varname = startvalue; varname < endvalue; varname++)
+    for (int varname = (startvalue); varname < (endvalue); varname++)
 
 #define freeIfNotNull(data) \
     if ((data) != NULL) free(data);

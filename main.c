@@ -27,7 +27,6 @@ const char *verStr = "0.1(alpha)";
 
 CompilerOptions *compilerOptions;
 SymbolTable * mainSymbolTable;
-MemoryArea *memForAtari2600;
 char *projectName;
 char *projectDir;
 char *inFileName;
@@ -238,7 +237,7 @@ int mainCompiler() {
 
         generate_symbols(mainProgNode, mainSymbolTable);
         generate_callTree(mainProgNode, mainSymbolTable);
-        generate_var_allocations(mainSymbolTable, memForAtari2600);
+        generate_var_allocations(mainSymbolTable);
 
         printf("Analysis of %s Complete\n\n", inFileName);
 
@@ -275,10 +274,6 @@ int mainCompiler() {
 
 void prepForMachine(enum Machines machine) {
     MemoryArea *zeropageMem;
-
-    // TODO: remove old method
-    memForAtari2600 = createMemoryRange(0x82, 0xFF);
-
     switch (machine) {
         case Atari2600:
             SMA_init(0);        // only has zeropage memory
