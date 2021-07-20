@@ -39,6 +39,59 @@ void initStackFrames() {
     }
 }
 
+
+// Need to collect list of functions in order of depth
+//  starting with the deepest
+//
+//  This is done using bucket lists for each depth
+//
+//  TODO:  Potentially should fix the Function Map module to do this instead.
+
+typedef struct {
+    int depth;
+    SymbolRecord *symbol;
+} DepthSymbolRecord;
+
+DepthSymbolRecord depthSymbolList[100];
+int cntDepthSymbols;
+
+int cmp_depths(const void * arg1, const void * arg2) {
+    int d1 = ((DepthSymbolRecord *) arg1)->depth;
+    int d2 = ((DepthSymbolRecord *) arg2)->depth;
+    return (d2 - d1);   // DESCENDING
+}
+
+void collectFunctionsInOrder(const SymbolTable *symbolTable) {
+    cntDepthSymbols = 0;
+
+    // collect all functions that have local variables
+    SymbolRecord *curSymbol = symbolTable->firstSymbol;
+    while (curSymbol != NULL) {
+        if (isFunction(curSymbol)) {        // Only need function symbols
+            SymbolTable *funcSymTbl = curSymbol->funcExt->localSymbolSet;
+
+            // Only need functions with local variables -- TODO: this might be a bad assumption
+            if (funcSymTbl != NULL) {
+                int depth = curSymbol->funcExt->funcDepth;
+                depthSymbolList[cntDepthSymbols].depth = depth;
+                depthSymbolList[cntDepthSymbols].symbol = curSymbol;
+                cntDepthSymbols++;
+            }
+        }
+        curSymbol = curSymbol->next;
+    }
+
+    //---- now need to sort the list by depth
+    qsort(depthSymbolList, cntDepthSymbols, sizeof(DepthSymbolRecord), cmp_depths);
+
+    //--- now print the list
+    printf("Collected functions (sorted):\n");
+    for (int idx = 0; idx < cntDepthSymbols; idx++) {
+        printf("  %d %s\n", depthSymbolList[idx].depth, depthSymbolList[idx].symbol->name);
+    }
+}
+
+
 /**
  * Calculate storage necessary for specified symbol table
  * @param symbolTable
@@ -128,124 +181,28 @@ int allocateLocalVarStorage(const SymbolTable *symbolTable, int curMemloc) {
 }
 
 // Walk thru functions and assign memory locations to local vars
-void allocateLocalVars(const SymbolTable *symbolTable) {
-    SymbolRecord *curSymbol = symbolTable->firstSymbol;
-    while (curSymbol != NULL) {
-        if (isFunction(curSymbol)) {
-            SymbolTable *funcSymTbl = curSymbol->funcExt->localSymbolSet;
-            if (funcSymTbl != NULL) {
-                int funcDepth = curSymbol->funcExt->funcDepth;
-                allocateLocalVarStorage(funcSymTbl, stackLocs[funcDepth]);
-            }
-        }
-        curSymbol = curSymbol->next;
+void allocateLocalVars() {
+    for_range (idx, 0, cntDepthSymbols) {
+        int depth = depthSymbolList[idx].depth;
+        SymbolTable *funcSymTbl = depthSymbolList[idx].symbol->funcExt->localSymbolSet;
+        allocateLocalVarStorage(funcSymTbl, stackLocs[depth]);
     }
 }
 
-// Need to collect list of functions in order of depth
-//  starting with the deepest
-//
-//  This is done using bucket lists for each depth
-//
-//  TODO:  Potentially should fix the Function Map module to do this instead.
-
-typedef struct {
-    int depth;
-    SymbolRecord *symbol;
-} DepthSymbolRecord;
-
-DepthSymbolRecord depthSymbolList[100];
-int cntDepthSymbols;
-
-int cmp_depths(const void * arg1, const void * arg2) {
-    int d1 = ((DepthSymbolRecord *) arg1)->depth;
-    int d2 = ((DepthSymbolRecord *) arg2)->depth;
-    return (d2 - d1);   // DESCENDING
-}
-
-void collectFunctionsInOrder(const SymbolTable *symbolTable) {
-    cntDepthSymbols = 0;
-
-    // collect all functions that have local variables
-    SymbolRecord *curSymbol = symbolTable->firstSymbol;
-    while (curSymbol != NULL) {
-        if (isFunction(curSymbol)) {        // Only need function symbols
-            SymbolTable *funcSymTbl = curSymbol->funcExt->localSymbolSet;
-
-            // Only need functions with local variables -- TODO: this might be a bad assumption
-            if (funcSymTbl != NULL) {
-                int depth = curSymbol->funcExt->funcDepth;
-                depthSymbolList[cntDepthSymbols].depth = depth;
-                depthSymbolList[cntDepthSymbols].symbol = curSymbol;
-                cntDepthSymbols++;
-            }
-        }
-        curSymbol = curSymbol->next;
-    }
-
-    //---- now need to sort the list by depth
-    qsort(depthSymbolList, cntDepthSymbols, sizeof(DepthSymbolRecord), cmp_depths);
-
-    //--- now print the list
-    printf("Collected functions (sorted):\n");
-    for (int idx = 0; idx < cntDepthSymbols; idx++) {
-        printf("  %d %s\n", depthSymbolList[idx].depth, depthSymbolList[idx].symbol->name);
-    }
-}
 
 /**
  * Calculate local variable allocations
  *
  * Do this so we can figure out where we will allocate this information in ZeroPage memory
  *
- * @param symbolTable
  */
-void OLD_calcLocalVarAllocs(const SymbolTable *symbolTable) {
-    printf("\nCalculate Local Variable allocations\n");
-
-    // Walk thru all symbols in the symbol table
-    SymbolRecord *curSymbol = symbolTable->firstSymbol;
-    while (curSymbol != NULL) {
-        if (isFunction(curSymbol)) {
-            SymbolTable *funcSymTbl = curSymbol->funcExt->localSymbolSet;
-            if (funcSymTbl != NULL) {
-
-                // figure out if this function calls other functions
-                int funcsCalled = 0;
-                FuncCallMapEntry *funcCallMapEntry = FM_findFunction(curSymbol->name);
-                if (funcCallMapEntry != NULL) {
-                    funcsCalled = funcCallMapEntry->cntFuncsCalled;
-                }
-
-                // calculate local memory needed by function
-                int localMemNeeded = calcStorageNeeded(funcSymTbl);
-                curSymbol->funcExt->localVarMemUsed = localMemNeeded;
-
-                // keep track of each stack size
-                int depth = curSymbol->funcExt->funcDepth;
-                if (stackSizes[depth] < localMemNeeded) stackSizes[depth] = localMemNeeded;
-
-                    //  DEBUG
-#ifdef DEBUG_ALLOCATOR
-                printf("  Func %s (depth %d, calls %d funcs) needs %d bytes for locals\n",
-                       curSymbol->name,
-                       curSymbol->funcExt->funcDepth,
-                       funcsCalled,
-                       localMemNeeded);
-#endif
-            }
-        }
-        curSymbol = curSymbol->next;
-    }
-}
-
-void calcLocalVarAllocs(const SymbolTable *symbolTable) {
+void calcLocalVarAllocs() {
     printf("\nCalculate Local Variable allocations\n");
 
     // Walk thru all functions needing local frame for local vars
     int lastDepth = 20;
     int lastStackSize = 0;
-    for (int idx = 0; idx < cntDepthSymbols; idx++) {
+    for_range (idx, 0, cntDepthSymbols) {
         SymbolRecord *curSymbol = depthSymbolList[idx].symbol;
         SymbolTable *funcSymTbl = curSymbol->funcExt->localSymbolSet;
         int depth = curSymbol->funcExt->funcDepth;
@@ -299,7 +256,7 @@ void generate_var_allocations(SymbolTable *symbolTable) {
 
     // now process all function local variables
     initStackFrames();
-    calcLocalVarAllocs(symbolTable);
+    calcLocalVarAllocs();
     allocateStackFrameStorage();
-    allocateLocalVars(symbolTable);
+    allocateLocalVars();
 }

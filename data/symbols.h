@@ -37,6 +37,7 @@ enum SymbolKind {
     SK_CONST  = 0x20,
     SK_FUNC   = 0x30,
 
+    // user-defined type definitions
     SK_STRUCT = 0x40,
     SK_UNION  = 0x50,
     SK_ENUM   = 0x60,
@@ -48,7 +49,7 @@ enum ModifierFlags {
     MF_PARAM    = 0x0080,
     MF_INLINE   = 0x0100,
 
-    MF_ABSOLUTE     = 0x0000,
+    MF_ABSOLUTE     = 0x0000,       // TODO: replace with SymbolStorage
     MF_ZEROPAGE     = 0x0400,
     MF_REGISTER     = 0x0800,
     MF_STORAGE_MASK = 0x0C00,
@@ -57,11 +58,15 @@ enum ModifierFlags {
     MF_ARRAY    = 0x4000,
     MF_POINTER  = 0x8000
 };
+
+/** ------------------------------------
+ * Storage locations:
+ */
 enum SymbolStorage {
-    SS_ABSOLUTE = 0x0,
-    SS_ZEROPAGE = 0x1,
-    SS_STACK    = 0x2,
-    SS_REGISTER = 0x3,
+    SS_ABSOLUTE = 0x0,          // ABSOLUTE = non-zeropage (default)
+    SS_ZEROPAGE = 0x1,          // ZEROPAGE = stored in zeropage (6502)
+    SS_STACK    = 0x2,          //
+    SS_REGISTER = 0x3,          // REGISTER = attempt to stick in register (A,X,Y,?)
     SS_ROM      = 0x4
 };
 
@@ -73,15 +78,7 @@ enum VarHint {
 };
 
 /**
- *  STATIC   = only available in source (file or function), sticks around
- *  EXTERN   = defined somewhere else
  *
- * ------------------------------------
- * Storage locations:
- *
- *  ABSOLUTE = non-zeropage (default)
- *  ZEROPAGE = stored in zeropage (6502)
- *  REGISTER = attempt to stick in register (A,X,Y,?)
  *  PARAM    = stored on stack... or register (passed into function)
  *
  *  -----------------------------------
@@ -92,11 +89,6 @@ enum VarHint {
  *  ARRAY   - flag for array
  *  POINTER - flag for indirection
  *
- *  -----------------------------------
- *  Symbol Categories (Symbol Kind):
- *     VARIABLE
- *     FUNCTION
- *     TYPE
  */
 
 typedef struct SymbolRecordStruct {
