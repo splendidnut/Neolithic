@@ -167,7 +167,7 @@ int calcVarSize(const SymbolRecord *varSymRec) {// calculate allocation size
         varSize = calcVarSize(varSymRec->userTypeDef);
     }
 
-    if (isArray || isStruct) varSize = varSymRec->numElements;
+    if (isArray || isStruct) varSize = varSize * varSymRec->numElements;
 
     if ((varSymRec->flags & ST_MASK) == ST_INT || isPtr) varSize = varSize * 2;
     return varSize;
