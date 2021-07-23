@@ -37,6 +37,7 @@ enum SymbolKind {
     SK_CONST  = 0x20,
     SK_FUNC   = 0x30,
 
+    // These are all user-defined types:
     SK_STRUCT = 0x40,
     SK_UNION  = 0x50,
     SK_ENUM   = 0x60,
@@ -46,9 +47,9 @@ enum SymbolKind {
 enum ModifierFlags {
     MF_NONE,
     MF_PARAM    = 0x0080,
-    MF_INLINE   = 0x0100,
+    MF_INLINE   = 0x0100,       // only applies to functions
 
-    MF_ABSOLUTE     = 0x0000,
+    MF_ABSOLUTE     = 0x0000,   // (default)
     MF_ZEROPAGE     = 0x0400,
     MF_REGISTER     = 0x0800,
     MF_STORAGE_MASK = 0x0C00,
