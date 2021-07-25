@@ -467,6 +467,8 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
 
     funcSym = addSymbol(symbolTable, funcName, SK_FUNC, ST_NONE, MF_NONE);
 
+    FM_addFunctionDef(funcSym);
+
     //----------------------------------------------
     // generate param list symbol table
 

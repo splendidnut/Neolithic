@@ -19,7 +19,7 @@ static SymbolTable *mainSymTable;
 #define DEBUG_CALL_TREE
 
 //-------------------------------------------------------------------------
-//  TODO: Need to build a call tree to figure out function depths
+//  Build a call tree to figure out function depths
 //
 //   {"SOURCE_FUNC", "DEST_FUNC"}
 
@@ -75,7 +75,6 @@ void GCT_Function(List *statement, int codeNodeIndex) {
             printf("Processing function: %s\n", funcName);
 #endif
             SymbolRecord *funcSym = findSymbol(mainSymTable, funcName);
-            FM_addFunctionDef(funcSym);
             GCT_CodeBlock(codeNode.value.list, funcSym);
         }
     }
@@ -91,6 +90,7 @@ void GCT_Program(List *list) {
                 switch (token) {
                     case PT_DEFUN:    GCT_Function(statement, 5); break;
                     case PT_FUNCTION: GCT_Function(statement, 3); break;
+                    default: break;
                 }
             }
         }
