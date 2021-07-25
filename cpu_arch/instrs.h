@@ -47,6 +47,7 @@ extern void ICG_StoreVarSym(const SymbolRecord *varSym);
 extern void ICG_Branch(enum MnemonicCode mne, const Label *label);
 
 extern void ICG_Not();
+extern void ICG_NotBool();
 extern void ICG_Negate();
 extern void ICG_PreOp(enum MnemonicCode preOp);
 extern void ICG_OpWithConst(enum MnemonicCode mne, int num);

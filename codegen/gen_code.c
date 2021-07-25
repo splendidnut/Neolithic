@@ -105,16 +105,21 @@ void GC_LoadParamVar(ListNode loadNode, const char *varName, int lineNum) {
     }
 }
 
+
+void GC_LoadVar(ListNode loadNode, int lineNum) {
+    char *varName = loadNode.value.str;
+    if (isParam(varName)) {
+        GC_LoadParamVar(loadNode, varName, lineNum);
+    } else {
+        SymbolRecord *varRec = lookupSymbolNode(loadNode, lineNum);
+        if (varRec != NULL) ICG_LoadVar(varRec);
+    }
+}
+
 void GC_LoadPrimitive(ListNode loadNode, enum SymbolType destType, int lineNum) {
     int destSize = (destType == ST_INT) ? 2 : 1;
     if (loadNode.type == N_STR) {
-        char *varName = loadNode.value.str;
-        if (isParam(varName)) {
-            GC_LoadParamVar(loadNode, varName, lineNum);
-        } else {
-            SymbolRecord *varRec = lookupSymbolNode(loadNode, lineNum);
-            if (varRec != NULL) ICG_LoadVar(varRec);
-        }
+        GC_LoadVar(loadNode, lineNum);
     } else if (loadNode.type == N_INT) {
         ICG_LoadConst(loadNode.value.num, destSize);
     } else {
@@ -444,6 +449,15 @@ void GC_BoolOr(const List *expr, enum SymbolType destType) {
 }
 
 void GC_Not(const List *expr, enum SymbolType destType) {
+    ListNode notNode = expr->nodes[1];
+    if (notNode.type == N_STR) {
+        SymbolRecord *varSym = lookupSymbolNode(notNode, expr->lineNum);
+        if (varSym != NULL && getType(varSym) == ST_BOOL) {
+            GC_LoadVar(notNode, expr->lineNum);
+            ICG_NotBool();
+            return;
+        }
+    }
     GC_HandleLoad(expr->nodes[1], destType, expr->lineNum);
     ICG_Not();
 }

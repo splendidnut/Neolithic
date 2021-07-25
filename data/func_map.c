@@ -39,6 +39,7 @@ FuncCallMapEntry * FM_addNewFunc(char *srcName) {
 }
 
 void FM_addFuncCall(FuncCallMapEntry *mapEntry, char *destName) {
+    if (destName == NULL) return;
     mapEntry->dstFuncName[mapEntry->cntFuncsCalled++] = destName;
 }
 

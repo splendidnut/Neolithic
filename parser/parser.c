@@ -219,6 +219,8 @@ ListNode parse_primary_expr(bool isLValue, bool isExprAllowed, int allowNestedEx
                 printError("Improper start of statement: \"%s\"... must be an identifier\n", tokenStr);
             }
             break;
+        case TT_TRUE:
+        case TT_FALSE:
         case TT_IDENTIFIER:
             identifier = copyTokenStr(token);
             if (isNegative) {

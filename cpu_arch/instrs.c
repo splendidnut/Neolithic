@@ -452,6 +452,10 @@ void ICG_Not() {
     IL_AddInstrS(EOR, ADDR_IMM, "$FF", NULL, PARAM_NORMAL);
 }
 
+void ICG_NotBool() {
+    IL_AddInstrS(EOR, ADDR_IMM, "$01", NULL, PARAM_NORMAL);
+}
+
 void ICG_Negate() {
     IL_AddInstrS(EOR, ADDR_IMM, "$FF", NULL, PARAM_NORMAL);
     IL_AddInstrN(CLC, ADDR_NONE, 0);
