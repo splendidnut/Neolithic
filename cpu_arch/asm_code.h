@@ -46,8 +46,18 @@ struct StAddressMode {
     char *name;
     enum AddrModes mode;
     int instrSize;
+    int cycles;
     char *format;
 };
+
+struct StOpcodeTable {
+    enum MnemonicCode mneCode;
+    enum AddrModes addrMode;
+    int opcode;
+    int cycles;
+};
+
+typedef struct StOpcodeTable OpcodeEntry;
 
 enum ParamExt {
     PARAM_NORMAL,
@@ -68,5 +78,7 @@ extern struct StAddressMode getAddrModeSt(enum AddrModes addrMode);
 extern int getInstrSize(enum MnemonicCode mne, enum AddrModes addrMode);
 
 extern bool isBranch(enum MnemonicCode mne);
+
+extern OpcodeEntry lookupOpcodeEntry(enum MnemonicCode mneCode, enum AddrModes addrMode);
 
 #endif //MODULE_ASM_CODE_H

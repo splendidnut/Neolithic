@@ -16,6 +16,7 @@
 typedef struct InstrStruct {
     enum MnemonicCode mne;
     enum AddrModes addrMode;
+    bool showCycles;            // TODO: maybe optimize this functionality later?
     bool usesVar;
     int offset;
     const char *paramName;

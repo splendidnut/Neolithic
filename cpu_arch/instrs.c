@@ -36,11 +36,13 @@ static int codeAddr;
 
 InstrBlock *curBlock;
 Label *curLabel;
+bool showCycles = false;
 
 Instr* startNewInstruction(enum MnemonicCode mne, enum AddrModes addrMode) {
     Instr *newInstr = malloc(sizeof(struct InstrStruct));
     newInstr->mne = mne;
     newInstr->addrMode = addrMode;
+    newInstr->showCycles = showCycles;
     return newInstr;
 }
 
@@ -124,6 +126,14 @@ int IL_GetCodeSize(InstrBlock *instrBlock) {
         curInstr = curInstr->nextInstr;
     }
     return size;
+}
+
+void IL_ShowCycles() {
+    showCycles = true;
+}
+
+void IL_HideCycles() {
+    showCycles = false;
 }
 
 //================================================================================

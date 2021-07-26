@@ -27,6 +27,7 @@
 #include "tokenize.h"
 #include "parser.h"
 #include "parse_asm.h"
+#include "parse_directives.h"
 
 //---------------------------
 //  Global variables
@@ -1118,10 +1119,11 @@ ListNode parse_stmt() {
                 // handle var list/initialization
                 node = parse_variable();
             } else if (token->tokenStr[0] == '#') {
-                getToken(); // EAT '#'
+                node = parse_compilerDirective();
+                /*getToken(); // EAT '#'
                 printf("Missing support for %s\n", getToken()->tokenStr);
                 tokenizer_nextLine();
-                node = createEmptyNode();
+                node = createEmptyNode();*/
             } else if (token->tokenType != TT_SEMICOLON) {
                 // handle an expression/assignment statement
                 node = parse_expr_assignment();
@@ -1219,10 +1221,7 @@ ListNode parse_program(char *sourceCode) {
                         getToken();
                     }
                 } else if (tokenStr[0] == '#') {
-                    getToken(); // EAT '#'
-                    printf("Missing support for %s\n", getToken()->tokenStr);
-                    tokenizer_nextLine();
-                    node = createEmptyNode();
+                    node = parse_compilerDirective();
                 } else {
                     printError("Warning: bad token: %s %d\n", tokenStr, tokenStr[0]);
                     getToken();

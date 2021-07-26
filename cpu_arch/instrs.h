@@ -11,6 +11,9 @@
 #define CALC_ADDR_MODE(ofs) (ofs < 0x100 ? ADDR_ZP : ADDR_ABS)
 #define IS_PARAM_VAR(varRec) (varRec->isStack && (varRec->location < 0x80))
 
+extern void IL_ShowCycles();
+extern void IL_HideCycles();
+
 extern void IL_Init(int startCodeAddr);
 extern void IL_Preload(const SymbolRecord *varSym, enum VarHint hint);
 extern void IL_Label(Label *label);

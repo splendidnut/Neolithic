@@ -82,7 +82,9 @@ const char* ParseTokenNames[NUM_PARSE_TOKENS] = {
         "const",
         "register",
 
-        "list"
+        "list",
+
+        "directive"
 };
 
 const char *getParseTokenName(enum ParseToken pt) { return ParseTokenNames[pt]; }

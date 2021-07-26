@@ -20,6 +20,7 @@
 #include "output/output_block.h"
 #include "common/tree_walker.h"
 #include "gen_common.h"
+#include "parser/parse_directives.h"
 
 //-------------------------------------------
 //  Variables used in code generation
@@ -1422,6 +1423,28 @@ void GC_AsmBlock(const List *code, enum SymbolType destType) {
 }
 
 
+//-------------------------------------------------------------------
+
+
+void GC_HandleDirective(const List *code, enum SymbolType destType) {
+
+    // NOTE: loose casting op!
+    enum CompilerDirectiveTokens directive = code->nodes[1].value.num;
+
+    switch (directive) {
+        case SHOW_CYCLES:
+            printf("Cycle counts on\n");
+            IL_ShowCycles();
+            break;
+        case HIDE_CYCLES:
+            printf("Cycle counts off\n");
+            IL_HideCycles();
+            break;
+        default:
+            break;
+    }
+}
+
 
 //-------------------------------------------------------------------
 // --  Handle Statements
@@ -1442,6 +1465,7 @@ ParseFuncTbl stmtFunction[] = {
         {PT_SWITCH,     &GC_Switch},
         {PT_INC,        &GC_IncStmt},
         {PT_DEC,        &GC_DecStmt},
+        {PT_DIRECTIVE,  &GC_HandleDirective},
 };
 const int stmtFunctionSize = sizeof(stmtFunction) / sizeof(ParseFuncTbl);
 

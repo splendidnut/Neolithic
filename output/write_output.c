@@ -88,9 +88,27 @@ char *getOpExt(enum MnemonicCode mne, struct StAddressMode addressMode) {
 }
 
 
+int getCycleCount(Instr *pStruct) {
+    OpcodeEntry opcodeEntry = lookupOpcodeEntry(pStruct->mne, pStruct->addrMode);
+    if (opcodeEntry.mneCode != MNE_NONE) {
+        return opcodeEntry.cycles;
+    }
+    return 0;
+}
+
+/**
+ * Write out a single instruction to the output file
+ *
+ * TODO: Figure out a better way to generate the output string.
+ *        The current method seems a bit wonky (using sprintf, snprintf, etc...)
+ *
+ * @param output
+ * @param instr
+ */
 void WO_OutputInstr(FILE *output, Instr *instr) {
     struct StAddressMode addressMode = getAddrModeSt(instr->addrMode);
     char *instrName = getMnemonicStr(instr->mne);
+    static int runningCycleCount = 0;
 
     // first print any label
     if (instr->label != NULL) {
@@ -114,9 +132,30 @@ void WO_OutputInstr(FILE *output, Instr *instr) {
         sprintf(instrBuf, "%s", instrName);
     }
 
+    //----------------------------------------
+    // Append instruction cycles (if enabled)
+
+    char newLineComment[100];
+    if (instr->showCycles && instr->mne != MNE_NONE) {
+        int cycleCount = getCycleCount(instr);
+        runningCycleCount += cycleCount;
+
+        if (instr->lineComment == NULL) instr->lineComment = "";
+
+        sprintf(newLineComment, ";%d [%d] -- %s", cycleCount, runningCycleCount, instr->lineComment);
+    }
+    // need to handle when not showing cycles... comments vs no-comments
+    else if (instr->lineComment != NULL) {
+        snprintf(newLineComment, 100, ";-- %s", instr->lineComment);
+    } else {
+        newLineComment[0] = '\0';   // no comment
+    }
+
+    if (!instr->showCycles) runningCycleCount = 0;
+
     // append any comments
-    if (instr->lineComment != NULL) {
-        snprintf(outStr, 120, "\t%-32s\t;-- %s", instrBuf, instr->lineComment);
+    if (newLineComment[0] != '\0') {
+        snprintf(outStr, 120, "\t%-32s\t%s", instrBuf, newLineComment);
         outStr[119] = '\0'; // snprintf doesn't properly terminate buffer when formatted string hits limit
     } else {
         snprintf(outStr, 120, "\t%s", instrBuf);

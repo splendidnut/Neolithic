@@ -60,7 +60,7 @@ add_executable(neolithic
         codegen/gen_common.c
         codegen/gen_common.h
         cpu_arch/instrs_math.c
-        cpu_arch/instrs_math.h machine/machine.h codegen/gen_alloc.c codegen/gen_alloc.h)
+        cpu_arch/instrs_math.h machine/machine.h codegen/gen_alloc.c codegen/gen_alloc.h parser/parse_directives.c parser/parse_directives.h)
 
 #--  Uncomment next line to generate .S assembler files for each .C file
 #-- set_target_properties(neolithic PROPERTIES COMPILE_FLAGS "-save-temps -fverbose-asm")
