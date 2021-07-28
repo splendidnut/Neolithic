@@ -143,7 +143,13 @@ ListNode PA_create_equate(char *piece) {
     List *label = createList(3);
     addNode(label, createParseToken(PT_EQUATE));
     addNode(label, createStrNode(piece));
-    addNode(label, createStrNode(copyTokenStr(getToken())));
+    switch (peekToken()->tokenType) {
+        case TT_NUMBER:
+            addNode(label, createIntNode(copyTokenInt(getToken())));
+            break;
+        default:
+            addNode(label, createStrNode(copyTokenStr(getToken())));
+    }
     return createListNode(label);
 }
 

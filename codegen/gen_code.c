@@ -1378,6 +1378,13 @@ void GC_AsmInstr(List *instr) {
     //if (paramStr != NULL) free(paramStr);
 }
 
+void GC_NewConst(char *equName, int value) {
+    SymbolRecord *equSymbol = addSymbol(curFuncSymbolTable, equName, SK_CONST, ST_CHAR, 0);
+    equSymbol->isLocal = true;
+    equSymbol->constValue = value;
+    equSymbol->hasValue = true;
+}
+
 void GC_AsmBlock(const List *code, enum SymbolType destType) {
     // TODO: Collect all local labels into a "local" label list
 
@@ -1410,8 +1417,12 @@ void GC_AsmBlock(const List *code, enum SymbolType destType) {
             } else if (instrNode.value.parseToken == PT_EQUATE) {
                 // handle const def
                 char *equName = statement->nodes[1].value.str;
-                char *value = statement->nodes[2].value.str;
-                WO_Variable(equName, value);
+                int value = statement->nodes[2].value.num;
+                //WO_Variable(equName, value);
+
+                // Add as constant to local function scope
+                // TODO: Check this feature
+                GC_NewConst(equName, value);
             } else if (instrNode.value.parseToken == PT_LABEL) {
                 // handle label def
                 char *labelName = statement->nodes[1].value.str;
@@ -1760,7 +1771,7 @@ void GC_ProcessProgram(ListNode node) {
     }
 }
 
-void generate_code(ListNode node, SymbolTable *symbolTable, FILE *outputFile, bool isMainFile) {
+void generate_code(ListNode node, SymbolTable *symbolTable) {
     printf("\nGenerating Code\n");
 
     mainSymbolTable = symbolTable;
@@ -1776,31 +1787,6 @@ void generate_code(ListNode node, SymbolTable *symbolTable, FILE *outputFile, bo
         isInitialized = true;
     }
 
-    if (isMainFile) {
-
-        // this needs to be done before the program is processed
-        //  because the Code Generator makes changes to the symbol table
-        //    (adds static data structures)
-        WO_Init(outputFile);
-        WO_PrintSymbolTable(mainSymbolTable, "Main");
-
-        GC_ProcessProgram(node);
-
-        // need to add error check here
-        if (GC_ErrorCount == 0) {
-            //OPT_RunOptimizer();
-            WO_WriteAllBlocks();    // output all the code and the variables
-
-            printf("Output layout:\n");
-            OB_PrintBlockList();
-        } else {
-            printf("Unable to process program due to errors\n");
-        }
-
-        WO_Done();
-    } else {
-        // process module -> just needs to run code generator to build output blocks
-
-        GC_ProcessProgram(node);
-    }
+    // process module -> just needs to run code generator to build output blocks
+    GC_ProcessProgram(node);
 }

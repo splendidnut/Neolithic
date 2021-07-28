@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <output/write_output.h>
+#include <output/output_block.h>
+#include <codegen/gen_common.h>
 
 #include "data/syntax_tree.h"
 #include "machine/machine.h"
@@ -30,7 +33,6 @@ SymbolTable * mainSymbolTable;
 char *projectName;
 char *projectDir;
 char *inFileName;
-char *outFileName;
 
 //------------------------------------------
 //  Cache all the source files
@@ -117,21 +119,6 @@ void showParseTree(ListNode node, FILE *outputFile) {
     }
 }
 
-char *genFileName(const char *name, const char *ext) {
-    // generate file name
-    int nameLen = strlen(name);
-
-    // strip off .c extension
-    if ((name[nameLen-2] == '.') && (name[nameLen-1] == 'c')) {
-        nameLen -= 2;
-    }
-
-    char *astFileName = malloc(nameLen+6);
-    strcpy(astFileName, name);
-    strcpy(astFileName+nameLen, ext);
-    return astFileName;
-}
-
 void writeParseTree(ListNode treeRoot, char *name) {
     // if no name, show nothing
     if (name == NULL) return;
@@ -203,7 +190,7 @@ void generateCodeForDependencies(PreProcessInfo *preProcessInfo) {
     for_range(curFileIdx, 0, preProcessInfo->numFiles) {
         char *curFileName = preProcessInfo->includedFiles[curFileIdx];
         ListNode progNode = SourceFileList_lookupAST(curFileName);
-        generate_code(progNode, mainSymbolTable, stdout, false);
+        generate_code(progNode, mainSymbolTable);
     }
 }
 
@@ -247,16 +234,38 @@ int mainCompiler() {
         }
 
         //----- Compile main file
-        printf("Compiling %s to %s\n", inFileName, outFileName);
         ListNode progNode = SourceFileList_lookupAST(inFileName);
 
         //------------------------------------------
         // Output ASM code and SYM file
 
-        FILE *outfile = fopen(outFileName, "w");
-        generate_code(progNode, mainSymbolTable, outfile, true);
+        printf("Compiling main program %s\n", inFileName);
+
+        WO_Init(projectName, OUT_DASM);
+
+        // this needs to be done before the program is processed
+        //  because the Code Generator makes changes to the symbol table
+        //    (adds static data structures)
+
+        WO_PrintSymbolTable(mainSymbolTable, "Main");
+
+        generate_code(progNode, mainSymbolTable);
+
+        // need to add error check here
+        if (GC_ErrorCount == 0) {
+            //OPT_RunOptimizer();
+            WO_WriteAllBlocks();    // output all the code and the variables
+
+            printf("Output layout:\n");
+            OB_PrintBlockList();
+        } else {
+            printf("Unable to process program due to errors\n");
+        }
+
+        WO_Done();
+
+        //--- Finish off by outputting the symbol table
         writeSymbolTable(inFileName);
-        fclose(outfile);
 
         //----- Cleanup!
         free(preProcessInfo);
@@ -317,7 +326,6 @@ int main(int argc, char *argv[]) {
 #endif
 
     inFileName = genFileName(projectName, ".c");
-    outFileName = genFileName(projectName, ".asm");
 
     compilerOptions = malloc(sizeof(CompilerOptions));
     compilerOptions->entryPointFuncName = "main";

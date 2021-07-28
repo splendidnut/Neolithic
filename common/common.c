@@ -24,6 +24,29 @@ char *intToStr(int num) {
 }
 
 /**
+ * Generate a filename with the given extension, starting from a filename
+ *   that may or may not be using the .c extension
+ *
+ * @param name
+ * @param ext
+ * @return
+ */
+char *genFileName(const char *name, const char *ext) {
+    // generate file name
+    int nameLen = strlen(name);
+
+    // strip off .c extension
+    if ((name[nameLen-2] == '.') && (name[nameLen-1] == 'c')) {
+        nameLen -= 2;
+    }
+
+    char *astFileName = malloc(nameLen+6);
+    strcpy(astFileName, name);
+    strcpy(astFileName+nameLen, ext);
+    return astFileName;
+}
+
+/**
  * Build the source code line to display in the ASM output
  *
  * This is a nice, interesting feature which works relatively well... not great, but gets the job done.
