@@ -119,7 +119,7 @@ SymbolRecord * GS_Variable(List *varDef, SymbolTable *symbolTable) {
         }
     }
 
-    List *modList = varDef->nodes[3].value.list;
+    List *modList = (varDef->nodes[3].type == N_LIST) ? varDef->nodes[3].value.list : NULL;
     bool isTypeModified = (modList != NULL) && (modList->count > 0);
     if (isTypeModified) {
 
