@@ -207,6 +207,7 @@ void addSymbolExt(SymbolRecord *funcSym, SymbolTable *paramTbl, SymbolTable *loc
 
 
 SymbolRecord * findSymbol(SymbolTable *symbolTable, const char* name) {
+    if (name[0] == '\0') return NULL;
     SymbolRecord *curSymbol = symbolTable->firstSymbol;
     while (curSymbol && strncmp(curSymbol->name, name, SYMBOL_NAME_LIMIT) != 0) {
         curSymbol = curSymbol->next;
