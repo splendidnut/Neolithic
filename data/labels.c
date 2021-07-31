@@ -67,7 +67,7 @@ void addLabelRef(Label *label) {
 }
 
 
-Label * findLabel(char *name) {
+Label * findLabel(const char *name) {
     Label *curLabel = firstLabel;
     while (curLabel && strncmp(curLabel->name, name, LABEL_NAME_LIMIT) != 0) {
         curLabel = curLabel->next;

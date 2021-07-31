@@ -25,7 +25,7 @@ extern Label * newGenericLabel(enum LabelType type);
 extern Label * newLabel(char* name, enum LabelType type);
 extern void linkToLabel(Label *srcLabel, Label *linkedLabel);
 extern void addLabelRef(Label *label);
-extern Label * findLabel(char *name);
+extern Label * findLabel(const char *name);
 extern void printLabelList();
 
 #endif //MODULE_LABELS_H
