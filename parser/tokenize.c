@@ -372,20 +372,8 @@ int copyTokenInt(TokenObject *token) {
     int resultInt = 0;
     char str[11];
     strncpy(str, token->tokenStr, 10);
-    if (str[1] == 'x' && str[0] == '0') {
-        resultInt = (int)strtol(str + 2, NULL, 16);    // hexadecimal
-    } else if (str[1] == 'b' && str[0] == '0') {
-        resultInt = (int)strtol(str + 2, NULL, 2);    // binary
-    } else if (str[0] == '$') {
-        resultInt = (int)strtol(str + 1, NULL, 16);    // ASM style hex
-    } else if (str[0] == '%') {
-        resultInt = (int)strtol(str + 1, NULL, 2);   // ASM style binary
-    } else {
-        resultInt = (int)strtol(str, NULL, 10);
-    }
-    return resultInt;
+    return strToInt(str);
 }
-
 
 //---------------------------------------------------------
 //  Simple token test/compare functions

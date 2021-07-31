@@ -23,6 +23,23 @@ char *intToStr(int num) {
     return result;
 }
 
+int strToInt(const char *str) {
+    int resultInt;
+    if (str[1] == 'x' && str[0] == '0') {
+        resultInt = (int)strtol(str + 2, NULL, 16);    // hexadecimal
+    } else if (str[1] == 'b' && str[0] == '0') {
+        resultInt = (int)strtol(str + 2, NULL, 2);    // binary
+    } else if (str[0] == '$') {
+        resultInt = (int)strtol(str + 1, NULL, 16);    // ASM style hex
+    } else if (str[0] == '%') {
+        resultInt = (int)strtol(str + 1, NULL, 2);   // ASM style binary
+    } else {
+        resultInt = (int)strtol(str, NULL, 10);
+    }
+    return resultInt;
+}
+
+
 /**
  * Generate a filename with the given extension, starting from a filename
  *   that may or may not be using the .c extension
