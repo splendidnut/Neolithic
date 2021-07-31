@@ -111,15 +111,16 @@ ListNode parse_asm_instr(enum MnemonicCode instrCode) {
             acceptToken(TT_LESS_THAN);
             // TODO: this should force zeropage mode (currently unnecessary since that's the default)
         default: {
-            //param = copyTokenStr(getToken());
             paramNode = parse_expr();
-            addrModeStr = getDirectAddrMode(forceAbs);
+            if (isBranch(instrCode)) {
+                addrModeStr = "REL";
+            } else {
+                addrModeStr = getDirectAddrMode(forceAbs);
+            }
         }
     }
     addNode(asmInstr, createStrNode(addrModeStr));
     addNode(asmInstr, paramNode);
-    //addNode(asmInstr, createStrNode(param));
-
     return createListNode(asmInstr);
 }
 
