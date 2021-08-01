@@ -7,16 +7,19 @@
 #include "write_output.h"
 
 static FILE *outputFile;
+static SymbolTable *mainSymbolTable;
 
 //---------------------------------------------------------
 // Output Adapter API
 
-void WriteDASM_Init(FILE *outFile);
+void WriteDASM_Init(FILE *outFile, SymbolTable *mainSymTbl);
 void WriteDASM_Done();
 char* WriteDASM_getExt();
 void WriteDASM_FunctionBlock(const OutputBlock *block);
 void WriteDASM_StaticArrayData(const OutputBlock *block);
 void WriteDASM_StaticStructData(const OutputBlock *block);
+void WriteDASM_StartOfBlock(const OutputBlock *block);
+void WriteDASM_EndOfBlock(const OutputBlock *block);
 
 struct OutputAdapter DASM_Adapter =
         {
@@ -25,7 +28,9 @@ struct OutputAdapter DASM_Adapter =
                 &WriteDASM_getExt,
                 &WriteDASM_FunctionBlock,
                 &WriteDASM_StaticArrayData,
-                &WriteDASM_StaticStructData
+                &WriteDASM_StaticStructData,
+                &WriteDASM_StartOfBlock,
+                &WriteDASM_EndOfBlock
         };
 
 //---------------------------------------------------------
@@ -48,6 +53,20 @@ void WriteDASM_WriteCodeBlockHeader(const InstrBlock *instrBlock, const char *na
 
 void WriteDASM_WriteBlockFooter(char *name) {
     fprintf(outputFile, "\techo \"%-30s \", (*-%s),(%s),\"-\",(*-1)\n\n", name, name, name);
+}
+
+void WriteDASM_StartOfBank() {
+    fprintf(outputFile, "\n\n\tORG $0000\n\tRORG $F000\n");
+}
+
+void WriteDASM_EndOfBank() {
+    // print footer
+    fprintf(outputFile, "\n\n\tORG $0FF8\n\tRORG $FFF8\n");
+    fprintf(outputFile, "\t.word  $0000\n");
+    fprintf(outputFile, "\t.word  $0000\n");
+    fprintf(outputFile, "\t.word  main\n");
+    fprintf(outputFile, "\t.word  main\n");
+    fprintf(outputFile, "\n\n;--- END OF PROGRAM\n\n");
 }
 
 //-------------------------------------------------------
@@ -316,16 +335,19 @@ void HandleSingleStructRecord(const List *dataList, SymbolTable *structSymTbl) {
 
 //---------------------------------------------------------
 
-void WriteDASM_Init(FILE *outFile) {
+void WriteDASM_Init(FILE *outFile, SymbolTable *mainSymTbl) {
     outputFile = outFile;
+    mainSymbolTable = mainSymTbl;
 
     // print preamble
     if (outputFile != stdout) {
         fprintf(outputFile, "\t\tprocessor 6502\n\n");
+        WriteDASM_StartOfBank();
     }
 }
 
 void WriteDASM_Done() {
+    WriteDASM_EndOfBank();
     fclose(outputFile);
 }
 
@@ -342,6 +364,15 @@ void WriteDASM_FunctionBlock(const OutputBlock *block) {
     WriteDASM_CodeBlock(block->codeBlock, outputFile);
     WriteDASM_WriteBlockFooter(funcName);
 }
+
+void WriteDASM_StartOfBlock(const OutputBlock *block) {
+
+}
+
+void WriteDASM_EndOfBlock(const OutputBlock *block) {
+
+}
+
 
 //------------------------------------------------------------------------
 //   Output static array data

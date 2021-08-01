@@ -16,7 +16,7 @@
 struct OutputAdapter *outputAdapter;
 static FILE *outputFile;
 
-void WO_Init(char *projectName, enum OutputType outputType) {
+void WO_Init(char *projectName, enum OutputType outputType, SymbolTable *mainSymTbl) {
     switch (outputType) {
         case OUT_DASM:
             outputAdapter = &DASM_Adapter;
@@ -31,9 +31,13 @@ void WO_Init(char *projectName, enum OutputType outputType) {
 
     char* outFileName = genFileName(projectName, outputAdapter->getExt());
     printf("Writing %s\n", outFileName);
-    outputFile = fopen(outFileName, "w");
+    if (outputType == OUT_BIN) {
+        outputFile = fopen(outFileName, "wb");
+    } else {
+        outputFile = fopen(outFileName, "w");
+    }
     if (outputFile != NULL) {
-        outputAdapter->init(outputFile);
+        outputAdapter->init(outputFile, mainSymTbl);
     } else {
         printf("ERROR: Unable to open file for writing!\n");
     }
@@ -43,25 +47,10 @@ void WO_Done() {
     if (outputAdapter != NULL) {
         outputAdapter->done();
     }
-    fclose(outputFile);
+    if (outputFile != NULL) {
+        fclose(outputFile);
+    }
 }
-
-
-
-void WO_StartOfBank() {
-    fprintf(outputFile, "\n\n\tORG $0000\n\tRORG $F000\n");
-}
-
-void WO_EndOfBank() {
-    // print footer
-    fprintf(outputFile, "\n\n\tORG $0FF8\n\tRORG $FFF8\n");
-    fprintf(outputFile, "\t.word  $0000\n");
-    fprintf(outputFile, "\t.word  $0000\n");
-    fprintf(outputFile, "\t.word  main\n");
-    fprintf(outputFile, "\t.word  main\n");
-    fprintf(outputFile, "\n\n;--- END OF PROGRAM\n\n");
-}
-
 
 
 /**
@@ -145,8 +134,8 @@ void WO_WriteAllBlocks() {
 
     const OutputBlock *block = OB_getFirstBlock();
 
-    WO_StartOfBank();
     while (block != NULL) {
+        outputAdapter->startWriteBlock(block);
         switch (block->blockType) {
             case BT_CODE:
                 outputAdapter->writeFunctionBlock(block);
@@ -158,7 +147,7 @@ void WO_WriteAllBlocks() {
                 outputAdapter->writeStaticStructData(block);
                 break;
         }
+        outputAdapter->endWriteBlock(block);
         block = block->nextBlock;
     }
-    WO_EndOfBank();
 }

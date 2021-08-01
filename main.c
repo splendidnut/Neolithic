@@ -241,7 +241,7 @@ int mainCompiler() {
 
         printf("Compiling main program %s\n", inFileName);
 
-        WO_Init(projectName, OUT_DASM);
+        WO_Init(projectName, OUT_DASM, mainSymbolTable);
 
         // this needs to be done before the program is processed
         //  because the Code Generator makes changes to the symbol table
@@ -263,6 +263,15 @@ int mainCompiler() {
         }
 
         WO_Done();
+
+        //----------------------------------------
+        //  Output binary
+
+        if (GC_ErrorCount == 0) {
+            WO_Init(projectName, OUT_BIN, mainSymbolTable);
+            WO_WriteAllBlocks();
+            WO_Done();
+        }
 
         //--- Finish off by outputting the symbol table
         writeSymbolTable(inFileName);
@@ -321,8 +330,8 @@ int main(int argc, char *argv[]) {
 #endif
 
 #ifdef DEBUG
-    projectDir = "c:\\atari2600\\projects\\congo_c\\";
-    projectName = "congo";
+    projectDir = "/Users/pblackman/projects/neolithic/";
+    projectName = "bca";
 #endif
 
     inFileName = genFileName(projectName, ".c");
