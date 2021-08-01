@@ -183,6 +183,7 @@ struct StOpcodeTable opcodeTable[] = {
         {AND, ADDR_IX,  0x21, 6},
         {AND, ADDR_IY,  0x31, 5},
         //
+        {ASL, ADDR_NONE, 0x0A, 2},
         {ASL, ADDR_ACC, 0x0A, 2},
         {ASL, ADDR_ZP,  0x06, 5},
         {ASL, ADDR_ZPX, 0x16, 6},
@@ -275,6 +276,7 @@ struct StOpcodeTable opcodeTable[] = {
         {LDY, ADDR_ABS, 0xAC, 4},
         {LDY, ADDR_ABX, 0xBC, 4},
         //
+        {LSR, ADDR_NONE, 0x4A, 2},
         {LSR, ADDR_ACC, 0x4A, 2},
         {LSR, ADDR_ZP,  0x46, 5},
         {LSR, ADDR_ZPX, 0x56, 6},
@@ -297,12 +299,14 @@ struct StOpcodeTable opcodeTable[] = {
         {PLA, ADDR_NONE,0x68, 4},
         {PLP, ADDR_NONE,0x28, 4},
         //
+        {ROL, ADDR_NONE, 0x2A, 2},
         {ROL, ADDR_ACC, 0x2A, 2},
         {ROL, ADDR_ZP,  0x26, 5},
         {ROL, ADDR_ZPX, 0x36, 6},
         {ROL, ADDR_ABS, 0x2E, 6},
         {ROL, ADDR_ABX, 0x3E, 7},
         //
+        {ROR, ADDR_NONE, 0x6A, 2},
         {ROR, ADDR_ACC, 0x6A, 2},
         {ROR, ADDR_ZP,  0x66, 5},
         {ROR, ADDR_ZPX, 0x76, 6},
