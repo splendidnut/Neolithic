@@ -298,7 +298,7 @@ void printSymbol(FILE *outputFile, const SymbolRecord *curSymbol, int indentLeve
 
     char location[6] = "";
     if (curSymbol->hasLocation) {
-        sprintf(location, "@%04x", curSymbol->location);
+        sprintf(location, "%04x", curSymbol->location);
     }
 
     char userTypeName[32] = "";
@@ -310,14 +310,13 @@ void printSymbol(FILE *outputFile, const SymbolRecord *curSymbol, int indentLeve
     bool isFunc = isFunction(curSymbol) && (curSymbol->funcExt != NULL);
     int baseSize = getBaseVarSize(curSymbol);
     int size = isFunc ? getCodeSize(curSymbol) : calcVarSize(curSymbol);
-    //curSymbol->numElements * baseSize;
     fprintf(outputFile,
-            " %-20s  %6s  %04x %5s  %5s  %02x  %02x  %04x  %6s  %20s\n",
+            " %-32s  %5s  %6s  %04x  %5s  %02x  %02x  %04x  %6s  %20s\n",
             symName,
+            location,
             lookupSymbolKind(curSymbol->kind),
             curSymbol->flags,
             ((curSymbol->flags & MF_POINTER) != 0) ? "true" : "false",
-            location,
             baseSize,
             curSymbol->numElements,
             size,
@@ -363,8 +362,8 @@ void printSubSymbolSet(FILE *outputFile, SymbolRecord *curSymbol, int indentLeve
 }
 
 void printSymbolHeader(FILE *outputFile) {
-    fprintf(outputFile, "     Symbol Name        Kind  Flags  Pntr   Loc   BS  #El  Size  Value\n");
-    fprintf(outputFile, "-----------------------------------------------------------------------\n");
+    fprintf(outputFile, "    Symbol Name                    Loc    Kind  Flags  Pntr   BS  #El  Size  Value\n");
+    fprintf(outputFile, "-----------------------------------------------------------------------------------\n");
 }
 
 void printSingleSymbol(FILE *outputFile, const SymbolRecord *curSymbol) {
