@@ -73,6 +73,7 @@ void WriteBIN_EndOfBlock(const OutputBlock *block) {
 int getParamStringValue(const char *param, int paramPos) {
     printf("\tparam #%d: %s\n", paramPos, param);
 
+    // attempt to lookup the param in the symbol tables
     SymbolRecord *paramSym = NULL;
     if (paramSymbolTable != NULL) {
         paramSym = findSymbol(paramSymbolTable, param + 1);
@@ -84,6 +85,7 @@ int getParamStringValue(const char *param, int paramPos) {
         paramSym = findSymbol(mainSymbolTable, param);
     }
 
+    // if param is a symbol, return location or value
     if (paramSym != NULL) {
         if (paramSym->hasLocation) {
             return paramSym->location;
