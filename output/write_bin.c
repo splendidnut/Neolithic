@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include "write_output.h"
 
+//#define DEBUG_WRITE_BIN
+
 static FILE *outputFile;
 static SymbolTable *mainSymbolTable;
 static SymbolTable *funcSymbolTable;
@@ -45,6 +47,7 @@ void WriteBIN_Init(FILE *outFile, SymbolTable *mainSymTbl) {
     funcSymbolTable = NULL;
     paramSymbolTable = NULL;
     binData = malloc(65536);
+    for_range(i, 0, 4095) { binData[i] = 0; }
 }
 
 void WriteBIN_Done() {
@@ -53,14 +56,18 @@ void WriteBIN_Done() {
     free(binData);
 }
 
-char* WriteBIN_getExt() { return ".binary"; }
+char* WriteBIN_getExt() { return ".bin"; }
 
 void WriteBIN_StartOfBlock(const OutputBlock *block) {
 
 }
 
 void WriteBIN_EndOfBlock(const OutputBlock *block) {
-
+    Label *mainLabel = findLabel("main");
+    binData[4092] = mainLabel->location & 0xff;
+    binData[4093] = (mainLabel->location >> 8) & 0xff;
+    binData[4094] = mainLabel->location & 0xff;
+    binData[4095] = (mainLabel->location >> 8) & 0xff;
 }
 
 /**
@@ -71,7 +78,9 @@ void WriteBIN_EndOfBlock(const OutputBlock *block) {
  * @return
  */
 int getParamStringValue(const char *param, int paramPos) {
+#ifdef DEBUG_WRITE_BIN
     printf("\tparam #%d: %s\n", paramPos, param);
+#endif
 
     // attempt to lookup the param in the symbol tables
     SymbolRecord *paramSym = NULL;
@@ -97,7 +106,9 @@ int getParamStringValue(const char *param, int paramPos) {
     // attempt to process as label
     Label *codeLabel = findLabel(param);
     if (codeLabel != NULL) {
+#ifdef DEBUG_WRITE_BIN
         printf("Using label\n");
+#endif
         return codeLabel->location;
     }
 
@@ -115,9 +126,10 @@ int getInstrParamValue(const Instr *curOutInstr) {
     int paramValue;
 
     if (!curOutInstr->usesVar) {
-        printf("Using offset\n");
         paramValue = curOutInstr->offset;
-        if (curOutInstr->addrMode == ADDR_REL) paramValue -= 3;
+        if (curOutInstr->addrMode == ADDR_REL) {
+            paramValue -= 3;
+        }
     } else {
         if (curOutInstr->paramName == NULL) return 0;
         paramValue = getParamStringValue(curOutInstr->paramName, 1);
@@ -158,7 +170,9 @@ void WriteBIN_PreprocessLabels(const InstrBlock *instrBlock, int blockAddr) {
 }
 
 void WriteBIN_FunctionBlock(const OutputBlock *block) {
+#ifdef DEBUG_WRITE_BIN
     printf("Writing %s code to %4X\n", block->blockName, block->blockAddr);
+#endif
 
     int writeAddr = block->blockAddr;
 
@@ -182,13 +196,27 @@ void WriteBIN_FunctionBlock(const OutputBlock *block) {
             binData[writeAddr++] = opcodeEntry.opcode;
 
             //DEBUG
-            printf("Outputting %2X\n", opcodeEntry.opcode);
+            //printf("Outputting %2X\n", opcodeEntry.opcode);
 
             if (addrMode != ADDR_NONE) {
                 int paramValue = getInstrParamValue(curOutInstr);
-                printf("Opcode parameter is %4X\n", paramValue);
                 if (addrMode == ADDR_REL) {
-                    paramValue -= writeAddr + 1;
+#ifdef DEBUG_WRITE_BIN
+                    if (curOutInstr->usesVar) {
+                        printf("Current Address: %4X\n", writeAddr);
+                        printf("Parameter value is %4X\n", paramValue);
+                    } else {
+                        printf("Relative to Current Address: %4X\n", writeAddr);
+                    }
+#endif
+                    if (curOutInstr->usesVar) {
+                        paramValue -= writeAddr + 1;
+                    } else {
+                        paramValue += 1;
+                    }
+#ifdef DEBUG_WRITE_BIN
+                    printf("Opcode parameter is %4X\n", paramValue);
+#endif
                     binData[writeAddr++] = paramValue;
                 } else if (addressMode.instrSize == 2) {
                     binData[writeAddr++] = paramValue & 0xff;
@@ -200,12 +228,15 @@ void WriteBIN_FunctionBlock(const OutputBlock *block) {
         }
         curOutInstr = curOutInstr->nextInstr;
     }
+#ifdef DEBUG_WRITE_BIN
     printf("Wrote %d bytes\n", (writeAddr - block->blockAddr));
+#endif
 }
 
 void WriteBIN_StaticArrayData(const OutputBlock *block) {
+#ifdef DEBUG_WRITE_BIN
     printf("Writing %s array data to %4X\n", block->blockName, block->blockAddr);
-
+#endif
     int writeAddr = block->blockAddr;
     bool isInt = getBaseVarSize(block->dataSym) > 1;
 
@@ -219,5 +250,7 @@ void WriteBIN_StaticArrayData(const OutputBlock *block) {
 }
 
 void WriteBIN_StaticStructData(const OutputBlock *block) {
+#ifdef DEBUG_WRITE_BIN
     printf("Writing %s struct data to %4X\n", block->blockName, block->blockAddr);
+#endif
 }
