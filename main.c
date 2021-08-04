@@ -285,6 +285,8 @@ int mainCompiler() {
     printf("Cleaning up\n");
     SourceFileList_cleanup();
     killSymbolTable(mainSymbolTable);
+
+    return 0;
 }
 
 //===========================================================================
