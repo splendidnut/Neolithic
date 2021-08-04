@@ -10,4 +10,6 @@ enum Machines {
     Atari7800
 };
 
+void prepForMachine(enum Machines machine);
+
 #endif //MODULE_MACHINE_H
