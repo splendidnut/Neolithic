@@ -49,8 +49,6 @@ add_executable(neolithic
         optimizer/optimizer.h
         codegen/gen_calltree.c
         codegen/gen_calltree.h
-        codegen/call_stack.c
-        codegen/call_stack.h
         optimizer/gen_opttree.c
         optimizer/gen_opttree.h
         common/tree_walker.c
