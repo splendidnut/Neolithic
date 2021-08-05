@@ -16,11 +16,9 @@ typedef struct {
     MemoryArea *memoryArea;
 } MemoryAllocation;
 
-// Old method for creating the ranges
-extern MemoryArea *createMemoryRange (int start, int end);
 
 //--------------------------------------------------------------
-// New methods for managing memory
+// Methods for managing memory
 
 extern void SMA_init(int startArea);
 extern MemoryArea *SMA_getZeropageArea();

@@ -11,16 +11,12 @@
 #include <stdlib.h>
 #include "mem.h"
 
+//-------------------------------------
+//  Memory management variables
+
 static MemoryArea memoryAreas[16];
 static int cntMemoryAreas;
-static int firstMemAllocArea;
-
-MemoryArea *createMemoryRange(int start, int end) {
-    MemoryArea *newMem = malloc(sizeof(struct MemoryAreaSt));
-    newMem->startAddr = start;
-    newMem->endAddr = end;
-    return newMem;
-}
+static int firstMemAllocArea;       // memory allocation area to use first
 
 //--------------------------------------------------------------------------------------
 
@@ -77,7 +73,7 @@ MemoryAllocation SMA_allocateMemory(MemoryArea *specificMemArea, int size) {
         int memoryLoc = curRange->curOffset;
 
         // can it fit?
-        if (memoryLoc + size < curRange->endAddr) {
+        if ((memoryLoc + size - 1) <= curRange->endAddr) {
             resultMemAlloc.memoryArea = curRange;
             resultMemAlloc.addr = memoryLoc;
             curRange->curOffset += size;
