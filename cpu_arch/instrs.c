@@ -11,6 +11,8 @@
 #include "common/common.h"
 #include "instrs.h"
 
+//#define DEBUG_INSTRS
+
 static char* curLineComment;
 
 //-------------------------
@@ -148,22 +150,53 @@ void IL_Init(int startCodeAddr) {
     curLineComment = NULL;
 }
 
+void Dbg_IL_ClearOnUpdate(const char *varName, char *clearInfo) {
+    sprintf(clearInfo, "Clear info: %s\t", varName);
+    if (lastUseForAReg.loadedWith == LW_VAR) {
+        strcat(clearInfo, "\tA: ");
+        strcat(clearInfo, lastUseForAReg.varSym->name);
+    }
+    if (lastUseForXReg.loadedWith == LW_VAR) {
+        strcat(clearInfo, "\tX: ");
+        strcat(clearInfo, lastUseForXReg.varSym->name);
+    }
+    if (lastUseForYReg.loadedWith == LW_VAR) {
+        strcat(clearInfo, "\tY: ");
+        strcat(clearInfo, lastUseForYReg.varSym->name);
+    }
+}
+
+
 // clear out appropriate register tracker on var update
 void IL_ClearOnUpdate(const char *varName) {
+    char *clearInfo = malloc(120);
+#ifdef DEBUG_INSTRS
+    Dbg_IL_ClearOnUpdate(varName, clearInfo);
+#endif
+
     if ((lastUseForAReg.loadedWith == LW_VAR)
         && (strncmp(varName, lastUseForAReg.varSym->name, SYMBOL_NAME_LIMIT) == 0)) {
         lastUseForAReg = REG_USED_FOR_NOTHING;
+        strcat(clearInfo, "\tA Cleared");
     }
 
     if ((lastUseForXReg.loadedWith == LW_VAR)
         && (strncmp(varName, lastUseForXReg.varSym->name, SYMBOL_NAME_LIMIT) == 0)) {
         lastUseForXReg = REG_USED_FOR_NOTHING;
+        strcat(clearInfo, "\tX Cleared");
     }
 
     if ((lastUseForYReg.loadedWith == LW_VAR)
         && (strncmp(varName, lastUseForYReg.varSym->name, SYMBOL_NAME_LIMIT) == 0)) {
         lastUseForYReg = REG_USED_FOR_NOTHING;
+        strcat(clearInfo, "\tY Cleared");
     }
+
+#ifdef DEBUG_INSTRS
+    IL_AddCommentToCode(clearInfo);
+#else
+    free(clearInfo);
+#endif
 }
 
 void IL_Preload(const SymbolRecord *varSym, enum VarHint hint) {
@@ -289,11 +322,15 @@ void ICG_LoadVar(const SymbolRecord *varRec) {
     lastUseForAReg.varSym = varRec;
 }
 
+bool isLastYUse(const SymbolRecord *varSym) {
+    return ((lastUseForYReg.loadedWith == LW_VAR)
+            && (strncmp(lastUseForYReg.varSym->name, varSym->name, SYMBOL_NAME_LIMIT) == 0));
+}
+
 void ICG_LoadIndexVar(const SymbolRecord *varSym, int size) {
     const char *varName = getVarName(varSym);
 
-    bool needToLoad = !((lastUseForYReg.loadedWith == LW_VAR) &&
-            (strncmp(getVarName(lastUseForYReg.varSym), varName,SYMBOL_NAME_LIMIT) == 0));
+    bool needToLoad = !isLastYUse(varSym);
 
     if (needToLoad) {
         if (size == 2) {
@@ -310,6 +347,13 @@ void ICG_LoadIndexVar(const SymbolRecord *varSym, int size) {
         lastUseForYReg.loadedWith = LW_VAR;
         lastUseForYReg.varSym = varSym;
     }
+#ifdef DEBUG_INSTRS
+    else {
+        char *clearInfo = malloc(120);
+        sprintf(clearInfo, "No need to load index for array access: %s", varSym->name);
+        IL_AddCommentToCode(clearInfo);
+    }
+#endif
 }
 
 void ICG_LoadAddr(const SymbolRecord *varSym) {
@@ -494,8 +538,22 @@ void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym) {
     } else {
         IL_AddInstrS(mne, ADDR_ZP, varName, NULL, PARAM_NORMAL);
     }
-    lastUseForAReg = REG_USED_FOR_NOTHING;
-    //IL_ClearOnUpdate(varName);
+
+    switch (mne) {
+            // these two instructions modify a variable in memory,
+            //  so we have to mark it as updated.  If it's already
+            //  loaded in a register, then the register needs to be
+            //   cleared out.
+        case INC:
+        case DEC:
+            IL_ClearOnUpdate(varSym->name);
+            break;
+
+            // all other instructions will change the accumulator
+        default:
+            lastUseForAReg = REG_USED_FOR_NOTHING;
+            break;
+    }
 }
 
 void ICG_OpWithAddr(enum MnemonicCode mne, int addr) {
