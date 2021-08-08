@@ -152,6 +152,9 @@ void showList(FILE *outputFile, const List *list, int indentLevel) {
             case N_TOKEN:
                 fprintf(outputFile, "%s", getParseTokenName(node.value.parseToken));
                 break;
+            case N_MNE:
+                fprintf(outputFile, "%s", getMnemonicStr(node.value.mne));
+                break;
             default:
                 fprintf(outputFile, "%d",node.value.num);
         }

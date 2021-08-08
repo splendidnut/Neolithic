@@ -49,6 +49,7 @@ extern ListNode createCharNode(char ch);
 extern ListNode createStrNode(const char *str);
 extern ListNode createListNode(List *list);
 extern ListNode createParseToken(enum ParseToken parseToken);
+extern ListNode createMnemonicNode(enum MnemonicCode mne);
 
 extern bool isListNode(ListNode node);
 extern bool isToken(ListNode node, enum ParseToken parseToken);
