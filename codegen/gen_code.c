@@ -21,6 +21,7 @@
 #include "common/tree_walker.h"
 #include "gen_common.h"
 #include "parser/parse_directives.h"
+#include "flatten_tree.h"
 
 //-------------------------------------------
 //  Variables used in code generation
@@ -834,6 +835,13 @@ void GC_Assignment(const List *stmt, enum SymbolType destType) {
         //IL_AddCommentToCode("--- assignment");    //TODO: find a way to insert original source code here
         //IL_AddCommentToCode(buildSourceCodeLine(&stmt->progLine));
 
+        /*
+        // flatten out the expression before code generation
+        if (loadNode.type == N_LIST) {
+            flatten_expression(loadNode.value.list);
+        }
+         */
+
         // figure out where data is coming from
         GC_HandleLoad(loadNode, destType, stmt->lineNum);
 
@@ -1371,8 +1379,14 @@ void GC_AsmInstr(List *instr) {
         }
     }
 
-    char *instrName = instr->nodes[0].value.str;
-    ICG_AsmInstr(lookupMnemonic(instrName), addrMode, paramStr);
+    enum MnemonicCode mne;
+    if (instr->nodes[0].type == N_STR) {
+        char *instrName = instr->nodes[0].value.str;
+        mne = lookupMnemonic(instrName);
+    } else {
+        mne = instr->nodes[0].value.mne;
+    }
+    ICG_AsmInstr(mne, addrMode, paramStr);
 
     // TODO: NOTE: -- CANNOT free the string as it needs to stick around for the instruction list
     //if (paramStr != NULL) free(paramStr);
@@ -1410,7 +1424,7 @@ void GC_AsmBlock(const List *code, enum SymbolType destType) {
             List *statement = stmtNode.value.list;
             ListNode instrNode = statement->nodes[0];
 
-            if (instrNode.type == N_STR) {
+            if (instrNode.type == N_STR || instrNode.type == N_MNE) {
                 // handle ASM instruction
                 GC_AsmInstr(statement);
 
@@ -1428,6 +1442,8 @@ void GC_AsmBlock(const List *code, enum SymbolType destType) {
                 char *labelName = statement->nodes[1].value.str;
                 Label *asmLabel = findLabel(labelName);
                 IL_Label(asmLabel);
+            } else if (instrNode.value.parseToken == PT_INIT) {
+                ICG_AsmData(statement->nodes[1].value.num);
             }
         }
     }

@@ -193,7 +193,7 @@ void WriteBIN_FunctionBlock(const OutputBlock *block) {
         OpcodeEntry opcodeEntry = lookupOpcodeEntry(curOutInstr->mne, addrMode);
 
         if (curOutInstr->mne != MNE_NONE) {
-            binData[writeAddr++] = opcodeEntry.opcode;
+            binData[writeAddr++] = (curOutInstr->mne != MNE_DATA) ? opcodeEntry.opcode : curOutInstr->offset;
 
             //DEBUG
             //printf("Outputting %2X\n", opcodeEntry.opcode);

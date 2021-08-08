@@ -73,7 +73,7 @@ char *getDirectAddrMode(bool forceAbs) {
 ListNode parse_asm_instr(enum MnemonicCode instrCode) {
     List *asmInstr = createList(10);
 
-    addNode(asmInstr, createStrNode(Mnemonics[instrCode].name));
+    addNode(asmInstr, createMnemonicNode(instrCode));
 
     /*** EXIT if assembly block has ended */
     if (peekToken()->tokenType == TT_CLOSE_BRACE) return createListNode(asmInstr);
@@ -154,9 +154,21 @@ ListNode PA_create_equate(char *piece) {
     return createListNode(label);
 }
 
-ListNode parse_pseudo_op(char *opName) {
-    if (strncmp(opName, ".byte", 5)) {
-        
+ListNode parse_pseudo_op() {
+    char *opName = getToken()->tokenStr;
+    if (strncmp(opName, "byte", 4)==0) {
+        List *byteData = createList(2);
+        addNode(byteData, createParseToken(PT_INIT));
+        switch (peekToken()->tokenType) {
+            case TT_NUMBER:
+                addNode(byteData, createIntNode(copyTokenInt(getToken())));
+                break;
+            default:
+                addNode(byteData, createStrNode(copyTokenStr(getToken())));
+        }
+        return createListNode(byteData);
+    } else {
+        printErrorWithSourceLine("Unknown assembly pseudo operation");
     }
 }
 
@@ -178,7 +190,7 @@ ListNode parse_asmBlock() {
         char *piece = copyTokenStr(getToken());
         enum MnemonicCode mnemonicCode = lookupMnemonic(piece);
         if (piece[0] == '.') {
-            addNode(list, parse_pseudo_op(piece));
+            addNode(list, parse_pseudo_op());
         } else if (mnemonicCode != MNE_NONE) {
             addNode(list, parse_asm_instr(mnemonicCode));
         } else {
