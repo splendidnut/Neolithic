@@ -83,5 +83,6 @@ extern int getInstrSize(enum MnemonicCode mne, enum AddrModes addrMode);
 extern bool isBranch(enum MnemonicCode mne);
 
 extern OpcodeEntry lookupOpcodeEntry(enum MnemonicCode mneCode, enum AddrModes addrMode);
+extern int getCycleCount(enum MnemonicCode mne, enum AddrModes addrMode);
 
 #endif //MODULE_ASM_CODE_H

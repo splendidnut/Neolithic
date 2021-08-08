@@ -133,14 +133,6 @@ char *getOpExt(enum MnemonicCode mne, struct StAddressMode addressMode) {
 }
 
 
-int getCycleCount(Instr *pStruct) {
-    OpcodeEntry opcodeEntry = lookupOpcodeEntry(pStruct->mne, pStruct->addrMode);
-    if (opcodeEntry.mneCode != MNE_NONE) {
-        return opcodeEntry.cycles;
-    }
-    return 0;
-}
-
 /**
  * Write out a single instruction to the output file
  *
@@ -185,7 +177,7 @@ void WriteDASM_OutputInstr(FILE *output, Instr *instr) {
 
     char newLineComment[100];
     if (instr->showCycles && instr->mne != MNE_NONE) {
-        int cycleCount = getCycleCount(instr);
+        int cycleCount = getCycleCount(instr->mne, instr->addrMode);
         runningCycleCount += cycleCount;
 
         if (instr->lineComment == NULL) instr->lineComment = "";

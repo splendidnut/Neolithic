@@ -374,3 +374,18 @@ OpcodeEntry lookupOpcodeEntry(enum MnemonicCode mneCode, enum AddrModes addrMode
     }
     return opcodeEntry;
 }
+
+int getCycleCount(enum MnemonicCode mne, enum AddrModes addrMode) {
+    OpcodeEntry opcodeEntry = lookupOpcodeEntry(mne, addrMode);
+
+    // need to fix issue with non-existent ZPY modes (switch to ABY)
+    if ((opcodeEntry.mneCode == MNE_NONE) && (addrMode == ADDR_ZPY)) {
+        addrMode = ADDR_ABY;
+        opcodeEntry = lookupOpcodeEntry(mne, addrMode);
+    }
+
+    if (opcodeEntry.mneCode != MNE_NONE) {
+        return opcodeEntry.cycles;
+    }
+    return 0;
+}
