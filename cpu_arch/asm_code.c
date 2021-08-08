@@ -8,6 +8,7 @@
 #include <ctype.h>
 #include <string.h>
 
+#include "common/common.h"
 #include "asm_code.h"
 
 struct SMnemonic Mnemonics[] = {
@@ -81,17 +82,17 @@ enum MnemonicCode lookupMnemonic(char *name) {
     if (strlen(name) > 4) return MNE_NONE;
 
     char *lookupName = strdup(name);
-    int index = 0;
+    int i = 0;
 
     // convert to all uppercase (needed by lookup)
-    while (lookupName[index] != '\0') {
-        lookupName[index] = toupper(lookupName[index]);
-        index++;
+    while (lookupName[i] != '\0') {
+        lookupName[i] = toupper(lookupName[i]);
+        i++;
     }
 
     // try to find the opcode
     enum MnemonicCode mnemonicCode = MNE_NONE;
-    for (index=1; index < NumMnemonics; index++) {
+    for_range (index, 1, NumMnemonics) {
         if (strncmp(lookupName, Mnemonics[index].name, 3) == 0) {
             mnemonicCode = Mnemonics[index].code;
             break;
@@ -132,7 +133,7 @@ const int NumAddrModes = sizeof(AddressModes) / sizeof(struct StAddressMode);
 
 enum AddrModes lookupAddrMode(char *name) {
     enum AddrModes addrMode = ADDR_NONE;
-    for (int index=1; index < NumAddrModes; index++) {
+    for_range (index, 1, NumAddrModes) {
         if (strncmp(name, AddressModes[index].name, 30) == 0) {
             addrMode = AddressModes[index].mode;
             break;
@@ -365,7 +366,7 @@ const int NumOpcodes = sizeof(opcodeTable) / sizeof(struct StOpcodeTable);
 
 OpcodeEntry lookupOpcodeEntry(enum MnemonicCode mneCode, enum AddrModes addrMode) {
     OpcodeEntry opcodeEntry = opcodeTable[0];
-    for (int index=1; index < NumOpcodes; index++) {
+    for_range(index, 1, NumOpcodes) {
         if ((opcodeTable[index].mneCode == mneCode) &&
                 (opcodeTable[index].addrMode == addrMode)) {
             opcodeEntry = opcodeTable[index];
