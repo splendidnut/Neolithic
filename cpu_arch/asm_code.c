@@ -226,6 +226,14 @@ struct StOpcodeTable opcodeTable[] = {
         {CPY, ADDR_ZP,  0xC4, 3},
         {CPY, ADDR_ABS, 0xCC, 4},
         //
+        {DCP, ADDR_ZP,  0xC7, 5},
+        {DCP, ADDR_ZPX, 0xD7, 6},
+        {DCP, ADDR_ABS, 0xCF, 6},
+        {DCP, ADDR_ABX, 0xDF, 7},
+        {DCP, ADDR_ABY, 0xDB, 7},
+        {DCP, ADDR_IX,  0xC3, 8},
+        {DCP, ADDR_IY,  0xD3, 8},
+        //
         {DEC, ADDR_ZP,  0xC6, 5},
         {DEC, ADDR_ZPX, 0xD6, 6},
         {DEC, ADDR_ABS, 0xCE, 6},

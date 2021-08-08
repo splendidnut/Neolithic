@@ -16,6 +16,9 @@ enum MnemonicCode {
 
     // specialty ones
     DCP,
+
+    // data in the middle of code (ASM block only)
+    MNE_DATA,
 };
 
 struct SMnemonic  {

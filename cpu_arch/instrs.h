@@ -75,7 +75,9 @@ extern void ICG_CompareVar(const SymbolRecord *varSym);
 extern void ICG_Jump(const Label *label, const char* comment);
 extern void ICG_Call(const char *funcName);
 extern void ICG_Return();
+
 extern void ICG_AsmInstr(enum MnemonicCode mne, enum AddrModes addrMode, const char *paramStr);
+extern void ICG_AsmData(int value);
 
 // function specific stuff
 extern int ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym);

@@ -687,11 +687,22 @@ void ICG_Return() {
 //  Handle inline assembly
 
 void ICG_AsmInstr(enum MnemonicCode mne, enum AddrModes addrMode, const char *paramStr) {
+    enum AddrModes actualAddrMode = addrMode;
+
+    // need to patch over incorrect address modes with the correct ones
+    // TODO: should this be done in the parser?
+    if ((mne == JMP) && (addrMode != ADDR_IND)) actualAddrMode = ADDR_ABS;
+    if (mne == JSR) actualAddrMode = ADDR_ABS;
+
     if (paramStr != NULL) {
-        IL_AddInstrS(mne, addrMode, paramStr, NULL, PARAM_NORMAL);
+        IL_AddInstrS(mne, actualAddrMode, paramStr, NULL, PARAM_NORMAL);
     } else {
-        IL_AddInstrN(mne, addrMode, 0);
+        IL_AddInstrN(mne, actualAddrMode, 0);
     }
+}
+
+void ICG_AsmData(int value) {
+    IL_AddInstrN(MNE_DATA, ADDR_NONE, value);
 }
 
 //-----------------------------------------------------------------------------
