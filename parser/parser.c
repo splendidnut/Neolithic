@@ -105,7 +105,7 @@ ListNode parse_identifier() {
         char *identifier = copyTokenStr(token);
         node = createStrNode(identifier);
     } else {
-        printf("Error: Identifier expected!\n");
+        printErrorWithSourceLine("Identifier expected!\n");
     }
     return node;
 }

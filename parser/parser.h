@@ -15,6 +15,7 @@ extern bool acceptOptionalToken(TokenType tokenType);
 extern void printErrorWithSourceLine(const char* errorMsg);
 extern void printError(const char* fmtErrorMsg, ...);
 
+extern ListNode parse_identifier();
 extern ListNode parse_codeBlock(void);
 extern ListNode parse_stmt_function(char *funcType);
 extern ListNode parse_expr_assignment(void);
