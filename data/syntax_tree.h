@@ -11,8 +11,9 @@
 
 #include "common/common.h"
 #include "parser/tokens.h"
+#include "cpu_arch/asm_code.h"
 
-enum NodeType { N_EMPTY, N_INT, N_CHAR, N_STR, N_LIST, N_TOKEN, N_SYMBOL };
+enum NodeType { N_EMPTY, N_INT, N_CHAR, N_STR, N_LIST, N_TOKEN, N_MNE, N_SYMBOL };
 
 struct ListStruct;
 
@@ -22,6 +23,7 @@ typedef union {
     char *str;
     struct ListStruct *list;
     enum ParseToken parseToken;
+    enum MnemonicCode mne;
 } NodeValue;  // can be int, bool, str
 
 typedef struct {

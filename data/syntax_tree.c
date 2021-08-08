@@ -56,6 +56,13 @@ ListNode createParseToken(enum ParseToken parseToken) {
     return result;
 }
 
+ListNode createMnemonicNode(enum MnemonicCode mne) {
+    ListNode result;
+    result.value.mne = mne;
+    result.type = N_MNE;
+    return result;
+}
+
 /*ListNode createSymbolNode(SymbolRecord *symbolRecord) {
     ListNode result;
     result.value.symbol = symbolRecord;
