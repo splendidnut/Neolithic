@@ -14,15 +14,15 @@
 
 //-----------------------------------------------------------------
 
-char* getIndirectAddrMode() {
-    char *addrModeStr = "IND";
+enum AddrModes getIndirectAddrMode() {
+    enum AddrModes addrMode = ADDR_IND;
     switch (peekToken()->tokenType) {
         case TT_CLOSE_PAREN: {   // handle basic (indirect) or (indirect),y
             acceptToken(TT_CLOSE_PAREN);
             if (acceptOptionalToken(TT_COMMA)) {
                 char reg = getToken()->tokenStr[0];
                 if (reg == 'y' || reg == 'Y') {
-                    addrModeStr = "IY";
+                    addrMode = ADDR_IY;
                 } else {
                     printError("Expected Y register for indirect indexed addressing mode");
                 }
@@ -34,25 +34,24 @@ char* getIndirectAddrMode() {
             if (!(reg == 'x' || reg == 'X')) {
                 printError("Expected X register for indexed indirect addressing mode");
             } else {
-                addrModeStr = "IX";
+                addrMode = ADDR_IX;
             }
             acceptToken(TT_CLOSE_PAREN);
         } break;
         default:break;
     }
-    return addrModeStr;
+    return addrMode;
 }
 
-char *getDirectAddrMode(bool forceAbs) {
-    char *addrModeStr;
-    addrModeStr = forceAbs ? "ABS" : "ZP";
+enum AddrModes getDirectAddrMode(bool forceAbs) {
+    enum AddrModes addrMode = forceAbs ? ADDR_ABS : ADDR_ZP;
     if (acceptOptionalToken(TT_COMMA)) {
         if (inCharset(peekToken(), "XYxy")) {
             char reg = getToken()->tokenStr[0];
             if (reg == 'x' || reg == 'X') {
-                addrModeStr = forceAbs ? "ABX" : "ZPX";
+                addrMode = forceAbs ? ADDR_ABX : ADDR_ZPX;
             } else if (reg == 'y' || reg == 'Y') {
-                addrModeStr = forceAbs ? "ABY" : "ZPY";
+                addrMode = forceAbs ? ADDR_ABY : ADDR_ZPY;
             } else {
                 printError("Expected X or Y register for indexed addressing mode");
             }
@@ -60,7 +59,7 @@ char *getDirectAddrMode(bool forceAbs) {
             printError("Expected X or Y register for indexed addressing mode");
         }
     }
-    return addrModeStr;
+    return addrMode;
 }
 
 
@@ -88,24 +87,22 @@ ListNode parse_asm_instr(enum MnemonicCode instrCode) {
     bool forceAbs = false;
     if (acceptOptionalToken(TT_PERIOD)) {
         char *mneExt = getToken()->tokenStr;
-        switch (mneExt[0]) {
-            case 'w': forceAbs = true; break;
-        }
+        if (mneExt[0] == 'w') forceAbs = true;
     }
 
     // assembly instruction has parameters, so parse them
-    char *addrModeStr = "";
+    enum AddrModes addrMode;
     ListNode paramNode;
     switch (peekToken()->tokenStr[0]) {
         case '#':                   // handle Immediate op
             acceptToken(TT_HASH);
-            addrModeStr = "IMM";
+            addrMode = ADDR_IMM;
             paramNode = parse_expr();
             break;
         case '(':                   // handle Indirect op
             acceptToken(TT_OPEN_PAREN);
             paramNode = parse_expr();
-            addrModeStr = getIndirectAddrMode();
+            addrMode = getIndirectAddrMode();
             break;
         case '<':
             acceptToken(TT_LESS_THAN);
@@ -113,13 +110,13 @@ ListNode parse_asm_instr(enum MnemonicCode instrCode) {
         default: {
             paramNode = parse_expr();
             if (isBranch(instrCode)) {
-                addrModeStr = "REL";
+                addrMode = ADDR_REL;
             } else {
-                addrModeStr = getDirectAddrMode(forceAbs);
+                addrMode = getDirectAddrMode(forceAbs);
             }
         }
     }
-    addNode(asmInstr, createStrNode(addrModeStr));
+    addNode(asmInstr, createStrNode(getAddrModeSt(addrMode).name));
     addNode(asmInstr, paramNode);
     return createListNode(asmInstr);
 }

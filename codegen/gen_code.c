@@ -1368,6 +1368,11 @@ char *GC_Asm_getParamStr(ListNode instrParamNode, List *instr) {
     return paramStr;
 }
 
+/**
+ * Process an ASM instruction that is in an assembly block
+ *
+ * @param instr
+ */
 void GC_AsmInstr(List *instr) {
     enum AddrModes addrMode = ADDR_NONE;
     char *paramStr = NULL;
@@ -1381,15 +1386,25 @@ void GC_AsmInstr(List *instr) {
 
     enum MnemonicCode mne;
     if (instr->nodes[0].type == N_STR) {
-        char *instrName = instr->nodes[0].value.str;
-        mne = lookupMnemonic(instrName);
+        mne = lookupMnemonic(instr->nodes[0].value.str);
     } else {
         mne = instr->nodes[0].value.mne;
     }
+
+    // need to patch over incorrect address modes with the correct ones
+    //    because the parser just takes a premature guess
+    if ((mne == JMP) && (addrMode != ADDR_IND)) addrMode = ADDR_ABS;
+    if (mne == JSR) addrMode = ADDR_ABS;
+
+    // need to fix issue with non-existent ZPY modes (switch to ABY)
+    OpcodeEntry opcodeEntry = lookupOpcodeEntry(mne, addrMode);
+    if ((opcodeEntry.mneCode == MNE_NONE) && (addrMode == ADDR_ZPY)) {
+        addrMode = ADDR_ABY;
+    }
+
     ICG_AsmInstr(mne, addrMode, paramStr);
 
-    // TODO: NOTE: -- CANNOT free the string as it needs to stick around for the instruction list
-    //if (paramStr != NULL) free(paramStr);
+    // NOTE: -- CANNOT free paramStr as it needs to stick around for the instruction list
 }
 
 void GC_NewConst(char *equName, int value) {
