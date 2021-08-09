@@ -72,6 +72,9 @@ struct SMnemonic Mnemonics[] = {
 
         // specialty (undocumented) opcodes
         {"DCP", DCP, false},
+
+        // ex
+        {"byte", MNE_DATA, false}
 };
 
 const int NumMnemonics = sizeof(Mnemonics) / sizeof(struct SMnemonic);
@@ -107,7 +110,7 @@ char * getMnemonicStr(enum MnemonicCode mneCode) {
     if (Mnemonics[mneCode].code == mneCode) {
         return Mnemonics[mneCode].name;
     } else {
-        printf(" ERR: Mnemonics structure mismatch\n");
+        printf(" ERR: Mnemonics structure mismatch: %d\n", mneCode);
         return "ERR";
     }
 }
@@ -378,13 +381,6 @@ OpcodeEntry lookupOpcodeEntry(enum MnemonicCode mneCode, enum AddrModes addrMode
 
 int getCycleCount(enum MnemonicCode mne, enum AddrModes addrMode) {
     OpcodeEntry opcodeEntry = lookupOpcodeEntry(mne, addrMode);
-
-    // need to fix issue with non-existent ZPY modes (switch to ABY)
-    if ((opcodeEntry.mneCode == MNE_NONE) && (addrMode == ADDR_ZPY)) {
-        addrMode = ADDR_ABY;
-        opcodeEntry = lookupOpcodeEntry(mne, addrMode);
-    }
-
     if (opcodeEntry.mneCode != MNE_NONE) {
         return opcodeEntry.cycles;
     }

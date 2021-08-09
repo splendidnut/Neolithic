@@ -168,6 +168,8 @@ void WriteDASM_OutputInstr(FILE *output, Instr *instr) {
         sprintf(instrBuf, "%s%s  %s", instrName, opExt, instrParams);
         free(instrParams);
         free(paramStr);
+    } else if (instr->mne == MNE_DATA) {
+        sprintf(instrBuf, "%s $%2X", instrName, instr->offset);
     } else {
         sprintf(instrBuf, "%s", instrName);
     }
@@ -176,7 +178,7 @@ void WriteDASM_OutputInstr(FILE *output, Instr *instr) {
     // Append instruction cycles (if enabled)
 
     char newLineComment[100];
-    if (instr->showCycles && instr->mne != MNE_NONE) {
+    if (instr->showCycles && (instr->mne != MNE_NONE) && (instr->mne != MNE_DATA)) {
         int cycleCount = getCycleCount(instr->mne, instr->addrMode);
         runningCycleCount += cycleCount;
 
