@@ -43,6 +43,12 @@ enum AddrModes {
     ADDR_IY = 10,
     ADDR_IND = 11,
     ADDR_REL = 12,
+
+    // Incomplete Information
+    ADDR_INCOMPLETE = 16,       // this bit indicates that we have incomplete information from the parser
+    ADDR_UNK_M  = 16,               // addresses memory (no index), don't know if zp or abs
+    ADDR_UNK_MX = 17,               // addresses memory with X index, but we don't know if it's zp or abs
+    ADDR_UNK_MY = 18                // addresses memory with y index, but we don't know if it's zp or abs
 };
 
 struct StAddressMode {

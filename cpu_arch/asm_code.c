@@ -130,6 +130,16 @@ struct StAddressMode AddressModes[] = {
         {"IY",  ADDR_IY,    2, 0,  "(%s),y"},
         {"IND", ADDR_IND,   3, 0,  "(%s)"},
         {"REL", ADDR_REL,   2, 2,  "%s"},       // SPECIAL CASE: cycles can be 2 or 3
+
+        // The following empty spots are necessary to align this array with the AddrMode enumerations
+        {},
+        {},
+        {},
+
+        // Special cases... these need to be resolved during code generation
+        {"UNK_MEM", ADDR_UNK_M, 0, 0, "%s"},
+        {"UNK_MX", ADDR_UNK_MX, 0, 0, "%s,x"},
+        {"UNK_MY", ADDR_UNK_MY, 0, 0, "%s,y"},
 };
 
 const int NumAddrModes = sizeof(AddressModes) / sizeof(struct StAddressMode);
@@ -149,7 +159,7 @@ struct StAddressMode getAddrModeSt(enum AddrModes addrMode) {
     if (AddressModes[addrMode].mode == addrMode) {
         return AddressModes[addrMode];
     } else {
-        printf(" ERR: AddressMode structure mismatch\n");
+        printf(" ERR: AddressMode structure mismatch: %d\n", addrMode);
         return AddressModes[0];
     }
 }

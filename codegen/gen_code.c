@@ -1326,17 +1326,32 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
 //  Assembler code block processor
 //-----------------------------------------------------------------------
 
+enum AddrModes paramAddrMode;
 
 void GC_Asm_ParamExpr(List *paramExpr, char *paramStr) {
     bool hasResult = false;
     int ofs = 0;
     switch (paramExpr->nodes[0].value.parseToken) {
-        case PT_PROPERTY_REF: ofs = GC_GetPropertyRefOfs(paramExpr); break;
-        case PT_LOOKUP:       ofs = GC_LookupArrayOfs(paramExpr); break;
+        case PT_PROPERTY_REF:
+            ofs = GC_GetPropertyRefOfs(paramExpr);
+            paramAddrMode = (ofs < 256) ? ADDR_ZP : ADDR_ABS;
+            break;
+        case PT_LOOKUP:
+            ofs = GC_LookupArrayOfs(paramExpr);
+            paramAddrMode = (ofs < 256) ? ADDR_ZP : ADDR_ABS;
+            break;
         default: {
+            setEvalExpressionMode(true);
+            EvalResult evalResult = evaluate_expression(paramExpr);
+            if (evalResult.hasResult) {
+                IL_SetLineComment(get_expression(paramExpr));
+                strcpy(paramStr, intToStr(evalResult.value));
+            } else {
                 // evaluate the expression and use the string result
                 strcpy(paramStr, get_expression(paramExpr));
-                hasResult = true;
+            }
+            setEvalExpressionMode(false);
+            hasResult = true;
         }
     }
     if (!hasResult) sprintf(paramStr, "$%04X", ofs);
@@ -1361,7 +1376,12 @@ char *GC_Asm_getParamStr(ListNode instrParamNode, List *instr) {
                 paramStr = strdup(asmLabel->name);
             } else {
                 SymbolRecord *varSym = lookupSymbolNode(instrParamNode, instr->lineNum);
-                paramStr = (varSym != NULL) ? strdup(getVarName(varSym)) : "";
+                if (varSym != NULL) {
+                    paramAddrMode = (varSym->location < 256) ? ADDR_ZP : ADDR_ABS;
+                    paramStr = strdup(getVarName(varSym));
+                } else {
+                    paramStr = "";
+                }
             }
         } break;
     }
@@ -1377,18 +1397,13 @@ void GC_AsmInstr(List *instr) {
     enum AddrModes addrMode = ADDR_NONE;
     char *paramStr = NULL;
 
+    enum MnemonicCode mne = instr->nodes[0].value.mne;
+
     if (instr->count > 1) {
-        addrMode = lookupAddrMode(instr->nodes[1].value.str);
+        addrMode = instr->nodes[1].value.addrMode;
         if (addrMode > 1) {
             paramStr = GC_Asm_getParamStr(instr->nodes[2], instr);
         }
-    }
-
-    enum MnemonicCode mne;
-    if (instr->nodes[0].type == N_STR) {
-        mne = lookupMnemonic(instr->nodes[0].value.str);
-    } else {
-        mne = instr->nodes[0].value.mne;
     }
 
     // need to patch over incorrect address modes with the correct ones
@@ -1396,11 +1411,28 @@ void GC_AsmInstr(List *instr) {
     if ((mne == JMP) && (addrMode != ADDR_IND)) addrMode = ADDR_ABS;
     if (mne == JSR) addrMode = ADDR_ABS;
 
+    // Handle cases where symbol parameter affects which addressing mode we use
+    //   Will fail towards using absolute addressing modes.
+    if (addrMode >= ADDR_INCOMPLETE) {
+        switch (addrMode) {
+            case ADDR_UNK_M:
+                addrMode = (paramAddrMode == ADDR_ZP) ? ADDR_ZP : ADDR_ABS;
+                break;
+            case ADDR_UNK_MX:
+                addrMode = (paramAddrMode == ADDR_ZP) ? ADDR_ZPX : ADDR_ABX;
+                break;
+            case ADDR_UNK_MY:
+                addrMode = (paramAddrMode == ADDR_ZP) ? ADDR_ZPY : ADDR_ABY;
+                break;
+        }
+    }
+
     // need to fix issue with non-existent ZPY modes (switch to ABY)
     OpcodeEntry opcodeEntry = lookupOpcodeEntry(mne, addrMode);
     if ((opcodeEntry.mneCode == MNE_NONE) && (addrMode == ADDR_ZPY)) {
         addrMode = ADDR_ABY;
     }
+
 
     ICG_AsmInstr(mne, addrMode, paramStr);
 
@@ -1415,7 +1447,7 @@ void GC_NewConst(char *equName, int value) {
 }
 
 void GC_AsmBlock(const List *code, enum SymbolType destType) {
-    // TODO: Collect all local labels into a "local" label list
+    // TODO: Collect all local labels into a "local" label list (instead of global label list)
 
     //  First, collect all the labels  (allows labels to be defined after usage)
 
@@ -1711,6 +1743,8 @@ void GC_ProcessFunction(char *funcName, List *code) {
     SymbolExt* funcExt = funcSym->funcExt;
     curFuncSymbolTable = funcExt->localSymbolSet;
     curFuncParamTable = funcExt->paramSymbolSet;
+
+    setEvalLocalSymbolTable(curFuncSymbolTable);
 
     if (curFuncParamTable != NULL) {
         // need to let the code generator/instruction generator

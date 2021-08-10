@@ -9,7 +9,6 @@
 
 #include "parse_asm.h"
 #include "parser.h"
-#include "tokenize.h"
 
 
 //-----------------------------------------------------------------
@@ -43,15 +42,29 @@ enum AddrModes getIndirectAddrMode() {
     return addrMode;
 }
 
-enum AddrModes getDirectAddrMode(bool forceAbs) {
-    enum AddrModes addrMode = forceAbs ? ADDR_ABS : ADDR_ZP;
+enum AddrModes absAddrModes[3] = {ADDR_ABS, ADDR_ABX, ADDR_ABY};
+enum AddrModes zpAddrModes[3] = {ADDR_ZP, ADDR_ZPX, ADDR_ZPY};
+enum AddrModes unkAddrModes[3] = {ADDR_UNK_M, ADDR_UNK_MX, ADDR_UNK_MY};
+
+enum AddrModes getDirectAddrMode(bool forceZp, bool forceAbs) {
+    enum AddrModes *addrModeSet;
+
+    if (forceZp) {
+        addrModeSet = zpAddrModes;
+    } else if (forceAbs) {
+        addrModeSet = absAddrModes;
+    } else {
+        addrModeSet = unkAddrModes;
+    }
+
+    enum AddrModes addrMode = addrModeSet[0];//forceAbs ? ADDR_ABS : ADDR_ZP;
     if (acceptOptionalToken(TT_COMMA)) {
         if (inCharset(peekToken(), "XYxy")) {
             char reg = getToken()->tokenStr[0];
             if (reg == 'x' || reg == 'X') {
-                addrMode = forceAbs ? ADDR_ABX : ADDR_ZPX;
+                addrMode = addrModeSet[1];//forceAbs ? ADDR_ABX : ADDR_ZPX;
             } else if (reg == 'y' || reg == 'Y') {
-                addrMode = forceAbs ? ADDR_ABY : ADDR_ZPY;
+                addrMode = addrModeSet[2];//forceAbs ? ADDR_ABY : ADDR_ZPY;
             } else {
                 printError("Expected X or Y register for indexed addressing mode");
             }
@@ -85,9 +98,11 @@ ListNode parse_asm_instr(enum MnemonicCode instrCode) {
 
     // process any mnemonic extensions
     bool forceAbs = false;
+    bool forceZp = false;
     if (acceptOptionalToken(TT_PERIOD)) {
         char *mneExt = getToken()->tokenStr;
         if (mneExt[0] == 'w') forceAbs = true;
+        if (mneExt[0] == 'z') forceZp = true;
     }
 
     // assembly instruction has parameters, so parse them
@@ -106,17 +121,18 @@ ListNode parse_asm_instr(enum MnemonicCode instrCode) {
             break;
         case '<':
             acceptToken(TT_LESS_THAN);
-            // TODO: this should force zeropage mode (currently unnecessary since that's the default)
+            forceZp = true;             // TODO: this should force zeropage mode (currently unnecessary since that's the default)
         default: {
             paramNode = parse_expr();
             if (isBranch(instrCode)) {
                 addrMode = ADDR_REL;
             } else {
-                addrMode = getDirectAddrMode(forceAbs);
+                addrMode = getDirectAddrMode(forceZp, forceAbs);
             }
         }
     }
-    addNode(asmInstr, createStrNode(getAddrModeSt(addrMode).name));
+    //addNode(asmInstr, createStrNode(getAddrModeSt(addrMode).name));
+    addNode(asmInstr, createAddrModeNode(addrMode));
     addNode(asmInstr, paramNode);
     return createListNode(asmInstr);
 }
@@ -166,6 +182,7 @@ ListNode parse_pseudo_op() {
         return createListNode(byteData);
     } else {
         printErrorWithSourceLine("Unknown assembly pseudo operation");
+        return createEmptyNode();
     }
 }
 

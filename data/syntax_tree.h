@@ -13,7 +13,7 @@
 #include "parser/tokens.h"
 #include "cpu_arch/asm_code.h"
 
-enum NodeType { N_EMPTY, N_INT, N_CHAR, N_STR, N_LIST, N_TOKEN, N_MNE, N_SYMBOL };
+enum NodeType { N_EMPTY, N_INT, N_CHAR, N_STR, N_LIST, N_TOKEN, N_MNE, N_ADDR_MODE, N_SYMBOL };
 
 struct ListStruct;
 
@@ -24,6 +24,7 @@ typedef union {
     struct ListStruct *list;
     enum ParseToken parseToken;
     enum MnemonicCode mne;
+    enum AddrModes addrMode;
 } NodeValue;  // can be int, bool, str
 
 typedef struct {
@@ -50,6 +51,7 @@ extern ListNode createStrNode(const char *str);
 extern ListNode createListNode(List *list);
 extern ListNode createParseToken(enum ParseToken parseToken);
 extern ListNode createMnemonicNode(enum MnemonicCode mne);
+extern ListNode createAddrModeNode(enum AddrModes addrMode);
 
 extern bool isListNode(ListNode node);
 extern bool isToken(ListNode node, enum ParseToken parseToken);

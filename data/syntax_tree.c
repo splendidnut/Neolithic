@@ -63,6 +63,14 @@ ListNode createMnemonicNode(enum MnemonicCode mne) {
     return result;
 }
 
+ListNode createAddrModeNode(enum AddrModes addrMode) {
+    ListNode result;
+    result.value.addrMode = addrMode;
+    result.type = N_ADDR_MODE;
+    return result;
+}
+
+
 /*ListNode createSymbolNode(SymbolRecord *symbolRecord) {
     ListNode result;
     result.value.symbol = symbolRecord;
@@ -154,6 +162,9 @@ void showList(FILE *outputFile, const List *list, int indentLevel) {
                 break;
             case N_MNE:
                 fprintf(outputFile, "%s", getMnemonicStr(node.value.mne));
+                break;
+            case N_ADDR_MODE:
+                fprintf(outputFile, "%s", getAddrModeSt(node.value.addrMode).name);
                 break;
             default:
                 fprintf(outputFile, "%d",node.value.num);

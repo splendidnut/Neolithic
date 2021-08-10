@@ -48,10 +48,24 @@ EvalResult eval_node(ListNode node) {
             return evaluate_expression(node.value.list);
         case N_STR: {
             SymbolRecord *varSym = getEvalSymbolRecord(node.value.str);
-            if (varSym && isConst(varSym)) {
+
+            // when evaluating things for inline assembly code,
+            //   symbols always return their location...
+            //   unless they are simple consts (don't take RAM/ROM)
+            if (varSym && isEvalForAsm) {
+                if (varSym->hasLocation) {
+                    result.hasResult = varSym->hasLocation;
+                    result.value = varSym->location;
+                } else {
+                    result.hasResult = varSym->hasValue;
+                    result.value = varSym->constValue;
+                }
+            } else if (varSym && isConst(varSym)) {
                 result.hasResult = varSym->hasValue;
                 result.value = varSym->constValue;
-            } else result.hasResult = false;
+            } else {
+                result.hasResult = false;
+            }
         } break;
         default:
             result.hasResult = false;
