@@ -51,7 +51,6 @@ void WriteBIN_Init(FILE *outFile, SymbolTable *mainSymTbl) {
 }
 
 void WriteBIN_Done() {
-    printf("Writing to file\n");
     fwrite(binData,4096,1,outputFile);
     free(binData);
 }

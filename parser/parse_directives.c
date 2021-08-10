@@ -35,7 +35,6 @@ ListNode parse_compilerDirective() {
     getToken(); // EAT '#'
 
     TokenObject *token = getToken();
-    printf("compiler directive: %s\n", token->tokenStr);
     enum CompilerDirectiveTokens directiveToken = lookupDirectiveToken(token->tokenStr);
 
     switch (directiveToken) {
