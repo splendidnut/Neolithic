@@ -361,7 +361,7 @@ ListNode parse_expr_unary() { // !x +x -y &x *y sizeof typeof
     List *list;
     char tokenChar;
 
-    if (inCharset(peekToken(), "!+*~")) {
+    if (inCharset(peekToken(), "!+*~<>")) {
         tokenChar = getToken()->tokenStr[0];
         switch (tokenChar) {
             //case '&': opNode = createParseToken(PT_ADDR_OF); break;
@@ -370,6 +370,8 @@ ListNode parse_expr_unary() { // !x +x -y &x *y sizeof typeof
             //
             // case '-': opNode = createParseToken(PT_NEGATIVE); break;
             case '~': opNode = createParseToken(PT_INVERT); break;
+            case '<': opNode = createParseToken(PT_LOW_BYTE); break;
+            case '>': opNode = createParseToken(PT_HIGH_BYTE); break;
             default:
                 opNode = createCharNode(tokenChar);
         }

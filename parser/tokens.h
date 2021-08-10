@@ -7,7 +7,7 @@
 
 #include <stdbool.h>
 
-#define NUM_PARSE_TOKENS 65
+#define NUM_PARSE_TOKENS 67
 
 enum ParseToken {
     PT_EMPTY,
@@ -57,6 +57,7 @@ enum ParseToken {
     PT_SHIFT_LEFT, PT_SHIFT_RIGHT,
     PT_INVERT, PT_NOT, PT_POSITIVE, PT_NEGATIVE,
     PT_BOOL_AND, PT_BOOL_OR,
+    PT_LOW_BYTE, PT_HIGH_BYTE,
 
     // switch statement
     PT_SWITCH, PT_CASE, PT_DEFAULT,

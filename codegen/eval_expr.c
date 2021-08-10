@@ -10,9 +10,31 @@
 #include "eval_expr.h"
 
 static SymbolTable *mainSymbolTable;
+static SymbolTable *localSymbolTable;
+static bool isEvalForAsm;
 
 void initEvaluator(SymbolTable *symbolTable) {
     mainSymbolTable = symbolTable;
+    localSymbolTable = NULL;
+}
+
+void setEvalLocalSymbolTable(SymbolTable *symbolTable) {
+    localSymbolTable = symbolTable;
+}
+
+void setEvalExpressionMode(bool forASM) {
+    isEvalForAsm = forASM;
+}
+
+SymbolRecord *getEvalSymbolRecord(const char *varName) {
+    SymbolRecord *varSym = NULL;
+    if (localSymbolTable != NULL) {
+        varSym = findSymbol(localSymbolTable, varName);
+    }
+    if (varSym == NULL) {
+        varSym = findSymbol(mainSymbolTable, varName);
+    }
+    return varSym;
 }
 
 EvalResult eval_node(ListNode node) {
@@ -25,7 +47,7 @@ EvalResult eval_node(ListNode node) {
         case N_LIST:
             return evaluate_expression(node.value.list);
         case N_STR: {
-            SymbolRecord *varSym = findSymbol(mainSymbolTable, node.value.str);
+            SymbolRecord *varSym = getEvalSymbolRecord(node.value.str);
             if (varSym && isConst(varSym)) {
                 result.hasResult = varSym->hasValue;
                 result.value = varSym->constValue;
@@ -41,7 +63,7 @@ EvalResult eval_addr_of(ListNode node) {
     EvalResult result;
     result.hasResult = false;
     if (node.type == N_STR) {
-        SymbolRecord *varSym = findSymbol(mainSymbolTable, node.value.str);
+        SymbolRecord *varSym = getEvalSymbolRecord(node.value.str);
         if (varSym) {
             result.value = varSym->location;
             result.hasResult = varSym->hasLocation;
@@ -90,8 +112,10 @@ EvalResult evaluate_expression(const List *expr) {
         if (opNode.type == N_TOKEN) {
             result.hasResult = true;
             switch (opNode.value.parseToken) {
-                case PT_NOT:    result.value = !leftResult.value; break;
-                case PT_INVERT: result.value = ~leftResult.value; break;
+                case PT_NOT:        result.value = !leftResult.value; break;
+                case PT_INVERT:     result.value = ~leftResult.value; break;
+                case PT_LOW_BYTE:   result.value = (leftResult.value & 0xff); break;
+                case PT_HIGH_BYTE:  result.value = ((leftResult.value >> 8) & 0xff); break;
                 case PT_ADDR_OF:
                     result.value = leftResult.value;
                     result.hasResult = leftResult.hasResult;
@@ -114,6 +138,7 @@ EvalResult evaluate_expression(const List *expr) {
 //------------------------------------------------------------
 //   Get expression string (for display in comments)
 
+
 char* get_node(const ListNode node) {
     char *result;
     switch (node.type) {
@@ -124,7 +149,17 @@ char* get_node(const ListNode node) {
         case N_LIST:
             return get_expression(node.value.list);
         case N_STR:
-            result = strdup(node.value.str);
+            if (isEvalForAsm) {
+                char *varName = node.value.str;
+                SymbolRecord *varSym = getEvalSymbolRecord(varName);
+                if (varSym != NULL) {
+                    result = (char *) getVarName(varSym);
+                } else {
+                    result = "ERROR";
+                }
+            } else {
+                result = strdup(node.value.str);
+            }
             break;
         default:
             result = 0;
@@ -187,6 +222,14 @@ char* get_expression(const List *expr) {
                 break;
             case PT_INVERT:
                 strcpy(result, "~");
+                strcat(result, leftResult);
+                break;
+            case PT_LOW_BYTE:
+                strcpy(result, "<");
+                strcat(result, leftResult);
+                break;
+            case PT_HIGH_BYTE:
+                strcpy(result, ">");
                 strcat(result, leftResult);
                 break;
             case PT_ADDR_OF:

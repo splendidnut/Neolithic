@@ -66,6 +66,8 @@ const char* ParseTokenNames[NUM_PARSE_TOKENS] = {
 
         "bool_and",
         "bool_or",
+        "low_byte",
+        "high_byte",
 
         "switch",
         "case",
