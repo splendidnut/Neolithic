@@ -7,12 +7,15 @@
 
 #include <data/syntax_tree.h>
 
-#define NUM_COMPILER_DIRECTIVES 3
+#define NUM_COMPILER_DIRECTIVES 6
 
 enum CompilerDirectiveTokens {
     UNKNOWN_DIRECTIVE,
+    INCLUDE,
     SHOW_CYCLES,
-    HIDE_CYCLES
+    HIDE_CYCLES,
+    PAGE_ALIGN,
+    INVERT,
 };
 
 

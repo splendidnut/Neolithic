@@ -20,9 +20,11 @@ typedef struct SOutputBlock {
     int bankNum;            // which bank it's in
 
     BlockType blockType;
-    InstrBlock *codeBlock;   // if code
-    List *dataList;          // if data list
-    SymbolRecord *dataSym;   // if data list
+    SymbolRecord *dataSym;   // symbol that this block represents... (need to rename)
+    union {
+        InstrBlock *codeBlock;
+        List *dataList;          // if data list
+    };
 
     // doubly-linked list (to make element swapping easier)
     struct SOutputBlock *prevBlock;
@@ -33,6 +35,7 @@ typedef void (*ProcessBlockFunc)(OutputBlock *);    // pointer to block processi
 
 extern void OB_Init();
 extern void OB_AddBlock(OutputBlock *newBlock);
+extern void OB_MoveToNextPage();
 extern OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock);
 extern OutputBlock *OB_AddData(SymbolRecord *dataSym, char *name, List *dataList);
 extern void OB_PrintBlockList();

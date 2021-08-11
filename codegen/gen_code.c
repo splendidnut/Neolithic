@@ -29,7 +29,7 @@
 static SymbolTable *mainSymbolTable;
 static SymbolTable *curFuncSymbolTable;
 static SymbolTable *curFuncParamTable;
-
+static bool reverseData;
 
 
 //--------------------------------------------------------
@@ -1514,6 +1514,13 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
             printf("Cycle counts off\n");
             IL_HideCycles();
             break;
+        case PAGE_ALIGN:
+            IL_MoveToNextPage();
+            OB_MoveToNextPage();
+            break;
+        case INVERT:
+            reverseData = true;
+            break;
         default:
             break;
     }
@@ -1683,6 +1690,10 @@ void GC_Variable(const List *varDef) {
                     Preprocess_InitListData(varDef, initValueList);
                 }
 
+                if (reverseData) {
+                    reverseList(initValueList);
+                }
+
                 OutputBlock *staticData = OB_AddData(varSymRec, varName, valueNode.value.list);
 
                 // Mark where in memory the variable is located...
@@ -1692,6 +1703,8 @@ void GC_Variable(const List *varDef) {
                 //printf("Size of %s is %d\n", varSymRec->name, staticData->blockSize);
                 varSymRec->location = ICG_MarkStaticArrayData(staticData->blockSize);
                 varSymRec->hasLocation = true;
+
+                reverseData = false;
             }
         }
     }
@@ -1795,6 +1808,9 @@ void GC_ProcessProgramNode(ListNode opNode, const List *statement) {
             case PT_STRUCT: break;
             case PT_UNION:  break;
             case PT_ENUM:   break;
+            case PT_DIRECTIVE:
+                GC_HandleDirective(statement, 0);
+                break;
             default:
                 ErrorMessageWithList("Program code found outside code block", statement);
         }
@@ -1804,7 +1820,7 @@ void GC_ProcessProgramNode(ListNode opNode, const List *statement) {
 }
 
 void WalkProgram(List *program, ProcessNodeFunc procNode) {
-    for (int stmtNum = 1;  stmtNum < program->count;  stmtNum++) {
+    for_range (stmtNum, 1, program->count) {
         ListNode stmt = program->nodes[stmtNum];
         if (stmt.type == N_LIST) {
             List *statement = stmt.value.list;
@@ -1842,6 +1858,7 @@ void generate_code(ListNode node, SymbolTable *symbolTable) {
     mainSymbolTable = symbolTable;
     curFuncSymbolTable = NULL;
     curFuncParamTable = NULL;
+    reverseData = false;
 
     initEvaluator(mainSymbolTable);
 

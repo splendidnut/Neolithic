@@ -8,8 +8,11 @@
 
 const char* CompilerDirectiveNames[NUM_COMPILER_DIRECTIVES] = {
         "",
+        "include",
         "show_cycles",
-        "hide_cycles"
+        "hide_cycles",
+        "page_align",
+        "invert"
 };
 
 enum CompilerDirectiveTokens lookupDirectiveToken(char *tokenName) {
@@ -39,10 +42,13 @@ ListNode parse_compilerDirective() {
 
     switch (directiveToken) {
         case SHOW_CYCLES:
+        case HIDE_CYCLES:
+        case PAGE_ALIGN:
+        case INVERT:
             node = buildDirectiveNode(directiveToken);
             break;
-        case HIDE_CYCLES:
-            node = buildDirectiveNode(directiveToken);
+        case INCLUDE:
+            // TODO: determine if we want to do something special with includes
             break;
         default:
             printf("Missing support for %s\n", token->tokenStr);

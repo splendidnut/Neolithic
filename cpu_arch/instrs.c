@@ -138,6 +138,10 @@ void IL_HideCycles() {
     showCycles = false;
 }
 
+void IL_MoveToNextPage() {
+    codeAddr = (codeAddr + 256) & 0xff00;
+}
+
 //================================================================================
 
 void IL_Init(int startCodeAddr) {

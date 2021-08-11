@@ -13,6 +13,7 @@
 
 extern void IL_ShowCycles();
 extern void IL_HideCycles();
+extern void IL_MoveToNextPage();
 
 extern void IL_Init(int startCodeAddr);
 extern void IL_Preload(const SymbolRecord *varSym, enum VarHint hint);

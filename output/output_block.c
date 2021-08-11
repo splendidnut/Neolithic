@@ -63,6 +63,11 @@ OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock) {
     return newBlock;
 }
 
+// TODO: this is a hack since the OutputBlock module maintains a separate address tracker
+void OB_MoveToNextPage() {
+    curAddr = (curAddr + 256) & 0xff00;
+}
+
 OutputBlock *OB_AddData(SymbolRecord *dataSym, char *name, List *dataList) {
     bool isInt = getBaseVarSize(dataSym) > 1;
     OutputBlock *newBlock = malloc(sizeof(struct SOutputBlock));

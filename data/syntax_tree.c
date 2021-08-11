@@ -127,6 +127,18 @@ List *wrapNode(ListNode node) {
     return wrappedList;
 }
 
+void reverseList(List *list) {
+    int startPoint = 1;
+    int endPoint = list->count;
+    while (startPoint < endPoint) {
+        ListNode listNode = list->nodes[startPoint];
+        list->nodes[startPoint] = list->nodes[endPoint];
+        list->nodes[endPoint] = listNode;
+
+        startPoint++;
+        endPoint--;
+    }
+}
 
 void showList(FILE *outputFile, const List *list, int indentLevel) {
     ListNode node;
