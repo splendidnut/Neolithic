@@ -405,9 +405,9 @@ void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, en
         ICG_PreOp(preOp);
         ICG_OpWithConst(mne, arg2.value.num);
     } else if (arg2.type == N_STR) {
-        ICG_PreOp(preOp);
         SymbolRecord *varRec = lookupSymbolNode(arg2, expr->lineNum);
         if (varRec != NULL) {
+            ICG_PreOp(preOp);
             ICG_OpWithVar(mne, varRec);
         } else {
             ErrorMessage("Unknown argument to op", arg2.value.str, expr->lineNum);
@@ -832,13 +832,10 @@ void GC_Assignment(const List *stmt, enum SymbolType destType) {
     // make sure we have a destination
     if (destType != ST_ERROR) {
 
-        //IL_AddCommentToCode("--- assignment");    //TODO: find a way to insert original source code here
-        //IL_AddCommentToCode(buildSourceCodeLine(&stmt->progLine));
-
         /*
         // flatten out the expression before code generation
         if (loadNode.type == N_LIST) {
-            flatten_expression(loadNode.value.list);
+            flatten_expression(loadNode.value.list, stmt);
         }
          */
 
@@ -1862,6 +1859,8 @@ void generate_code(ListNode node, SymbolTable *symbolTable) {
 
     initEvaluator(mainSymbolTable);
 
+    FE_initDebugger();
+
     // only need to initial instruction list and output block modules once
     if (!isInitialized) {
         IL_Init(0xF000);
@@ -1871,4 +1870,6 @@ void generate_code(ListNode node, SymbolTable *symbolTable) {
 
     // process module -> just needs to run code generator to build output blocks
     GC_ProcessProgram(node);
+
+    FE_killDebugger();
 }

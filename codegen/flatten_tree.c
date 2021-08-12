@@ -11,6 +11,14 @@
 #include "flatten_tree.h"
 #include <data/syntax_tree.h>
 
+//#define DEBUG_EXPR_FLATTEN
+
+//------------------------------------
+//  Module-local variables
+
+static FILE *debugOutput;
+static int flattenedExprCount;
+
 //  x = y*2 + 2*3;
 //  [set, x, [+, [*, y, 2], [*, 2, 3]]]
 //
@@ -54,6 +62,17 @@
 List* exprList;
 int numTemps;
 
+void FT_MoveAccToTemp(ListNode tempNode) {
+    List *copyExpr = createList(3);
+    addNode(copyExpr, createParseToken(PT_SET));
+    addNode(copyExpr, tempNode);
+    addNode(copyExpr, createStrNode("acc"));
+
+    showList(debugOutput, copyExpr, 2);
+    fprintf(debugOutput," -- copyExpr\n");
+    addNode(exprList, createListNode(copyExpr));
+}
+
 List* FT_Expression(const List *expr) {
     ListNode leftNode = expr->nodes[1];
     ListNode rightNode = expr->nodes[2];
@@ -63,27 +82,21 @@ List* FT_Expression(const List *expr) {
 
     // walk left,
     if (isLeftExpr) {
-        leftNode = createListNode(FT_Expression(leftNode.value.list));
-        addNode(exprList, leftNode);
+        FT_Expression(leftNode.value.list);
         leftNode = createStrNode("acc");
     }
 
     // walk right,
     if (isRightExpr) {
+
+        // if left node was an expression, we need to copy A reg into a temp variable
         if (isLeftExpr) {
-            List *copyExpr = createList(3);
-            addNode(copyExpr, createParseToken(PT_SET));
-            addNode(copyExpr, createStrNode("temp"));
-            addNode(copyExpr, createStrNode("acc"));
-
-            showList(stdout, copyExpr, 2);
-            printf("\n");
-
-            addNode(exprList, createListNode(copyExpr));
-            leftNode = createStrNode("temp");
+            ListNode tempNode = createStrNode("temp");
+            FT_MoveAccToTemp(tempNode);
+            leftNode = tempNode;
         }
-        rightNode = createListNode(FT_Expression(rightNode.value.list));
-        addNode(exprList, rightNode);
+
+        FT_Expression(rightNode.value.list);
         rightNode = createStrNode("acc");
     }
 
@@ -92,23 +105,70 @@ List* FT_Expression(const List *expr) {
     addNode(nodeExpr, leftNode);
     addNode(nodeExpr, rightNode);
 
-    showList(stdout, nodeExpr, 2);
-    printf("\n");
+    showList(debugOutput, nodeExpr, 2);
+    fprintf(debugOutput," -- nodeExpr\n");
 
     addNode(exprList, createListNode(nodeExpr));
     return nodeExpr;
 }
 
-List* flatten_expression(const List *expr) {
+/**
+ * Flatten an expression
+ *
+ * @param expr - expression to flatten
+ * @param origStmt - original statement containing expression (only used for displaying source code line)
+ * @return
+ */
+List* flatten_expression(const List *expr, const List *origStmt) {
+
+    // filter out any expressions that don't need to be flattened
+    ListNode leftNode = expr->nodes[1];
+    ListNode rightNode = expr->nodes[2];
+
+    // if both nodes aren't sub-expressions, we need to check to see
+    //   if expression is complex enough to require flattening
+    if (!((leftNode.type == N_LIST) && (rightNode.type == N_LIST))) {
+
+        if ((leftNode.type != N_LIST) && (rightNode.type != N_LIST)) return NULL;
+
+        // check if complex node is just a property reference...
+        if ((leftNode.type == N_LIST) && (isToken(leftNode.value.list->nodes[0], PT_PROPERTY_REF))) return NULL;
+        if ((rightNode.type == N_LIST) && (isToken(rightNode.value.list->nodes[0], PT_PROPERTY_REF))) return NULL;
+    }
+
+    // now we can attempt to flatten the expression
+    flattenedExprCount++;
+
     numTemps = 0;
     exprList = createList(20);  // TODO: make list auto expand
 
-    printf("Starting with:\n");
-    showList(stdout, expr, 2);
-    printf("\n\nProduces intermediates:\n");
+    if (debugOutput == NULL) debugOutput = stdout;
+
+#ifdef DEBUG_EXPR_FLATTEN
+    fprintf(debugOutput,"-----------------------------------------------\nStarting with:\n");
+    fprintf(debugOutput,"%s\n", buildSourceCodeLine(&origStmt->progLine));
+    showList(debugOutput, expr, 2);
+    fprintf(debugOutput,"\n\nProduces intermediates:\n");
     FT_Expression(expr);
-    printf("\n\nProduces:\n");
-    showList(stdout, exprList, 2);
-    printf("\n");
+    fprintf(debugOutput,"\n\nProduces:\n");
+    showList(debugOutput, exprList, 2);
+    fprintf(debugOutput,"\n\n");
+#else
+    FT_Expression(expr);
+#endif
     return exprList;
+}
+
+void FE_initDebugger() {
+#ifdef DEBUG_EXPR_FLATTEN
+    debugOutput = fopen("debug_flat_expr.txt", "wb");
+#endif
+    flattenedExprCount = 0;
+}
+
+void FE_killDebugger() {
+#ifdef DEBUG_EXPR_FLATTEN
+    fprintf(debugOutput, "\nExpressions Flattened: %d\n", flattenedExprCount);
+    if (debugOutput != stdout) fclose(debugOutput);
+#endif
 }

@@ -12,6 +12,9 @@
 
 #include <data/syntax_tree.h>
 
-extern List* flatten_expression(const List *expr);
+extern List* flatten_expression(const List *expr, const List *origStmt);
+
+extern void FE_initDebugger();
+extern void FE_killDebugger();
 
 #endif //NEOLITHIC_FLATTEN_TREE_H
