@@ -195,93 +195,94 @@ void generateCodeForDependencies(PreProcessInfo *preProcessInfo) {
 }
 
 int mainCompiler() {
+    char* mainFileData = readSourceFile(inFileName);
+    if (mainFileData == NULL) {
+        printf("Unable to open file\n");
+        return -1;
+    }
+
     SourceFileList_init();
 
     printf("\n");
     printf("Initializing symbol table\n");
     mainSymbolTable = initSymbolTable("main", true);
 
-    char* mainFileData;
-    if ((mainFileData = readSourceFile(inFileName))) {
+    PreProcessInfo *preProcessInfo = preprocess(mainFileData);
 
-        PreProcessInfo *preProcessInfo = preprocess(mainFileData);
-        bool hasDependencies = (preProcessInfo->numFiles > 0);
-
-        if (hasDependencies) {
-            // Build and output AST, then process and analyze symbols
-            loadAndParseAllDependencies(preProcessInfo);
-            collectSymbolsFromDependency(preProcessInfo);
-        }
-
-        // now build AST and symbols for main file
-        ListNode mainProgNode = parse(inFileName, mainFileData);
-        writeParseTree(mainProgNode, inFileName);
-
-        if (parserErrorCount != 0) return -1;
-
-        //--------------------------------------------------------
-        //--- Now compile!
-
-        generate_symbols(mainProgNode, mainSymbolTable);
-        generate_callTree(mainProgNode, mainSymbolTable);
-        generate_var_allocations(mainSymbolTable);
-
-        printf("Analysis of %s Complete\n\n", inFileName);
-
-        //   Now do full compile on any dependencies
-        if (hasDependencies) {
-            generateCodeForDependencies(preProcessInfo);
-        }
-
-        //----- Compile main file
-        ListNode progNode = SourceFileList_lookupAST(inFileName);
-
-        //------------------------------------------
-        // Output ASM code and SYM file
-
-        printf("Compiling main program %s\n", inFileName);
-
-        WO_Init(projectName, OUT_DASM, mainSymbolTable);
-
-        // this needs to be done before the program is processed
-        //  because the Code Generator makes changes to the symbol table
-        //    (adds static data structures)
-
-        WO_PrintSymbolTable(mainSymbolTable, "Main");
-
-        generate_code(progNode, mainSymbolTable);
-
-        // need to add error check here
-        if (GC_ErrorCount == 0) {
-            //OPT_RunOptimizer();
-            WO_WriteAllBlocks();    // output all the code and the variables
-
-            printf("Output layout:\n");
-            OB_PrintBlockList();
-        } else {
-            printf("Unable to process program due to errors\n");
-        }
-
-        WO_Done();
-
-        //----------------------------------------
-        //  Output binary
-
-        if (GC_ErrorCount == 0) {
-            WO_Init(projectName, OUT_BIN, mainSymbolTable);
-            WO_WriteAllBlocks();
-            WO_Done();
-        }
-
-        //--- Finish off by outputting the symbol table
-        writeSymbolTable(inFileName);
-
-        //----- Cleanup!
-        free(preProcessInfo);
-        free(mainFileData);
-    } else {
-        printf("Unable to open file\n");
+    bool hasDependencies = (preProcessInfo->numFiles > 0);
+    if (hasDependencies) {
+        // Build and output AST, then process and analyze symbols
+        loadAndParseAllDependencies(preProcessInfo);
+        collectSymbolsFromDependency(preProcessInfo);
     }
+
+    // now build AST and symbols for main file
+    ListNode mainProgNode = parse(inFileName, mainFileData);
+    writeParseTree(mainProgNode, inFileName);
+
+    if (parserErrorCount != 0) return -1;
+
+    //--------------------------------------------------------
+    //--- Now compile!
+
+    generate_symbols(mainProgNode, mainSymbolTable);
+    generate_callTree(mainProgNode, mainSymbolTable);
+    generate_var_allocations(mainSymbolTable);
+
+    printf("Analysis of %s Complete\n\n", inFileName);
+
+    //   Now do full compile on any dependencies
+    if (hasDependencies) {
+        generateCodeForDependencies(preProcessInfo);
+    }
+
+    //----- Compile main file
+    ListNode progNode = SourceFileList_lookupAST(inFileName);
+
+    //------------------------------------------
+    // Output ASM code and SYM file
+
+    printf("Compiling main program %s\n", inFileName);
+
+    WO_Init(projectName, OUT_DASM, mainSymbolTable);
+
+    // this needs to be done before the program is processed
+    //  because the Code Generator makes changes to the symbol table
+    //    (adds static data structures)
+
+    WO_PrintSymbolTable(mainSymbolTable, "Main");
+
+    generate_code(progNode, mainSymbolTable);
+
+    // need to add error check here
+    if (GC_ErrorCount == 0) {
+        //OPT_RunOptimizer();
+        WO_WriteAllBlocks();    // output all the code and the variables
+
+        printf("Output layout:\n");
+        OB_PrintBlockList();
+    } else {
+        printf("Unable to process program due to errors\n");
+    }
+
+    WO_Done();
+
+    //----------------------------------------
+    //  Output binary
+
+    if (GC_ErrorCount == 0) {
+        WO_Init(projectName, OUT_BIN, mainSymbolTable);
+        WO_WriteAllBlocks();
+        WO_Done();
+    }
+
+    //--- Finish off by outputting the symbol table
+    writeSymbolTable(inFileName);
+
+    //----- Cleanup!
+    free(preProcessInfo);
+    free(mainFileData);
+
     printf("Cleaning up\n");
     SourceFileList_cleanup();
     killSymbolTable(mainSymbolTable);

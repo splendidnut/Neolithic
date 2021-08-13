@@ -7,6 +7,7 @@
 
 enum Machines {
     Atari2600,
+    Atari5200,
     Atari7800
 };
 

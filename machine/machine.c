@@ -15,8 +15,14 @@ void prepForMachine(enum Machines machine) {
         case Atari2600:
             SMA_init(0);        // only has zeropage memory
             zeropageMem = SMA_addMemoryRange(0x80, 0xFF);
-
             break;
+
+        case Atari5200:
+            SMA_init(1);
+            zeropageMem = SMA_addMemoryRange(0x00, 0xFF);
+            SMA_addMemoryRange(0x0200, 0x3fff);
+            break;
+
         case Atari7800:
             // atari7800 memory ranges:
             //    zeropage = 0x40..0xFF
