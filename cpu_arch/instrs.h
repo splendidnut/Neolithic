@@ -27,6 +27,9 @@ extern Instr* IL_AddInstrS(enum MnemonicCode mne, enum AddrModes addrMode, const
 extern Instr* IL_AddInstrN(enum MnemonicCode mne, enum AddrModes addrMode, int ofs);
 extern Instr* IL_AddInstrB(enum MnemonicCode mne);
 
+//----------------------------------------------------------------
+//  Here are the "actual" intermediate operations
+
 extern void ICG_LoadFromAddr(int ofs);
 extern void ICG_LoadFromArray(const SymbolRecord *arraySymbol, int index, enum SymbolType destType);
 extern void ICG_LoadConst(int constValue, int size);
@@ -54,8 +57,8 @@ extern void ICG_Not();
 extern void ICG_NotBool();
 extern void ICG_Negate();
 extern void ICG_PreOp(enum MnemonicCode preOp);
-extern void ICG_OpWithConst(enum MnemonicCode mne, int num);
-extern void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym);
+extern void ICG_OpWithConst(enum MnemonicCode mne, int num, int dataSize);
+extern void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym, int dataSize);
 extern void ICG_OpWithAddr(enum MnemonicCode mne, int addr);
 extern void ICG_OpWithStack(enum MnemonicCode mne);
 extern void ICG_MoveIndexToAcc(const char srcReg);
@@ -76,6 +79,9 @@ extern void ICG_CompareVar(const SymbolRecord *varSym);
 extern void ICG_Jump(const Label *label, const char* comment);
 extern void ICG_Call(const char *funcName);
 extern void ICG_Return();
+
+//-----------------------------------------------------------------------
+//---- Handle other things:  inline assembly, functions, static data
 
 extern void ICG_AsmInstr(enum MnemonicCode mne, enum AddrModes addrMode, const char *paramStr);
 extern void ICG_AsmData(int value);

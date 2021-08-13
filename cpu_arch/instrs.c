@@ -524,11 +524,27 @@ void ICG_PreOp(enum MnemonicCode preOp) {
     if (preOp != MNE_NONE) IL_AddInstrN(preOp, ADDR_NONE, 0);
 }
 
-void ICG_OpWithConst(enum MnemonicCode mne, int num) {
-    IL_AddInstrN(mne, ADDR_IMM, num);
+void ICG_OpHighByte(enum MnemonicCode mne) {
+    // Handle 16-bit ops
+    switch (mne) {
+        case ADC:
+            IL_AddInstrN(BCC, ADDR_REL, +3);
+            IL_AddInstrB(INX);
+            break;
+        case SBC:
+            IL_AddInstrN(BCS, ADDR_REL, +3);
+            IL_AddInstrB(DEX);
+            break;
+        default: break;
+    }
 }
 
-void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym) {
+void ICG_OpWithConst(enum MnemonicCode mne, int num, int dataSize) {
+    IL_AddInstrN(mne, ADDR_IMM, num);
+    if (dataSize > 1) ICG_OpHighByte(mne);
+}
+
+void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym, int dataSize) {
     const char *varName = getVarName(varSym);
     if (isConst(varSym)) {
         IL_AddInstrS(mne, ADDR_IMM, varName, NULL, PARAM_NORMAL);
@@ -541,6 +557,9 @@ void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym) {
                 (char *)varName);
     } else {
         IL_AddInstrS(mne, ADDR_ZP, varName, NULL, PARAM_NORMAL);
+
+        // Handle 16-bit ops
+        if (dataSize > 1) ICG_OpHighByte(mne);
     }
 
     switch (mne) {

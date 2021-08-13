@@ -366,7 +366,8 @@ void GC_SimpleOP(const List *expr, enum MnemonicCode mne, enum SymbolType destTy
         case N_STR: {
             SymbolRecord *varSym = lookupSymbolNode(arg, expr->lineNum);
             if (varSym != NULL) {
-                ICG_OpWithVar(mne, varSym);
+                int destSize = (destType == ST_INT || destType == ST_PTR) ? 2 : 1;
+                ICG_OpWithVar(mne, varSym, destSize);
             }
         } break;
         case N_LIST:
@@ -384,6 +385,8 @@ bool isSimplePropertyRef(ListNode arg2) {
 }
 
 void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, enum MnemonicCode preOp) {
+    int destSize = (destType == ST_INT || destType == ST_PTR) ? 2 : 1;
+
     ListNode arg1 = expr->nodes[1];
     ListNode arg2 = expr->nodes[2];
 
@@ -401,14 +404,16 @@ void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, en
     GC_HandleLoad(arg1, destType, expr->lineNum);
 
     //------ now do op using arg2
+
     if (arg2.type == N_INT) {
         ICG_PreOp(preOp);
-        ICG_OpWithConst(mne, arg2.value.num);
+        ICG_OpWithConst(mne, arg2.value.num, destSize);
     } else if (arg2.type == N_STR) {
         SymbolRecord *varRec = lookupSymbolNode(arg2, expr->lineNum);
         if (varRec != NULL) {
             ICG_PreOp(preOp);
-            ICG_OpWithVar(mne, varRec);
+
+            ICG_OpWithVar(mne, varRec, destSize);
         } else {
             ErrorMessage("Unknown argument to op", arg2.value.str, expr->lineNum);
         }
