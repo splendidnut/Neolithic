@@ -6,8 +6,26 @@
 //  deal with machine specific stuff
 
 #include <stdio.h>
+#include <string.h>
 #include "mem.h"
 #include "machine.h"
+
+const char *MachineNameList[NUM_MACHINES] = {
+        "",
+        "Atari2600",
+        "Atari5200",
+        "Atari7800",
+};
+
+enum Machines lookupMachineName(char *machineName) {
+    int index = 1;
+    while (index < NUM_MACHINES) {
+        if (strncmp(machineName, MachineNameList[index], 12) == 0) break;
+        index++;
+    }
+    if (index >= NUM_MACHINES) index = 0;
+    return (enum Machines)index;
+}
 
 void prepForMachine(enum Machines machine) {
     MemoryArea *zeropageMem;

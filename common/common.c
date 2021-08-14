@@ -39,6 +39,14 @@ int strToInt(const char *str) {
     return resultInt;
 }
 
+char *getUnquotedString(const char *srcString) {
+    unsigned int len = strlen(srcString) - 2;
+    char *newStr = malloc(len+1);
+    strncpy(newStr, srcString+1, len);
+    newStr[len] = '\0';
+    return newStr;
+}
+
 
 /**
  * Generate a filename with the given extension, starting from a filename

@@ -33,6 +33,7 @@ extern CompilerOptions *compilerOptions;
 extern char *numToStr(int num);
 extern char *intToStr(int num);
 extern int strToInt(const char *str);
+extern char *getUnquotedString(const char *srcString);
 extern char *genFileName(const char *name, const char *ext);
 extern char *buildSourceCodeLine(const SourceCodeLine *srcStr);
 

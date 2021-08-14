@@ -8,6 +8,7 @@
 typedef struct {
     int numFiles;
     char *includedFiles[12];
+    enum Machines machine;
 } PreProcessInfo;
 
 extern PreProcessInfo * preprocess(char *inFileStr);

@@ -7,6 +7,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <machine/machine.h>
+
+#include "common/common.h"
+#include "parse_directives.h"
 #include "preprocess.h"
 
 static char *curProg;   // current program
@@ -35,16 +39,11 @@ void PP_nextLine() {
 
 //---------------------------------------------------------
 
+
 void PP_Include(PreProcessInfo *preProcessInfo) {
     if (preProcessInfo->numFiles < 12) {
         char *includeFile = strtok(NULL, " \n\r");
-
-        // all this just to trim quotes off
-        unsigned int fileNameLen = strlen(includeFile) - 2;
-        char *fileName = malloc(fileNameLen+1);
-        strncpy(fileName, includeFile+1, fileNameLen);
-        fileName[fileNameLen] = '\0';
-
+        char *fileName = getUnquotedString(includeFile);
         preProcessInfo->includedFiles[preProcessInfo->numFiles++] = fileName;
         printf("Including: %s\n", fileName);
     } else {
@@ -53,18 +52,27 @@ void PP_Include(PreProcessInfo *preProcessInfo) {
 }
 
 void PP_Machine(PreProcessInfo *preProcessInfo) {
-    //preProcessInfo;
+    char *machineName = getUnquotedString(strtok(NULL, "\n\r"));
+    enum Machines machine = lookupMachineName(machineName);
+    if (machine > 0) {
+        preProcessInfo->machine = machine;
+        prepForMachine(machine);
+    } else {
+        printf("Error!  Failed to lookup machine name: %s\n", machineName);
+    }
+    free(machineName);
 }
 
 void PP_Directive(char *curLine, PreProcessInfo *preProcessInfo) {
     char *directive = strtok(curLine," \n\r");
 
-    if (strncmp(directive, "include", 7) == 0) {
-        PP_Include(preProcessInfo);
-    } else if (strncmp(directive, "machine", 7) == 0) {
-        PP_Machine(preProcessInfo);
-    } else {
-        printf("Warning: Unknown directive: %s\n", directive);
+    enum CompilerDirectiveTokens directiveToken = lookupDirectiveToken(directive);
+    switch (directiveToken) {
+        case INCLUDE:      PP_Include(preProcessInfo); break;
+        case MACHINE_DEF:  PP_Machine(preProcessInfo); break;
+        case UNKNOWN_DIRECTIVE:
+            printf("Warning: Unknown directive: %s\n", directive);
+        default: break;
     }
 }
 

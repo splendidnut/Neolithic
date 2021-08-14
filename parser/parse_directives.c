@@ -9,6 +9,7 @@
 const char* CompilerDirectiveNames[NUM_COMPILER_DIRECTIVES] = {
         "",
         "include",
+        "machine",
         "show_cycles",
         "hide_cycles",
         "page_align",
@@ -47,8 +48,10 @@ ListNode parse_compilerDirective() {
         case INVERT:
             node = buildDirectiveNode(directiveToken);
             break;
+        case MACHINE_DEF:
         case INCLUDE:
             // TODO: determine if we want to do something special with includes
+            node = createEmptyNode();
             break;
         default:
             printf("Missing support for %s\n", token->tokenStr);
