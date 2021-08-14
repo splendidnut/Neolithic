@@ -7,7 +7,7 @@
 
 #include <stdbool.h>
 
-#define NUM_PARSE_TOKENS 67
+#define NUM_PARSE_TOKENS 68
 
 enum ParseToken {
     PT_EMPTY,
@@ -30,6 +30,7 @@ enum ParseToken {
     PT_WHILE,
     PT_FOR,
     PT_RETURN,
+    PT_BREAK,
 
     // structure and array support
     PT_STRUCT, PT_UNION, PT_ENUM, PT_LOOKUP,

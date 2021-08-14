@@ -1050,22 +1050,29 @@ ListNode parse_stmt_switch() {
     bool switchError = false;
     while ((peekToken()->tokenType != TT_CLOSE_BRACE) && !switchError) {
         List *caseStmt = createList(3);
-        if (peekToken()->tokenType == TT_CASE) {
+
+        TokenObject *token = peekToken();
+        if (token->tokenType == TT_CASE) {
             acceptToken(TT_CASE);
             addNode(caseStmt, createParseToken(PT_CASE));
             addNode(caseStmt, parse_primary_expr(false, false, false));
             acceptToken(TT_COLON);
             addNode(caseStmt, parse_codeBlock());
-        } else if (peekToken()->tokenType == TT_DEFAULT) {
+        } else if (token->tokenType == TT_DEFAULT) {
             acceptToken(TT_DEFAULT);
             addNode(caseStmt, createParseToken(PT_DEFAULT));
             acceptToken(TT_COLON);
             addNode(caseStmt, parse_codeBlock());
-        } else switchError = true;
-        addNode(switchStmt, createListNode(caseStmt));
+        } else {
+            switchError = true;
+        }
+        if (!switchError) {
+            addNode(switchStmt, createListNode(caseStmt));
+        }
     }
     if (switchError) {
         printError("Error parsing switch statement");
+        while (peekToken()->tokenType != TT_CLOSE_BRACE);
     }
     acceptToken(TT_CLOSE_BRACE);
     return createListNode(switchStmt);
@@ -1103,11 +1110,17 @@ ListNode parse_strobe() {
     return createListNode(strobeStmt);
 }
 
+ListNode parse_stmt_break() {
+    acceptToken(TT_BREAK);
+    return createParseToken(PT_BREAK);
+}
+
 ListNode parse_stmt() {
     ListNode node = createEmptyNode();
     TokenObject *token = peekToken();
 
     switch (getTokenSymbolType(token)) {
+        case TT_BREAK:  node = parse_stmt_break(); break;
         case TT_FOR:    node = parse_stmt_for(); break;
         case TT_ASM:    node = parse_asmBlock(); break;
         case TT_DO:     node = parse_stmt_do();  break;
@@ -1122,10 +1135,6 @@ ListNode parse_stmt() {
                 node = parse_variable();
             } else if (token->tokenStr[0] == '#') {
                 node = parse_compilerDirective();
-                /*getToken(); // EAT '#'
-                printf("Missing support for %s\n", getToken()->tokenStr);
-                tokenizer_nextLine();
-                node = createEmptyNode();*/
             } else if (token->tokenType != TT_SEMICOLON) {
                 // handle an expression/assignment statement
                 node = parse_expr_assignment();

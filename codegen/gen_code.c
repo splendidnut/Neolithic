@@ -1719,6 +1719,8 @@ void GC_StatementList(const List *code) {
             List *stmt = stmtNode.value.list;
             IL_AddCommentToCode(buildSourceCodeLine(&stmt->progLine));
             GC_Statement(stmt);
+        } else if (isToken(stmtNode, PT_BREAK)) {
+            // Need to add code to exit block for break statement
         } else {
             printf("Unknown command: %s\n", stmtNode.value.str);
         }

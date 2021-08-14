@@ -26,6 +26,7 @@ const char* ParseTokenNames[NUM_PARSE_TOKENS] = {
         "while",
         "for",
         "return",
+        "break",
         "struct",
         "union",
         "enum",
