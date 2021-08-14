@@ -7,19 +7,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <output/write_output.h>
-#include <output/output_block.h>
-#include <codegen/gen_common.h>
 
 #include "data/syntax_tree.h"
 #include "machine/machine.h"
-#include "machine/mem.h"
 #include "parser/parser.h"
 #include "parser/preprocess.h"
+#include "codegen/gen_common.h"
 #include "codegen/gen_symbols.h"
 #include "codegen/gen_alloc.h"
 #include "codegen/gen_calltree.h"
 #include "codegen/gen_code.h"
+#include "output/write_output.h"
 
 const char *verStr = "0.1(alpha)";
 
@@ -208,6 +206,10 @@ int mainCompiler() {
     mainSymbolTable = initSymbolTable("main", true);
 
     PreProcessInfo *preProcessInfo = preprocess(mainFileData);
+    if (preProcessInfo->machine == Machine_Unknown) {
+        printf("Unknown machine specified, cannot continue!\n");
+        return -1;
+    }
 
     bool hasDependencies = (preProcessInfo->numFiles > 0);
     if (hasDependencies) {

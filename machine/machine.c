@@ -1,30 +1,41 @@
 //
+// Neolithic target Machine module
+//
+// Provide support for targeting multiple 6502-based systems
+//
 // Created by User on 8/4/2021.
 //
-
-//===========================================================================
-//  deal with machine specific stuff
 
 #include <stdio.h>
 #include <string.h>
 #include "mem.h"
 #include "machine.h"
 
-const char *MachineNameList[NUM_MACHINES] = {
-        "",
-        "Atari2600",
-        "Atari5200",
-        "Atari7800",
+typedef struct {
+    char* name;
+    int startAddr;
+    int addrMask;
+} MachineInfo;
+
+MachineInfo machineInfo[] = {
+        {"",0,0},
+        {"Atari2600", 0x1000, 0x1FFF},
+        {"Atari5200", 0x4000, 0xFFFF},
+        {"Atari7800", 0x8000, 0xFFFF}
 };
 
 enum Machines lookupMachineName(char *machineName) {
     int index = 1;
     while (index < NUM_MACHINES) {
-        if (strncmp(machineName, MachineNameList[index], 12) == 0) break;
+        if (strncmp(machineName, machineInfo[index].name, 12) == 0) break;
         index++;
     }
     if (index >= NUM_MACHINES) index = 0;
     return (enum Machines)index;
+}
+
+int getMachineStartAddr(enum Machines machine) {
+    return machineInfo[machine].startAddr;
 }
 
 void prepForMachine(enum Machines machine) {
