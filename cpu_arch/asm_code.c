@@ -72,6 +72,7 @@ struct SMnemonic Mnemonics[] = {
 
         // specialty (undocumented) opcodes
         {"DCP", DCP, false},
+        {"LAX", LAX, false},
 
         // ex
         {"byte", MNE_DATA, false}
@@ -276,6 +277,15 @@ struct StOpcodeTable opcodeTable[] = {
         {JMP, ADDR_ABS, 0x4C, 3},
         {JMP, ADDR_IND, 0x6C, 5},
         {JSR, ADDR_ABS, 0x20, 6},
+        //
+        {LAX, ADDR_IMM, 0xAB, 2},
+        {LAX, ADDR_ZP,  0xA7, 3},
+        {LAX, ADDR_ZPX, 0xB7, 4},
+        {LAX, ADDR_ABS, 0xAF, 4},
+        {LAX, ADDR_ABX, 0xBF, 4},
+        {LAX, ADDR_ABY, 0xBB, 4},
+        {LAX, ADDR_IX,  0xA3, 6},
+        {LAX, ADDR_IY,  0xB3, 5},
         //
         {LDA, ADDR_IMM, 0xA9, 2},
         {LDA, ADDR_ZP,  0xA5, 3},

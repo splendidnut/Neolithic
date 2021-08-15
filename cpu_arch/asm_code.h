@@ -15,7 +15,7 @@ enum MnemonicCode {
     RTS, SBC, SEC, SED, SEI, STA, STX, STY, TAX, TAY, TSX, TXA, TXS, TYA,
 
     // specialty ones
-    DCP,
+    DCP, LAX,
 
     // data in the middle of code (ASM block only)
     MNE_DATA,
