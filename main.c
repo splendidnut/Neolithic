@@ -1,5 +1,5 @@
 /*
- *   Neolithic Compiler v0.1 - Simple C Cross-compiler for the 6502
+ *   Neolithic Compiler v0.2 - Simple C Cross-compiler for the 6502
  *
 **/
 
@@ -19,7 +19,7 @@
 #include "codegen/gen_code.h"
 #include "output/write_output.h"
 
-const char *verStr = "0.1(alpha)";
+const char *verStr = "0.2(alpha)";
 
 //#define DEBUG
 
@@ -173,10 +173,13 @@ void loadAndParseAllDependencies(PreProcessInfo *preProcessInfo) {
         writeParseTree(progNode, srcFileName);
 
         if (parserErrorCount != 0) break;
+
+        generate_symbols(progNode, mainSymbolTable);
     }
 }
 
 void collectSymbolsFromDependency(PreProcessInfo *preProcessInfo) {
+    return;
     for_range(curFileIdx, 0, preProcessInfo->numFiles) {
         char *curFileName = preProcessInfo->includedFiles[curFileIdx];
         ListNode progNode = SourceFileList_lookupAST(curFileName);
