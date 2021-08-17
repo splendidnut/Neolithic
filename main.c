@@ -221,6 +221,8 @@ int mainCompiler() {
         collectSymbolsFromDependency(preProcessInfo);
     }
 
+    if (GC_ErrorCount > 0) return -1;
+
     // now build AST and symbols for main file
     ListNode mainProgNode = parse(inFileName, mainFileData);
     writeParseTree(mainProgNode, inFileName);
@@ -231,6 +233,8 @@ int mainCompiler() {
     //--- Now compile!
 
     generate_symbols(mainProgNode, mainSymbolTable);
+    if (GC_ErrorCount > 0) return -1;               // abort if any issues when processing symbols
+
     generate_callTree(mainProgNode, mainSymbolTable);
     generate_var_allocations(mainSymbolTable);
 

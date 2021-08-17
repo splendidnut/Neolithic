@@ -465,6 +465,10 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
     SymbolTable *localVarTbl = NULL;
     char *funcName = strdup(funcDef->nodes[1].value.str);
 
+    if (findSymbol(symbolTable, funcName)) {
+        ErrorMessage("Duplicate function name", funcName, funcDef->lineNum);
+        return;
+    }
     funcSym = addSymbol(symbolTable, funcName, SK_FUNC, ST_NONE, MF_NONE);
 
     FM_addFunctionDef(funcSym);
