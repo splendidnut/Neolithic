@@ -1328,7 +1328,7 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
 //  Assembler code block processor
 //-----------------------------------------------------------------------
 
-enum AddrModes paramAddrMode;
+enum AddrModes paramAddrMode;       // indicate whether an ASM param uses ZP or ABS modes
 
 void GC_Asm_ParamExpr(List *paramExpr, char *paramStr) {
     bool hasResult = false;
@@ -1346,11 +1346,14 @@ void GC_Asm_ParamExpr(List *paramExpr, char *paramStr) {
             setEvalExpressionMode(true);
             EvalResult evalResult = evaluate_expression(paramExpr);
             if (evalResult.hasResult) {
+                ofs = evalResult.value;
                 IL_SetLineComment(get_expression(paramExpr));
-                strcpy(paramStr, intToStr(evalResult.value));
+                strcpy(paramStr, intToStr(ofs));
+                paramAddrMode = (ofs < 256) ? ADDR_ZP : ADDR_ABS;
             } else {
                 // evaluate the expression and use the string result
                 strcpy(paramStr, get_expression(paramExpr));
+                paramAddrMode = ADDR_ABS;
             }
             setEvalExpressionMode(false);
             hasResult = true;
