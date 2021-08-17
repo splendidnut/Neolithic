@@ -191,7 +191,7 @@ void generateCodeForDependencies(PreProcessInfo *preProcessInfo) {
     for_range(curFileIdx, 0, preProcessInfo->numFiles) {
         char *curFileName = preProcessInfo->includedFiles[curFileIdx];
         ListNode progNode = SourceFileList_lookupAST(curFileName);
-        generate_code(progNode, mainSymbolTable);
+        generate_code(curFileName, progNode, mainSymbolTable);
     }
 }
 
@@ -261,7 +261,7 @@ int mainCompiler() {
 
     WO_PrintSymbolTable(mainSymbolTable, "Main");
 
-    generate_code(progNode, mainSymbolTable);
+    generate_code(inFileName, progNode, mainSymbolTable);
 
     // need to add error check here
     if (GC_ErrorCount == 0) {

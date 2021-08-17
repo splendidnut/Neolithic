@@ -8,6 +8,6 @@
 #include "data/syntax_tree.h"
 #include "data/symbols.h"
 
-extern void generate_code(ListNode node, SymbolTable *symbolTable);
+extern void generate_code(char *name, ListNode node, SymbolTable *symbolTable);
 
 #endif //MODULE_GEN_CODE_H

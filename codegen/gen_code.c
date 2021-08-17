@@ -1859,8 +1859,8 @@ void GC_ProcessProgram(ListNode node) {
     }
 }
 
-void generate_code(ListNode node, SymbolTable *symbolTable) {
-    printf("\nGenerating Code\n");
+void generate_code(char *name, ListNode node, SymbolTable *symbolTable) {
+    printf("\nGenerating Code for %s\n", name);
 
     mainSymbolTable = symbolTable;
     curFuncSymbolTable = NULL;
