@@ -247,8 +247,9 @@ ListNode parse_primary_expr(bool isLValue, bool isExprAllowed, int allowNestedEx
                 printError("Cannot use '&' on left side of assignment expression: %s\n", tokenStr);
             }
             break;
-        case TT_OPEN_PAREN:
         case TT_OPEN_BRACE:
+            if (isLValue) break;
+        case TT_OPEN_PAREN:
             if (isExprAllowed) {
                 node = parse_nested_primary(allowNestedExpr, exprType);
                 if (isNegative) {
@@ -1129,6 +1130,7 @@ ListNode parse_stmt() {
         case TT_SWITCH: node = parse_stmt_switch();  break;
         case TT_RETURN: node = parse_stmt_return();  break;
         case TT_STROBE: node = parse_strobe();      break;
+        case TT_OPEN_BRACE: node = parse_codeBlock(); break;
         default:
             if (isTypeToken(token) || isModifierToken(token)) {
                 // handle var list/initialization

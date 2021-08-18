@@ -1536,6 +1536,10 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
 // --  Handle Statements
 //-------------------------------------------------------------------
 
+void GC_NestedCodeBlock(const List *code, enum SymbolType destType) {
+    GC_CodeBlock((List *)code);
+}
+
 
 ParseFuncTbl stmtFunction[] = {
         {PT_ASM,        &GC_AsmBlock},
@@ -1552,6 +1556,7 @@ ParseFuncTbl stmtFunction[] = {
         {PT_INC,        &GC_IncStmt},
         {PT_DEC,        &GC_DecStmt},
         {PT_DIRECTIVE,  &GC_HandleDirective},
+        {PT_CODE,       &GC_NestedCodeBlock},
 };
 const int stmtFunctionSize = sizeof(stmtFunction) / sizeof(ParseFuncTbl);
 
