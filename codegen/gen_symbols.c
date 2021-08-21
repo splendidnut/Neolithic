@@ -130,6 +130,7 @@ SymbolRecord * GS_Variable(List *varDef, SymbolTable *symbolTable) {
             if (modNode.type == N_TOKEN) {
                 switch (modNode.value.parseToken) {
                     case PT_ZEROPAGE: modFlags |= MF_ZEROPAGE; break;
+                    case PT_ALIAS:    symbolKind = SK_ALIAS;   break;
                     case PT_CONST:    symbolKind = SK_CONST;   break;
                     case PT_UNSIGNED: modFlags |= ST_UNSIGNED; break;
                     case PT_SIGNED:   modFlags |= ST_SIGNED;   break;
@@ -173,7 +174,7 @@ SymbolRecord * GS_Variable(List *varDef, SymbolTable *symbolTable) {
     }
 
     int hasInitializer = (varDef->count >= 4) && (varDef->nodes[4].type == N_LIST);
-    if (hasInitializer) {
+    if (hasInitializer && (symbolKind != SK_ALIAS)) {
         List* initList = varDef->nodes[4].value.list;
         if (initList->nodes[0].value.parseToken == PT_INIT) {
             ListNode valueNode = initList->nodes[1];
@@ -428,12 +429,10 @@ void assignParamStackPos(const SymbolTable *funcParams) {
     int curStackPos = 2 + numStackParams;   // +2 to skip return address bytes on stack
     curParam = funcParams->firstSymbol;
     while (curParam != NULL) {
-        if (curParam-> hint == VH_NONE) {
-            curParam->isStack = true;
+        curParam->isStack = (curParam-> hint == VH_NONE);
+        if (curParam->isStack) {
             curParam->hasLocation = true;
             curParam->location = curStackPos--;
-        } else {
-            curParam->isStack = false;
         }
         curParam = curParam->next;
     }

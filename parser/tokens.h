@@ -7,7 +7,7 @@
 
 #include <stdbool.h>
 
-#define NUM_PARSE_TOKENS 68
+#define NUM_PARSE_TOKENS 69
 
 enum ParseToken {
     PT_EMPTY,
@@ -73,6 +73,7 @@ enum ParseToken {
     PT_SIGNED,
     PT_UNSIGNED,
     PT_CONST,
+    PT_ALIAS,
     PT_REGISTER,
 
     // mark a list of data values

@@ -81,6 +81,7 @@ static const TokenObject TokenSymbols[] = {
 
         //reserved words
         {"asm",     TT_ASM,         TF_OP},
+        {"alias",   TT_ALIAS,       TF_MODIFIER},
         {"bool",    TT_BOOLEAN,     TF_TYPE},
         {"boolean", TT_BOOLEAN,     TF_TYPE},
         {"break",   TT_BREAK,       TF_OP},

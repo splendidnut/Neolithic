@@ -7,6 +7,7 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include "syntax_tree.h"
 
 #define SYMBOL_NAME_LIMIT 32
 
@@ -42,7 +43,9 @@ enum SymbolKind {
     SK_UNION  = 0x50,
     SK_ENUM   = 0x60,
 
-    SK_MASK   = 0x70
+    SK_ALIAS  = 0x80,
+
+    SK_MASK   = 0xF0
 };
 enum ModifierFlags {
     MF_NONE,
@@ -102,6 +105,9 @@ typedef struct SymbolRecordStruct {
     int constValue;                     // constant value
     char *constEvalNotes;
     int numElements;                  // number of elements (if array/object)
+
+    // used by SK_ALIAS
+    List *alias;
 
     // used by function params
     enum VarHint hint;                  // Hint for Function Param Symbol

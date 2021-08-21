@@ -270,7 +270,9 @@ void WriteDASM_PrintSymbolTable(SymbolTable *workingSymbolTable, char *symTableN
         while (curSymbol != NULL) {
             int loc = curSymbol->location;
 
-            if (curSymbol->isLocal && !isSimpleConst(curSymbol)) {                       // locale function vars
+            if (curSymbol->isLocal
+                    && !isSimpleConst(curSymbol)
+                    && (curSymbol->kind != SK_ALIAS)) {                       // locale function vars
                 fprintf(outputFile, ".%-20s = $%02X\n",
                         curSymbol->name,
                         curSymbol->location);
@@ -360,7 +362,9 @@ void WriteDASM_FunctionBlock(const OutputBlock *block) {
 }
 
 void WriteDASM_StartOfBlock(const OutputBlock *block) {
-
+    if ((block->blockAddr & 0xff) == 0) {
+        fprintf(outputFile,"\talign 256\n");
+    }
 }
 
 void WriteDASM_EndOfBlock(const OutputBlock *block) {

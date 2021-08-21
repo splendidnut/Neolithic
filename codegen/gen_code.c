@@ -9,7 +9,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "common/common.h"
 #include "data/symbols.h"
@@ -22,38 +21,24 @@
 #include "gen_common.h"
 #include "parser/parse_directives.h"
 #include "flatten_tree.h"
+#include "gen_asmcode.h"
 
 //-------------------------------------------
 //  Variables used in code generation
 
-static SymbolTable *mainSymbolTable;
-static SymbolTable *curFuncSymbolTable;
-static SymbolTable *curFuncParamTable;
 static bool reverseData;
 
 
 //--------------------------------------------------------
 //--- Forward References
+
 void GC_Expression(const List *expr, enum SymbolType destType);
 void GC_Statement(List *stmt);
 void GC_CodeBlock(List *code);
-
 void GC_FuncCall(const List *stmt, enum SymbolType destType);
 
-SymbolRecord *lookupSymbolNode(const ListNode symbolNode, int lineNum) {
-    char *symbolName = symbolNode.value.str;
-    SymbolRecord *symRec = NULL;
-    if (curFuncSymbolTable != NULL)
-        symRec = findSymbol(curFuncSymbolTable, symbolName);
-    if ((symRec == NULL) && (curFuncParamTable != NULL))
-        symRec = findSymbol(curFuncParamTable, symbolName);
-    if (symRec == NULL)
-        symRec = findSymbol(mainSymbolTable, symbolName);
-    if (symRec == NULL) {
-        ErrorMessageWithNode("Symbol not found", symbolNode, lineNum);
-    }
-    return symRec;
-}
+//-----------------------------------------------------------------------------
+//  Some utility functions
 
 // TODO: This method could use some more cleanup.
 SymbolRecord* getArraySymbol(const List *expr, ListNode arrayNode) {
@@ -298,6 +283,22 @@ int GC_LookupArrayOfs(const List *expr) {
 }
 
 
+//-------------------------------------------------------------------------------------------
+//  Functions to handle Struct property references
+//---
+
+
+void addStructRefComment(const char *prefixComment, const char *structName, const char *propName) {
+    char *propRefStr = malloc(40);
+    sprintf(propRefStr, "%s: %s.%s", prefixComment, structName, propName);
+    IL_AddCommentToCode(propRefStr);
+}
+
+
+// TODO:  Try to eliminate the need for this function.
+//          It mucks up the ASM output... uses address instead of symbol name.
+//          So the addStructRefComment function is being used to let the programmer know what is going on.
+
 int GC_GetPropertyRefOfs(const List *expr) {
     if (expr->nodes[2].type != N_STR) {
         ErrorMessageWithNode("Invalid property - not an identifier", expr->nodes[2], expr->lineNum);
@@ -311,13 +312,19 @@ int GC_GetPropertyRefOfs(const List *expr) {
 
     if (expr->nodes[1].type == N_STR) {
         char *structName = expr->nodes[1].value.str;
-        char *propRefStr = malloc(40);
-        //printf("Two Labels\n");
-        sprintf(propRefStr, "%s.%s", structName, propName);
-        IL_SetLineComment(propRefStr);
+        addStructRefComment("GC_GetPropertyRefOfs", structName, propName);
     }
 
     SymbolRecord *structSymbol = lookupSymbolNode(expr->nodes[1], expr->lineNum);
+
+    //--- DEBUG Code
+    /*
+    if (structSymbol->kind == SK_ALIAS) {
+        ErrorMessageWithList("Need to handle alias", expr);
+        ErrorMessageWithList(" with the following:", structSymbol->alias);
+    }
+    //*/
+
     int ofs = -1;
     if (isStructDefined(structSymbol)) {
         ofs = structSymbol->location;
@@ -333,23 +340,72 @@ int GC_GetPropertyRefOfs(const List *expr) {
 }
 
 
-void GC_LoadPropertyRefOfs(const List *expr, enum SymbolType destType) {
-    int ofs = GC_GetPropertyRefOfs(expr);
-    ICG_LoadFromAddr(ofs);
+// TODO: Improve this function to be able to handle more cases.
+//       Need to handle referencing struct pointer case.
+//       Need to produce better ASM source code.
+
+void GC_LoadAlias(const List *expr, SymbolRecord *structSymbol) {
+    List *alias = structSymbol->alias;
+
+    // exit early if alias is already loaded
+    if (ICG_IsCurrentTag('Y', structSymbol)) return;
+
+    if (isToken(alias->nodes[0], PT_LOOKUP)) {
+
+        SymbolRecord *arraySymbol = lookupSymbolNode(alias->nodes[1], alias->lineNum);
+        SymbolRecord *indexSymbol = lookupSymbolNode(alias->nodes[2], alias->lineNum);
+        //ListNode indexNode = alias->nodes[2];
+
+        int multiplier = calcVarSize(structSymbol);
+        ICG_MultiplyWithConst(indexSymbol, multiplier & 0x7f);
+        ICG_MoveAccToIndex('Y');
+
+        // Make sure instruction generator knows the use, so we don't have to keep reloading
+        ICG_Tag('Y', structSymbol);
+
+    } else {
+        ErrorMessageWithList("-Need to handle alias", expr);
+        ErrorMessageWithList("- with the following:", structSymbol->alias);
+    }
 }
 
+SymbolRecord *GC_GetAliasBase(const List *expr, SymbolRecord *structSymbol) {
+    List *alias = structSymbol->alias;
+    if (isToken(alias->nodes[0], PT_LOOKUP)) {
+        return lookupSymbolNode(alias->nodes[1], alias->lineNum);
+    } else {
+        return NULL;
+    }
+}
 
 void GC_LoadPropertyRef(const List *expr, enum SymbolType destType) {
+    if ((expr->nodes[1].type != N_STR) || (expr->nodes[2].type != N_STR)) {
+        ErrorMessageWithList("GC_LoadPropertyRef cannot handle",expr);
+        return;
+    }
+
     SymbolRecord *structSymbol = lookupSymbolNode(expr->nodes[1], expr->lineNum);
+    if (!structSymbol) return;      /// EXIT if invalid structure
+
+    char *propName = expr->nodes[2].value.str;
+    SymbolRecord *propertySymbol = findSymbol(getStructSymbolSet(structSymbol), propName);
+    if (!propertySymbol) return;      /// EXIT if invalid structure property
+
+    // Now we can get down to business!
+
     if (isStructDefined(structSymbol) && IS_PARAM_VAR(structSymbol)) {
-        char *propName = expr->nodes[2].value.str;
-        SymbolRecord *propertySymbol = findSymbol(getStructSymbolSet(structSymbol), propName);
-        int propSize = getBaseVarSize(propertySymbol);
-        //ICG_LoadIndexVar(propertySymbol, getBaseVarSize(propertySymbol));
+
+        IL_AddCommentToCode("using GC_LoadPropertyRef -- is param");
+
         ICG_LoadRegConst('Y', propertySymbol->location);
         ICG_LoadIndirect(structSymbol, 0);
+
+    } else if (structSymbol->kind == SK_ALIAS) {
+        GC_LoadAlias(expr, structSymbol);
+        SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSymbol);
+        ICG_LoadIndexedWithOffset(baseSymbol, propertySymbol->location);
     } else {
-        GC_LoadPropertyRefOfs(expr, destType);
+        ICG_LoadPropertyVar(structSymbol, propertySymbol);
     }
 }
 
@@ -418,9 +474,24 @@ void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, en
             ErrorMessage("Unknown argument to op", arg2.value.str, expr->lineNum);
         }
     } else if (isSimplePropertyRef(arg2)) {
-        int ofs = GC_GetPropertyRefOfs(arg2.value.list);
-        ICG_PreOp(preOp);
-        ICG_OpWithAddr(mne, ofs);
+        List *propertyRef = arg2.value.list;
+        SymbolRecord *structSymbol = lookupSymbolNode(propertyRef->nodes[1], expr->lineNum);
+
+        // check for aliased structure
+        if (structSymbol && (structSymbol->kind == SK_ALIAS)) {
+            SymbolRecord *propertySymbol = findSymbol(getStructSymbolSet(structSymbol), propertyRef->nodes[2].value.str);
+            if (!propertySymbol) return;      /// EXIT if invalid structure property
+
+            ICG_PreOp(preOp);
+
+            GC_LoadAlias(propertyRef, structSymbol);
+            SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSymbol);
+            ICG_OpIndexedWithOffset(mne, baseSymbol, propertySymbol->location);
+        } else {
+            int ofs = GC_GetPropertyRefOfs(arg2.value.list);
+            ICG_PreOp(preOp);
+            ICG_OpWithAddr(mne, ofs);
+        }
     } else if (arg2.type == N_LIST) {
         ICG_PushAcc();
         GC_Expression(arg2.value.list, destType);
@@ -752,12 +823,22 @@ void GC_StoreToStructProperty(const List *expr) {
     int destSize = 1;
     if (isStructDefined(structSym)) {
         SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propName);
+
         if (propertySym != NULL) {
-            ofs = propertySym->location;
-            destSize = getBaseVarSize(propertySym);
+            if (structSym->kind == SK_ALIAS) {
+
+                GC_LoadAlias(expr, structSym);
+                SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSym);
+                ICG_StoreIndexedWithOffset(baseSymbol, propertySym->location);
+
+            } else {
+
+                ofs = propertySym->location;
+                destSize = getBaseVarSize(propertySym);
+                ICG_StoreVarOffset(structSym, ofs, destSize);
+            }
         }
     }
-    ICG_StoreVarOffset(structSym, ofs, destSize);
 }
 
 /*** Process Storage Expression - (Left-side of assignment) */
@@ -1293,8 +1374,17 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
 
     int hasInitializer = (varDef->count >= 4) && (varDef->nodes[4].type == N_LIST);
 
-    if (hasInitializer && !isConst(varSymRec)) {
-        List *initList = varDef->nodes[4].value.list;
+    if (!hasInitializer) return;
+
+    List *initList = varDef->nodes[4].value.list;
+
+    if (varSymRec->kind == SK_ALIAS) {
+        // We're aliasing something, we need to link the definition to the symbol record
+
+        varSymRec->alias = (List *)(initList->nodes[1].value.list);
+
+    } else if (!isConst(varSymRec)) {
+        // WE have an initializer for a variable, handle it!
 
         // TODO: Not sure if this check is even required
         if (initList->nodes[0].value.parseToken != PT_INIT) {
@@ -1324,182 +1414,6 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
 
 
 
-//-----------------------------------------------------------------------
-//  Assembler code block processor
-//-----------------------------------------------------------------------
-
-enum AddrModes paramAddrMode;       // indicate whether an ASM param uses ZP or ABS modes
-
-void GC_Asm_ParamExpr(List *paramExpr, char *paramStr) {
-    bool hasResult = false;
-    int ofs = 0;
-    switch (paramExpr->nodes[0].value.parseToken) {
-        case PT_PROPERTY_REF:
-            ofs = GC_GetPropertyRefOfs(paramExpr);
-            paramAddrMode = (ofs < 256) ? ADDR_ZP : ADDR_ABS;
-            break;
-        case PT_LOOKUP:
-            ofs = GC_LookupArrayOfs(paramExpr);
-            paramAddrMode = (ofs < 256) ? ADDR_ZP : ADDR_ABS;
-            break;
-        default: {
-            setEvalExpressionMode(true);
-            EvalResult evalResult = evaluate_expression(paramExpr);
-            if (evalResult.hasResult) {
-                ofs = evalResult.value;
-                IL_SetLineComment(get_expression(paramExpr));
-                strcpy(paramStr, intToStr(ofs));
-                paramAddrMode = (ofs < 256) ? ADDR_ZP : ADDR_ABS;
-            } else {
-                // evaluate the expression and use the string result
-                strcpy(paramStr, get_expression(paramExpr));
-                paramAddrMode = ADDR_ABS;
-            }
-            setEvalExpressionMode(false);
-            hasResult = true;
-        }
-    }
-    if (!hasResult) sprintf(paramStr, "$%04X", ofs);
-}
-
-char *GC_Asm_getParamStr(ListNode instrParamNode, List *instr) {
-    char *paramStr;
-    switch (instrParamNode.type) {
-        case N_LIST:
-            paramStr = malloc(SYMBOL_NAME_LIMIT);
-            paramStr[0] = '\0';
-            GC_Asm_ParamExpr(instrParamNode.value.list, paramStr);
-            break;
-        case N_INT:
-            paramStr = intToStr(instrParamNode.value.num);
-            //sprintf(paramStr, "%d", instrParamNode.value.num);
-            break;
-        case N_STR: {
-            // first, attempt to find label... if that fails, attempt to find the symbol
-            Label *asmLabel = findLabel(instrParamNode.value.str);
-            if (asmLabel) {
-                paramStr = strdup(asmLabel->name);
-            } else {
-                SymbolRecord *varSym = lookupSymbolNode(instrParamNode, instr->lineNum);
-                if (varSym != NULL) {
-                    paramAddrMode = (varSym->location < 256) ? ADDR_ZP : ADDR_ABS;
-                    paramStr = strdup(getVarName(varSym));
-                } else {
-                    paramStr = "";
-                }
-            }
-        } break;
-    }
-    return paramStr;
-}
-
-/**
- * Process an ASM instruction that is in an assembly block
- *
- * @param instr
- */
-void GC_AsmInstr(List *instr) {
-    enum AddrModes addrMode = ADDR_NONE;
-    char *paramStr = NULL;
-
-    enum MnemonicCode mne = instr->nodes[0].value.mne;
-
-    if (instr->count > 1) {
-        addrMode = instr->nodes[1].value.addrMode;
-        if (addrMode > 1) {
-            paramStr = GC_Asm_getParamStr(instr->nodes[2], instr);
-        }
-    }
-
-    // need to patch over incorrect address modes with the correct ones
-    //    because the parser just takes a premature guess
-    if ((mne == JMP) && (addrMode != ADDR_IND)) addrMode = ADDR_ABS;
-    if (mne == JSR) addrMode = ADDR_ABS;
-
-    // Handle cases where symbol parameter affects which addressing mode we use
-    //   Will fail towards using absolute addressing modes.
-    if (addrMode >= ADDR_INCOMPLETE) {
-        switch (addrMode) {
-            case ADDR_UNK_M:
-                addrMode = (paramAddrMode == ADDR_ZP) ? ADDR_ZP : ADDR_ABS;
-                break;
-            case ADDR_UNK_MX:
-                addrMode = (paramAddrMode == ADDR_ZP) ? ADDR_ZPX : ADDR_ABX;
-                break;
-            case ADDR_UNK_MY:
-                addrMode = (paramAddrMode == ADDR_ZP) ? ADDR_ZPY : ADDR_ABY;
-                break;
-        }
-    }
-
-    // need to fix issue with non-existent ZPY modes (switch to ABY)
-    OpcodeEntry opcodeEntry = lookupOpcodeEntry(mne, addrMode);
-    if ((opcodeEntry.mneCode == MNE_NONE) && (addrMode == ADDR_ZPY)) {
-        addrMode = ADDR_ABY;
-    }
-
-
-    ICG_AsmInstr(mne, addrMode, paramStr);
-
-    // NOTE: -- CANNOT free paramStr as it needs to stick around for the instruction list
-}
-
-void GC_NewConst(char *equName, int value) {
-    SymbolRecord *equSymbol = addSymbol(curFuncSymbolTable, equName, SK_CONST, ST_CHAR, 0);
-    equSymbol->isLocal = true;
-    equSymbol->constValue = value;
-    equSymbol->hasValue = true;
-}
-
-void GC_AsmBlock(const List *code, enum SymbolType destType) {
-    // TODO: Collect all local labels into a "local" label list (instead of global label list)
-
-    //  First, collect all the labels  (allows labels to be defined after usage)
-
-    for_range (stmtNum, 1, code->count) {
-        ListNode stmtNode = code->nodes[stmtNum];
-        if (stmtNode.type == N_LIST) {
-            List *statement = stmtNode.value.list;
-            if (isToken(statement->nodes[0], PT_LABEL)) {
-                newLabel(statement->nodes[1].value.str, L_CODE);
-            }
-        }
-    }
-
-    //-------------------------------------------------------------
-    //  Now process all the code
-
-    for_range (stmtNum, 1, code->count) {
-        ListNode stmtNode = code->nodes[stmtNum];
-
-        if (stmtNode.type == N_LIST) {
-            List *statement = stmtNode.value.list;
-            ListNode instrNode = statement->nodes[0];
-
-            if (instrNode.type == N_STR || instrNode.type == N_MNE) {
-                // handle ASM instruction
-                GC_AsmInstr(statement);
-
-            } else if (instrNode.value.parseToken == PT_EQUATE) {
-                // handle const def
-                char *equName = statement->nodes[1].value.str;
-                int value = statement->nodes[2].value.num;
-                //WO_Variable(equName, value);
-
-                // Add as constant to local function scope
-                // TODO: Check this feature
-                GC_NewConst(equName, value);
-            } else if (instrNode.value.parseToken == PT_LABEL) {
-                // handle label def
-                char *labelName = statement->nodes[1].value.str;
-                Label *asmLabel = findLabel(labelName);
-                IL_Label(asmLabel);
-            } else if (instrNode.value.parseToken == PT_INIT) {
-                ICG_AsmData(statement->nodes[1].value.num);
-            }
-        }
-    }
-}
 
 
 //-------------------------------------------------------------------
@@ -1674,7 +1588,9 @@ void GC_Variable(const List *varDef) {
     // does this variable definition have a list of initial values?
     int hasInitializer = (varDef->count >= 4) && (varDef->nodes[4].type == N_LIST);
 
-    if (hasInitializer && isArray(varSymRec)) {
+    bool isNotAlias = (varSymRec->kind != SK_ALIAS);
+
+    if (hasInitializer && isArray(varSymRec) && isNotAlias) {
         if (!isConst(varSymRec)) {
             ErrorMessageWithList("Non-const array cannot be initialized with data", varDef);
             return;
@@ -1876,6 +1792,7 @@ void generate_code(char *name, ListNode node, SymbolTable *symbolTable) {
 
     FE_initDebugger();
 
+    // TODO: This code is still specific to Atari 2600... need to figure out a way to eliminate that constraint.
     // only need to initial instruction list and output block modules once
     if (!isInitialized) {
         IL_Init(0xF000);

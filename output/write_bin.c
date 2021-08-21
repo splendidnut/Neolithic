@@ -84,9 +84,9 @@ int getParamStringValue(const char *param, int paramPos) {
     // attempt to lookup the param in the symbol tables
     SymbolRecord *paramSym = NULL;
     if (paramSymbolTable != NULL) {
-        paramSym = findSymbol(paramSymbolTable, param + 1);
+        paramSym = findSymbol(paramSymbolTable, param);
     }
-    if (funcSymbolTable != NULL) {
+    if ((paramSym == NULL) && (funcSymbolTable != NULL)) {
         paramSym = findSymbol(funcSymbolTable, param + 1);
     }
     if (paramSym == NULL) {

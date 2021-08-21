@@ -769,6 +769,7 @@ List *parse_mod_list() {// Process all modifiers
         enum ParseToken parseToken = PT_EMPTY;
         switch (modToken->tokenType) {
             case TT_CONST:    parseToken = PT_CONST;    break;
+            case TT_ALIAS:    parseToken = PT_ALIAS;    break;
             case TT_ZEROPAGE: parseToken = PT_ZEROPAGE; break;
             case TT_SIGNED:   parseToken = PT_SIGNED;   break;
             case TT_UNSIGNED: parseToken = PT_UNSIGNED; break;

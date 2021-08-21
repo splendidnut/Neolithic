@@ -15,14 +15,8 @@
 
 static char* curLineComment;
 
-//-------------------------
-// register use tracking
-
-typedef struct {
-    enum { LW_NONE, LW_CONST, LW_VAR } loadedWith;
-    int constValue;
-    const SymbolRecord *varSym;
-} LastRegisterUse;
+//--------------------------------------------------------
+// Variables and Constants for Register-Use tracking
 
 const LastRegisterUse REG_USED_FOR_NOTHING = {LW_NONE, 0, NULL};
 
@@ -30,11 +24,11 @@ LastRegisterUse lastUseForAReg;
 LastRegisterUse lastUseForXReg;
 LastRegisterUse lastUseForYReg;
 
-static int codeSize;
-static int codeAddr;
-
 //---------------------------------------------------
 //   Instruction List handling
+
+static int codeSize;
+static int codeAddr;
 
 InstrBlock *curBlock;
 Label *curLabel;
@@ -249,6 +243,29 @@ void IL_SetLineComment(const char *comment) {
 }
 
 
+void ICG_Tag(char regName, SymbolRecord *varSym) {
+    LastRegisterUse registerUse;
+    registerUse.loadedWith = LW_VAR;
+    registerUse.varSym = varSym;
+    switch (regName) {
+        case 'A': lastUseForAReg = registerUse; break;
+        case 'X': lastUseForXReg = registerUse; break;
+        case 'Y': lastUseForYReg = registerUse; break;
+        default:break;
+    }
+}
+
+bool ICG_IsCurrentTag(char regName, SymbolRecord *varSym) {
+    LastRegisterUse registerUse;
+    switch (regName) {
+        case 'A': registerUse = lastUseForAReg; break;
+        case 'X': registerUse = lastUseForXReg; break;
+        case 'Y': registerUse = lastUseForYReg; break;
+        default:return false;
+    }
+    return (registerUse.varSym == varSym);
+}
+
 
 //==============================================================================
 //  Instruction Code Generators
@@ -409,6 +426,16 @@ void ICG_LoadIndexedWithOffset(const SymbolRecord *varSym, int ofs) {
             "load from array using index with offset");
 }
 
+void ICG_LoadPropertyVar(const SymbolRecord *structSym, const SymbolRecord *propertySym) {
+    const char *structName = getVarName(structSym);
+    enum AddrModes addrMode = (structSym->location < 0x100 ? ADDR_ZP : ADDR_ABS);
+    unsigned char propertyOfs = (propertySym->location & 0xff);
+
+    IL_AddComment(
+            IL_AddInstrS(LDA, addrMode, structName, numToStr(propertyOfs), PARAM_NORMAL + PARAM_ADD),
+            "load from variable that uses struct with property offset");
+}
+
 void ICG_LoadRegConst(const char destReg, int ofs) {
     switch (destReg) {
         case 'A': IL_AddInstrN(LDA, ADDR_IMM, ofs); break;
@@ -498,6 +525,13 @@ void ICG_StoreVarSym(const SymbolRecord *varSym) {
     }
 }
 
+void ICG_StoreIndexedWithOffset(const SymbolRecord *varSym, int ofs) {
+    const char *varName = getVarName(varSym);
+    IL_AddComment(
+            IL_AddInstrS(STA, ADDR_ABY, varName, numToStr(ofs), PARAM_NORMAL + PARAM_ADD),
+            "store to array using index with offset");
+}
+
 //---------------------------------------------------------
 
 void ICG_Branch(enum MnemonicCode mne, const Label *label) {
@@ -579,6 +613,13 @@ void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym, int dataSi
     }
 }
 
+void ICG_OpIndexedWithOffset(enum MnemonicCode mne, const SymbolRecord *varSym, int ofs) {
+    const char *varName = getVarName(varSym);
+    IL_AddComment(
+            IL_AddInstrS(mne, ADDR_ABY, varName, numToStr(ofs), PARAM_NORMAL + PARAM_ADD),
+            "op with data from array using index with offset");
+}
+
 void ICG_OpWithAddr(enum MnemonicCode mne, int addr) {
     IL_AddInstrN(mne, CALC_ADDR_MODE(addr), addr);
 }
@@ -629,6 +670,7 @@ void ICG_IncUsingAddr(int varOfs, int size) {
 
 void ICG_DecUsingAddr(int varOfs, int size) {
     if (size == 2) {
+        IL_AddInstrN(LDA, ADDR_ZP, varOfs);
         IL_AddInstrN(BNE, ADDR_REL, +4);
         IL_AddInstrN(DEC, ADDR_ZP, varOfs+1);
     }
@@ -708,14 +750,6 @@ void ICG_Return() {
 
 //----------------------------------------
 //  Handle inline assembly
-
-void ICG_AsmInstr(enum MnemonicCode mne, enum AddrModes addrMode, const char *paramStr) {
-    if (paramStr != NULL) {
-        IL_AddInstrS(mne, addrMode, paramStr, NULL, PARAM_NORMAL);
-    } else {
-        IL_AddInstrN(mne, addrMode, 0);
-    }
-}
 
 void ICG_AsmData(int value) {
     IL_AddInstrN(MNE_DATA, ADDR_NONE, value);

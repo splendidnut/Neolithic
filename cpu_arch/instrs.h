@@ -11,6 +11,23 @@
 #define CALC_ADDR_MODE(ofs) (ofs < 0x100 ? ADDR_ZP : ADDR_ABS)
 #define IS_PARAM_VAR(varRec) (varRec->isStack && (varRec->location < 0x80))
 
+//----------------------------------------------
+//  Register-Use Tracking
+
+enum LastRegisterUseType { LW_NONE, LW_CONST, LW_VAR };
+
+typedef struct {
+    enum LastRegisterUseType loadedWith;
+    int constValue;
+    const SymbolRecord *varSym;
+} LastRegisterUse;
+
+extern void ICG_Tag(char regName, SymbolRecord *varSym);
+extern bool ICG_IsCurrentTag(char regName, SymbolRecord *varSym);
+
+//----------------------------------------------
+//  Interface for Instruction List meta data
+
 extern void IL_ShowCycles();
 extern void IL_HideCycles();
 extern void IL_MoveToNextPage();
@@ -41,15 +58,18 @@ extern void ICG_LoadAddrPlusIndex(const SymbolRecord *varSym, unsigned char inde
 extern void ICG_LoadIndirect(const SymbolRecord *varSym, int destSize);
 extern void ICG_LoadIndexed(const SymbolRecord *varSym);
 extern void ICG_LoadIndexedWithOffset(const SymbolRecord *varSym, int ofs);
+extern void ICG_LoadPropertyVar(const SymbolRecord *structSym, const SymbolRecord *propertySym);
 extern void ICG_LoadRegConst(const char destReg, int ofs);
 extern void ICG_LoadFromStack(int ofs);
 extern void ICG_LoadPointerAddr(const SymbolRecord *varSym);
+
 extern void ICG_AdjustStack(int ofs);
 
 extern void ICG_StoreToAddr(int ofs, int size);
 extern void ICG_StoreVarOffset(const SymbolRecord *varSym, int ofs, int destSize);
 extern void ICG_StoreVarIndexed(const SymbolRecord *varSym);
 extern void ICG_StoreVarSym(const SymbolRecord *varSym);
+extern void ICG_StoreIndexedWithOffset(const SymbolRecord *varSym, int ofs);
 
 extern void ICG_Branch(enum MnemonicCode mne, const Label *label);
 
@@ -57,10 +77,13 @@ extern void ICG_Not();
 extern void ICG_NotBool();
 extern void ICG_Negate();
 extern void ICG_PreOp(enum MnemonicCode preOp);
+
 extern void ICG_OpWithConst(enum MnemonicCode mne, int num, int dataSize);
 extern void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym, int dataSize);
+extern void ICG_OpIndexedWithOffset(enum MnemonicCode mne, const SymbolRecord *varSym, int ofs);
 extern void ICG_OpWithAddr(enum MnemonicCode mne, int addr);
 extern void ICG_OpWithStack(enum MnemonicCode mne);
+
 extern void ICG_MoveIndexToAcc(const char srcReg);
 extern void ICG_MoveAccToIndex(const char destReg);
 extern void ICG_PushAcc();
@@ -83,7 +106,6 @@ extern void ICG_Return();
 //-----------------------------------------------------------------------
 //---- Handle other things:  inline assembly, functions, static data
 
-extern void ICG_AsmInstr(enum MnemonicCode mne, enum AddrModes addrMode, const char *paramStr);
 extern void ICG_AsmData(int value);
 
 // function specific stuff

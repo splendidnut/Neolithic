@@ -83,6 +83,7 @@ const char* ParseTokenNames[NUM_PARSE_TOKENS] = {
         "signed",
         "unsigned",
         "const",
+        "alias",
         "register",
 
         "list",

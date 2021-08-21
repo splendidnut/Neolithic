@@ -27,6 +27,7 @@ const struct SymbolKindStruct {
 } SymbolKinds[] = {
         {"",       SK_NONE},    // used for labels
         {"var",    SK_VAR},
+        {"alias",  SK_ALIAS},
         {"const",  SK_CONST},
         {"func",   SK_FUNC},
         {"struct", SK_STRUCT},
@@ -404,15 +405,19 @@ SymbolRecord * newSymbol(char *tname, enum SymbolKind kind, enum SymbolType type
     newSymbol->kind = kind;
     newSymbol->flags = flags | type;
     newSymbol->isLocal = false;
+    newSymbol->isStack = false;
+
     newSymbol->hint = VH_NONE;
     newSymbol->hasLocation = false;
     newSymbol->location = 0xffffffff;
     newSymbol->hasValue = false;
     newSymbol->numElements = 0;
+
     newSymbol->funcExt = NULL;
     newSymbol->userTypeDef = NULL;
     newSymbol->next = NULL;
     newSymbol->constEvalNotes = "";
+    newSymbol->alias = NULL;
 
     return newSymbol;
 }

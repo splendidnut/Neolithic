@@ -129,7 +129,7 @@ List *wrapNode(ListNode node) {
 
 void reverseList(List *list) {
     int startPoint = 1;
-    int endPoint = list->count;
+    int endPoint = list->count-1;
     while (startPoint < endPoint) {
         ListNode listNode = list->nodes[startPoint];
         list->nodes[startPoint] = list->nodes[endPoint];

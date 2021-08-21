@@ -46,6 +46,7 @@ typedef enum TokenType {
 
     // --- reserved words
     TT_ASM = 256,
+    TT_ALIAS,
     TT_BOOLEAN,
     TT_BREAK,
     TT_BYTE,
