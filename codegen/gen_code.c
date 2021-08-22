@@ -1514,6 +1514,11 @@ ListNode PreProcess_Node(ListNode initExpr, int lineNum) {
             }
         } break;
 
+        // TODO:  This works BUT... Is this the right thing to do?  This was previously handled by returning
+        //        an N_EMPTY node and letting the caller handle it instead.
+        case N_INT:
+            value = initExpr.value.num;
+
         default: break;
     }
     resultNode = createIntNode(value & 0xffff);
