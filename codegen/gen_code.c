@@ -134,7 +134,6 @@ void GC_StoreInVar(const ListNode symbolNode, enum SymbolType destType, int line
 //---------------------------------------------------------------------
 
 void GC_LoadFromArray(const SymbolRecord *srcSym) {
-    if (srcSym == NULL) return;
     if (isPointer(srcSym)) {
         ICG_LoadIndirect(srcSym, 0);
     } else {
@@ -819,8 +818,6 @@ void GC_StoreToStructProperty(const List *expr) {
     SymbolRecord *structSym = lookupSymbolNode(structNameNode, expr->lineNum);
     if (structSym == NULL) return;
 
-    int ofs = 0;
-    int destSize = 1;
     if (isStructDefined(structSym)) {
         SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propName);
 
@@ -833,8 +830,8 @@ void GC_StoreToStructProperty(const List *expr) {
 
             } else {
 
-                ofs = propertySym->location;
-                destSize = getBaseVarSize(propertySym);
+                int ofs = propertySym->location;
+                int destSize = getBaseVarSize(propertySym);
                 ICG_StoreVarOffset(structSym, ofs, destSize);
             }
         }
@@ -1373,7 +1370,6 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
     varSymRec->isLocal = true;
 
     int hasInitializer = (varDef->count >= 4) && (varDef->nodes[4].type == N_LIST);
-
     if (!hasInitializer) return;
 
     List *initList = varDef->nodes[4].value.list;
@@ -1493,10 +1489,11 @@ void GC_Statement(List *stmt) {
 //-----------------------------------------------------------------------
 //  High level structure items
 
+static const char* INIT_VALUE_ERROR_MSG = "Initializer value cannot be evaluated";
+
 ListNode PreProcess_Node(ListNode initExpr, int lineNum) {
-    int value;
+    int value = 0;
     ListNode resultNode;
-    resultNode.type = N_EMPTY;
     switch (initExpr.type) {
 
         case N_LIST: {                //---  Attempt to evaluate the expression
@@ -1504,10 +1501,8 @@ ListNode PreProcess_Node(ListNode initExpr, int lineNum) {
             if (result.hasResult) {
                 value = result.value;
             } else {
-                ErrorMessageWithList("Initializer value cannot be evaluated", initExpr.value.list);
-                value = 0;
+                ErrorMessageWithList(INIT_VALUE_ERROR_MSG, initExpr.value.list);
             }
-            resultNode = createIntNode(value & 0xffff);
         } break;
 
         case  N_STR: {
@@ -1515,14 +1510,13 @@ ListNode PreProcess_Node(ListNode initExpr, int lineNum) {
             if (symbolRecord && symbolRecord->hasValue) {
                 value = symbolRecord->constValue;
             } else {
-                ErrorMessageWithNode("Initializer value cannot be evaluated", initExpr, lineNum);
-                value = 0;
+                ErrorMessageWithNode(INIT_VALUE_ERROR_MSG, initExpr, lineNum);
             }
-            resultNode = createIntNode(value & 0xffff);
         } break;
 
         default: break;
     }
+    resultNode = createIntNode(value & 0xffff);
     return resultNode;
 }
 
