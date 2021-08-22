@@ -239,7 +239,7 @@ void WriteDASM_PrintConstantSymbols(SymbolTable *workingSymbolTable) {
         fprintf(outputFile, " ;-- Constants\n");
         while (curSymbol != NULL) {
             if (isSimpleConst(curSymbol)) {
-                if (curSymbol->isLocal) {
+                if (IS_LOCAL(curSymbol)) {
                     fprintf(outputFile, ".");
                 }
                 fprintf(outputFile, "%-20s = $%02X  ;--%s\n",
@@ -270,9 +270,9 @@ void WriteDASM_PrintSymbolTable(SymbolTable *workingSymbolTable, char *symTableN
         while (curSymbol != NULL) {
             int loc = curSymbol->location;
 
-            if (curSymbol->isLocal
+            if (IS_LOCAL(curSymbol)
                     && !isSimpleConst(curSymbol)
-                    && (curSymbol->kind != SK_ALIAS)) {                       // locale function vars
+                    && (!IS_ALIAS(curSymbol))) {                       // locale function vars
                 fprintf(outputFile, ".%-20s = $%02X\n",
                         curSymbol->name,
                         curSymbol->location);

@@ -318,7 +318,7 @@ int GC_GetPropertyRefOfs(const List *expr) {
 
     //--- DEBUG Code
     /*
-    if (structSymbol->kind == SK_ALIAS) {
+    if (IS_ALIAS(structSymbol)) {
         ErrorMessageWithList("Need to handle alias", expr);
         ErrorMessageWithList(" with the following:", structSymbol->alias);
     }
@@ -399,7 +399,7 @@ void GC_LoadPropertyRef(const List *expr, enum SymbolType destType) {
         ICG_LoadRegConst('Y', propertySymbol->location);
         ICG_LoadIndirect(structSymbol, 0);
 
-    } else if (structSymbol->kind == SK_ALIAS) {
+    } else if (IS_ALIAS(structSymbol)) {
         GC_LoadAlias(expr, structSymbol);
         SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSymbol);
         ICG_LoadIndexedWithOffset(baseSymbol, propertySymbol->location);
@@ -477,7 +477,7 @@ void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, en
         SymbolRecord *structSymbol = lookupSymbolNode(propertyRef->nodes[1], expr->lineNum);
 
         // check for aliased structure
-        if (structSymbol && (structSymbol->kind == SK_ALIAS)) {
+        if (structSymbol && IS_ALIAS(structSymbol)) {
             SymbolRecord *propertySymbol = findSymbol(getStructSymbolSet(structSymbol), propertyRef->nodes[2].value.str);
             if (!propertySymbol) return;      /// EXIT if invalid structure property
 
@@ -822,7 +822,7 @@ void GC_StoreToStructProperty(const List *expr) {
         SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propName);
 
         if (propertySym != NULL) {
-            if (structSym->kind == SK_ALIAS) {
+            if (IS_ALIAS(structSym)) {
 
                 GC_LoadAlias(expr, structSym);
                 SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSym);
@@ -1367,14 +1367,12 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
     SymbolRecord *varSymRec = lookupSymbolNode(varDef->nodes[1], varDef->lineNum);
     if (varSymRec == NULL) return;
 
-    varSymRec->isLocal = true;
-
     int hasInitializer = (varDef->count >= 4) && (varDef->nodes[4].type == N_LIST);
     if (!hasInitializer) return;
 
     List *initList = varDef->nodes[4].value.list;
 
-    if (varSymRec->kind == SK_ALIAS) {
+    if (IS_ALIAS(varSymRec)) {
         // We're aliasing something, we need to link the definition to the symbol record
 
         varSymRec->alias = (List *)(initList->nodes[1].value.list);
@@ -1587,7 +1585,7 @@ void GC_Variable(const List *varDef) {
     // does this variable definition have a list of initial values?
     int hasInitializer = (varDef->count >= 4) && (varDef->nodes[4].type == N_LIST);
 
-    bool isNotAlias = (varSymRec->kind != SK_ALIAS);
+    bool isNotAlias = !IS_ALIAS(varSymRec);
 
     if (hasInitializer && isArray(varSymRec) && isNotAlias) {
         if (!isConst(varSymRec)) {

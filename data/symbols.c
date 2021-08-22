@@ -197,12 +197,10 @@ void addSymbolExt(SymbolRecord *funcSym, SymbolTable *paramTbl, SymbolTable *loc
     if (funcSym == NULL) return;
 
     SymbolExt *funcExt = malloc(sizeof(SymbolExt));
+    memset(funcExt, 0, sizeof(SymbolExt));
+
     funcExt->paramSymbolSet = paramTbl;
     funcExt->localSymbolSet = localSymTbl;
-    funcExt->isInlined = false;
-    funcExt->inlinedCode = NULL;
-    funcExt->cntUses = 0;
-    funcExt->funcDepth = 0;
     funcSym->funcExt = funcExt;
 }
 
@@ -245,14 +243,6 @@ bool isFunction(const SymbolRecord *symbol) {
     return (symbol->kind == SK_FUNC);
 }
 
-bool isPointer(const SymbolRecord *symbol) {
-    return (symbol->flags & MF_POINTER) != 0;
-}
-
-bool isArray(const SymbolRecord *symbol) {
-    return (symbol->flags & MF_ARRAY) != 0;
-}
-
 bool isStruct(const SymbolRecord *symbol) {
     return (symbol->kind == SK_STRUCT);
 }
@@ -261,10 +251,21 @@ bool isUnion(const SymbolRecord *symbol) {
     return (symbol->kind == SK_UNION);
 }
 
+//--- Checks for Symbol flags
+
+bool isPointer(const SymbolRecord *symbol) {
+    return (symbol->flags & MF_POINTER) != 0;
+}
+
+bool isArray(const SymbolRecord *symbol) {
+    return (symbol->flags & MF_ARRAY) != 0;
+}
+
+//---- other checks
+
 bool isMainFunction(const SymbolRecord *symbol) {
     return (strcmp(symbol->name, "main")==0);
 }
-
 
 enum SymbolType getType(const SymbolRecord *symbol) {
     return (symbol->flags & ST_MASK);
@@ -400,24 +401,13 @@ void showSymbolTable(FILE *outputFile, SymbolTable *symbolTable) {
 
 SymbolRecord * newSymbol(char *tname, enum SymbolKind kind, enum SymbolType type, unsigned int flags) {
     SymbolRecord *newSymbol = (SymbolRecord *)malloc(sizeof(SymbolRecord));
+    memset(newSymbol, 0, sizeof(SymbolRecord));
 
     strncpy(newSymbol->name, tname, SYMBOL_NAME_LIMIT);
     newSymbol->kind = kind;
     newSymbol->flags = flags | type;
-    newSymbol->isLocal = false;
-    newSymbol->isStack = false;
-
-    newSymbol->hint = VH_NONE;
-    newSymbol->hasLocation = false;
     newSymbol->location = 0xffffffff;
-    newSymbol->hasValue = false;
-    newSymbol->numElements = 0;
-
-    newSymbol->funcExt = NULL;
-    newSymbol->userTypeDef = NULL;
-    newSymbol->next = NULL;
     newSymbol->constEvalNotes = "";
-    newSymbol->alias = NULL;
 
     return newSymbol;
 }
@@ -454,7 +444,7 @@ SymbolTable *getStructSymbolSet(const SymbolRecord *structSymbol) {
 }
 
 const char *getVarName(const SymbolRecord *varSym) {
-    if (varSym->isLocal) {
+    if (IS_LOCAL(varSym)) {
         char *varName = malloc(strlen(varSym->name)+2);
         strcpy(varName, ".");
         return strcat(varName, varSym->name);

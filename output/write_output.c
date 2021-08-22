@@ -101,7 +101,7 @@ void WO_PrintSymbolTable(SymbolTable *workingSymbolTable, char *symTableName) {
         while (curSymbol != NULL) {
             int loc = curSymbol->location;
 
-            if (curSymbol->isLocal) {                       // locale function vars
+            if (IS_LOCAL(curSymbol)) {                       // locale function vars
                 fprintf(outputFile, ".%-20s = $%02X\n",
                         curSymbol->name,
                         curSymbol->location);

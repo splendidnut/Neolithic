@@ -1,6 +1,6 @@
 /**
  *        Symbol Table interface
-*/
+ */
 
 #ifndef MODULE_SYMBOL_TABLE
 #define MODULE_SYMBOL_TABLE
@@ -10,6 +10,11 @@
 #include "syntax_tree.h"
 
 #define SYMBOL_NAME_LIMIT 32
+
+//---  Macros for getting basic information about a SymbolRecord
+
+#define IS_ALIAS(sym) ((sym)->kind == SK_ALIAS)
+#define IS_LOCAL(sym) (((sym)->flags & MF_LOCAL) != 0)
 
 //--------------------------------------
 //   All the flags for symbols
@@ -24,7 +29,6 @@ enum SymbolType {           //-- base type of variable
 
     ST_PTR = 0x05,        //-- pointer (used in code generator)
 
-    ST_USER = 0x06,
     ST_MASK = 0x07,
 
     ST_UNSIGNED = 0x00,     //-- default
@@ -33,44 +37,41 @@ enum SymbolType {           //-- base type of variable
     ST_ERROR = 0x0F     //--- ERROR when used as destination type
 };
 enum SymbolKind {
-    SK_NONE,            //-- used for labels
-    SK_VAR    = 0x10,
-    SK_CONST  = 0x20,
-    SK_FUNC   = 0x30,
+    SK_NONE,
+    SK_VAR    = 0x01,
+    SK_CONST  = 0x02,
+    SK_FUNC   = 0x03,
 
     // user-defined type definitions
-    SK_STRUCT = 0x40,
-    SK_UNION  = 0x50,
-    SK_ENUM   = 0x60,
+    SK_STRUCT = 0x04,
+    SK_UNION  = 0x05,
+    SK_ENUM   = 0x06,
 
-    SK_ALIAS  = 0x80,
+    SK_ALIAS  = 0x08,
 
-    SK_MASK   = 0xF0
+    SK_MASK   = 0x0F
 };
 enum ModifierFlags {
     MF_NONE,
-    MF_PARAM    = 0x0080,
-    MF_INLINE   = 0x0100,       // only applies to functions
 
-    MF_ABSOLUTE     = 0x0000,       // TODO: replace with SymbolStorage
-    MF_ZEROPAGE     = 0x0400,
-    MF_REGISTER     = 0x0800,
-    MF_STORAGE_MASK = 0x0C00,
+    // flags for storage location
+    MF_ABSOLUTE     = 0x0000,           // ABSOLUTE = non-zeropage (default)
+    MF_ZEROPAGE     = 0x0010,           // ZEROPAGE = stored in zeropage (6502)
+    MF_REGISTER     = 0x0020,           // REGISTER = attempt to stick in register (A,X,Y,?)
+    MF_STACK        = 0x0030,
+    MF_ROM          = 0x0040,
+    MF_STORAGE_MASK = 0x0070,
 
-    MF_ENUM_VALUE = 0x1000,
-    MF_ARRAY    = 0x4000,
-    MF_POINTER  = 0x8000
-};
+    // flags for scope --- Since we're potentially combining these scopes into the same (sub-) symbol table.
+    MF_PARAM        = 0x0100,
+    MF_LOCAL        = 0x0200,
 
-/** ------------------------------------
- * Storage locations:
- */
-enum SymbolStorage {
-    SS_ABSOLUTE = 0x0,          // ABSOLUTE = non-zeropage (default)
-    SS_ZEROPAGE = 0x1,          // ZEROPAGE = stored in zeropage (6502)
-    SS_STACK    = 0x2,          //
-    SS_REGISTER = 0x3,          // REGISTER = attempt to stick in register (A,X,Y,?)
-    SS_ROM      = 0x4
+    MF_ENUM_VALUE   = 0x1000,     // only used in enumeration definitions (TODO: is this necessary?)
+    MF_INLINE       = 0x2000,       // only applies to functions
+
+    // these are the two important flags, so I put them at the very top of the bitspace
+    MF_ARRAY        = 0x4000,
+    MF_POINTER      = 0x8000
 };
 
 enum VarHint {
@@ -80,38 +81,28 @@ enum VarHint {
     VH_Y_REG,
 };
 
-/**
- *
- *  PARAM    = stored on stack... or register (passed into function)
- *
- *  -----------------------------------
- *  flags:
- *
- *  SIGNED  - is value signed?
- *  CONST   - cannot be changed (generally stored in ROM)
- *  ARRAY   - flag for array
- *  POINTER - flag for indirection
- *
- */
 
 typedef struct SymbolRecordStruct {
+    //--- definition
     char name[SYMBOL_NAME_LIMIT];
     enum SymbolKind kind;
-    unsigned int flags;                 // ModifierFlags + SymbolType + SymbolKind
+    unsigned int flags;                 // ModifierFlags + SymbolType
+    int numElements;                  // number of elements (if array/object)
 
+    //---- location data (variables/functions)
     bool hasLocation;
     int location;                       // location in memory
+
+    //---- constant value information
     bool hasValue;
     int constValue;                     // constant value
     char *constEvalNotes;
-    int numElements;                  // number of elements (if array/object)
 
     // used by SK_ALIAS
     List *alias;
 
     // used by function params
     enum VarHint hint;                  // Hint for Function Param Symbol
-    bool isLocal;
     bool isStack;                       // Function Parma: Is On Stack?
 
     struct SymbolExtStruct *funcExt;
@@ -167,16 +158,21 @@ extern int getBaseVarSize(const SymbolRecord *varSymRec);
 extern void addSymbolLocation(SymbolRecord *symbolRecord, int location);
 extern SymbolRecord * findSymbol(SymbolTable *symbolTable, const char *name);
 
+//--------------------------------------------------------
+//--- TODO:  convert some/most of these to simple macros?
+
 extern bool isSimpleConst(SymbolRecord *symbol);
 extern bool isArrayConst(SymbolRecord *symbol);
 extern bool isConst(const SymbolRecord *symbol);
 extern bool isVariable(const SymbolRecord *curSymbol);
 extern bool isFunction(const SymbolRecord *symbol);
-extern bool isPointer(const SymbolRecord *symbol);
-extern bool isArray(const SymbolRecord *symbol);
 extern bool isStruct(const SymbolRecord *symbol);
 extern bool isUnion(const SymbolRecord *symbol);
+extern bool isPointer(const SymbolRecord *symbol);
+extern bool isArray(const SymbolRecord *symbol);
 extern bool isMainFunction(const SymbolRecord *symbol);
+
+//------
 
 extern enum SymbolType getType(const SymbolRecord *symbol);
 extern void addSymbolExt(SymbolRecord *funcSym, SymbolTable *paramTbl, SymbolTable *localSymTbl);

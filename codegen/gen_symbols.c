@@ -39,8 +39,7 @@ void GS_Enumeration(List *enumDef, SymbolTable *symbolTable);
 
 //-----------------------------------------------------
 
-SymbolRecord * GS_Variable(List *varDef, SymbolTable *symbolTable) {
-    unsigned int modFlags = 0;
+SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierFlags modFlags) {
     char *varName = strdup(varDef->nodes[1].value.str);
 
 #ifdef DEBUG_GEN_SYMBOLS
@@ -150,7 +149,6 @@ SymbolRecord * GS_Variable(List *varDef, SymbolTable *symbolTable) {
 
     // create the new variable
     SymbolRecord *varSymRec = addSymbol(symbolTable, varName, symbolKind, symbolType, modFlags);
-    varSymRec->isLocal = false;
     varSymRec->userTypeDef = userTypeSymbol;
     setSymbolArraySize(varSymRec, arraySize);
 
@@ -236,7 +234,7 @@ int GS_ProcessUnionList(SymbolTable *symbolTable, const List *varList, int ofs) 
         } else if (isToken(varDefType, PT_STRUCT)) {
             GS_Structure(varDef, symbolTable);
         } else {
-            SymbolRecord *symRec = GS_Variable(varDef, symbolTable);
+            SymbolRecord *symRec = GS_Variable(varDef, symbolTable, 0);
             printf("Adding union variable: %s @%d\n", symRec->name, ofs);
             if (symRec != NULL) {
                 int varSize = calcVarSize(symRec);
@@ -281,14 +279,12 @@ void addSymbolForEnumType(SymbolTable *symbolTable, char *enumTypeName) {
 
     // create the new variable for enumType symbol
     SymbolRecord *varSymRec = addSymbol(symbolTable, enumTypeName, SK_ENUM, ST_CHAR, 0);
-    varSymRec->isLocal = false;
 }
 
 void addSymbolForEnumValue(SymbolTable *symbolTable, char *enumName, int enumValue) {
 
     // create the new variable for enumValue symbol as a 'const char'
     SymbolRecord *varSymRec = addSymbol(symbolTable, enumName, SK_CONST, ST_CHAR, MF_ENUM_VALUE);
-    varSymRec->isLocal = false;
     varSymRec->constValue = enumValue;
     varSymRec->hasValue = true;
 }
@@ -349,7 +345,7 @@ void GS_Structure(List *structDef, SymbolTable *symbolTable) {
                 int unionSize = GS_Union(varDef, structSymTbl, memOfs);
                 memOfs += unionSize;
             } else {
-                SymbolRecord *symRec = GS_Variable(varDef, structSymTbl);
+                SymbolRecord *symRec = GS_Variable(varDef, structSymTbl, 0);
                 if (symRec != NULL) {
                     addSymbolLocation(symRec, memOfs);
                     memOfs += calcVarSize(symRec);
@@ -489,7 +485,7 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
 
         // go thru parameter list and process entry as a variable
         for_range ( paramIndex, 1, paramList->count) {
-            SymbolRecord *paramVar = GS_Variable(paramList->nodes[paramIndex].value.list, paramListTbl);
+            SymbolRecord *paramVar = GS_Variable(paramList->nodes[paramIndex].value.list, paramListTbl, 0);
             paramVar->flags |= MF_PARAM;
         }
     }
@@ -510,11 +506,7 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
             if (stmtNode.type == N_LIST) {
                 List *stmt = stmtNode.value.list;
                 if (isToken(stmt->nodes[0], PT_DEFINE)) {
-                    SymbolRecord *newVar = GS_Variable(stmt, localVarTbl);
-                    if (newVar != NULL) {
-                        newVar->isLocal = true;
-                        newVar->flags |= MF_ZEROPAGE;   // func local vars always in Zeropage
-                    }
+                    GS_Variable(stmt, localVarTbl, MF_ZEROPAGE | MF_LOCAL);
                 }
             }
         }
@@ -544,7 +536,7 @@ void GS_Program(List *list, SymbolTable *workingSymTbl) {
                 enum ParseToken token = statement->nodes[0].value.parseToken;
                 switch (token) {
                     case PT_DEFINE:
-                        GS_Variable(statement, workingSymTbl);
+                        GS_Variable(statement, workingSymTbl, 0);
                         break;
                     case PT_DEFUN:
                     case PT_FUNCTION:

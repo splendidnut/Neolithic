@@ -190,8 +190,7 @@ void GC_AsmInstr(List *instr) {
 }
 
 void GC_NewConst(char *equName, int value) {
-    SymbolRecord *equSymbol = addSymbol(curFuncSymbolTable, equName, SK_CONST, ST_CHAR, 0);
-    equSymbol->isLocal = true;
+    SymbolRecord *equSymbol = addSymbol(curFuncSymbolTable, equName, SK_CONST, ST_CHAR, MF_LOCAL);
     equSymbol->constValue = value;
     equSymbol->hasValue = true;
 }
