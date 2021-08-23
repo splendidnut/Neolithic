@@ -127,7 +127,7 @@ void allocateVarStorage(const SymbolTable *symbolTable) {
             int varSize = calcVarSize(curSymbol);
 
             // allocate memory
-            MemoryArea *memoryArea = (curSymbol->flags & MF_ZEROPAGE) ? SMA_getZeropageArea() : NULL;
+            MemoryArea *memoryArea = (curSymbol->flags & SS_ZEROPAGE) ? SMA_getZeropageArea() : NULL;
             MemoryAllocation newVarAlloc = SMA_allocateMemory(memoryArea, varSize);
             addSymbolLocation(curSymbol, newVarAlloc.addr);
 

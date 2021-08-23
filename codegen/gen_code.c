@@ -83,7 +83,7 @@ void GC_LoadParamVar(ListNode loadNode, const char *varName, int lineNum) {
         case VH_Y_REG: ICG_MoveIndexToAcc('Y'); break;
         default: {
             // must be a stack var
-            if (varRec->isStack) {
+            if (IS_STACK_VAR(varRec)) {
                 ICG_LoadFromStack(varRec->location);
             } else {
                 ErrorMessageWithNode("Inaccessible parameter", loadNode, lineNum);
@@ -1296,7 +1296,7 @@ void GC_HandleParamLoad(const ListNode paramNode, const char destReg, int lineNu
 void GC_FuncCallCleanup(SymbolRecord *firstParam) {
     int stackAdj = 0;
     while (firstParam != NULL) {
-        if (firstParam->isStack) stackAdj++;
+        if (IS_STACK_VAR(firstParam)) stackAdj++;
         firstParam = firstParam->next;
     }
     if (stackAdj>0) ICG_AdjustStack(stackAdj);
@@ -1339,7 +1339,7 @@ void GC_FuncCall(const List *stmt, enum SymbolType destType) {
 
                     // otherwise, attempt to put param on stack
                     default: {
-                        if (curParam->isStack) {
+                        if (IS_STACK_VAR(curParam)) {
                             GC_HandleParamLoad(args->nodes[argIndex], 'S', lineNum);
                         } else {
                             ErrorMessageWithList("Unable to load parameter: ", args);

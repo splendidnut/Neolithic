@@ -8,8 +8,7 @@
 #include "data/instr_list.h"
 #include "data/syntax_tree.h"
 
-#define CALC_ADDR_MODE(ofs) (ofs < 0x100 ? ADDR_ZP : ADDR_ABS)
-#define IS_PARAM_VAR(varRec) (varRec->isStack && (varRec->location < 0x80))
+#define CALC_ADDR_MODE(ofs) ((ofs) < 0x100 ? ADDR_ZP : ADDR_ABS)
 
 //----------------------------------------------
 //  Register-Use Tracking

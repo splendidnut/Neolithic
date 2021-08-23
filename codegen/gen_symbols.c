@@ -3,6 +3,12 @@
 //
 // Generate symbol tables using Parse Tree
 //
+//  This module walks the AST early on to collect all the function and
+//  other (vars/const/structs) declarations/definitions.
+//
+//  NOTE:  This module does not scan thru nested code blocks, so only
+//         the top-level code blocks can have declarations in them.
+//
 // Created by pblackman on 3/27/2020.
 //
 
@@ -128,12 +134,12 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
             ListNode modNode = modList->nodes[modIndex];
             if (modNode.type == N_TOKEN) {
                 switch (modNode.value.parseToken) {
-                    case PT_ZEROPAGE: modFlags |= MF_ZEROPAGE; break;
+                    case PT_ZEROPAGE: modFlags |= SS_ZEROPAGE; break;
                     case PT_ALIAS:    symbolKind = SK_ALIAS;   break;
                     case PT_CONST:    symbolKind = SK_CONST;   break;
                     case PT_UNSIGNED: modFlags |= ST_UNSIGNED; break;
                     case PT_SIGNED:   modFlags |= ST_SIGNED;   break;
-                    case PT_REGISTER: modFlags |= MF_REGISTER; break;
+                    case PT_REGISTER: modFlags |= SS_REGISTER; break;
                     case PT_INLINE:   modFlags |= MF_INLINE;   break;
                 }
             } else {
@@ -425,10 +431,10 @@ void assignParamStackPos(const SymbolTable *funcParams) {
     int curStackPos = 2 + numStackParams;   // +2 to skip return address bytes on stack
     curParam = funcParams->firstSymbol;
     while (curParam != NULL) {
-        curParam->isStack = (curParam-> hint == VH_NONE);
-        if (curParam->isStack) {
-            curParam->hasLocation = true;
-            curParam->location = curStackPos--;
+        bool isStack = (curParam-> hint == VH_NONE);
+        if (isStack) {
+            setSymbolLocation(curParam, curStackPos, SS_STACK);
+            curStackPos--;
         }
         curParam = curParam->next;
     }
@@ -506,7 +512,7 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
             if (stmtNode.type == N_LIST) {
                 List *stmt = stmtNode.value.list;
                 if (isToken(stmt->nodes[0], PT_DEFINE)) {
-                    GS_Variable(stmt, localVarTbl, MF_ZEROPAGE | MF_LOCAL);
+                    GS_Variable(stmt, localVarTbl, SS_ZEROPAGE | MF_LOCAL);
                 }
             }
         }

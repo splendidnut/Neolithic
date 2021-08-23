@@ -16,6 +16,9 @@
 #define IS_ALIAS(sym) ((sym)->kind == SK_ALIAS)
 #define IS_LOCAL(sym) (((sym)->flags & MF_LOCAL) != 0)
 
+#define IS_STACK_VAR(sym) (((sym)->flags & SS_STORAGE_MASK) == SS_STACK)
+#define IS_PARAM_VAR(sym) ((sym)->flags & MF_PARAM)
+
 //--------------------------------------
 //   All the flags for symbols
 
@@ -55,12 +58,13 @@ enum ModifierFlags {
     MF_NONE,
 
     // flags for storage location
-    MF_ABSOLUTE     = 0x0000,           // ABSOLUTE = non-zeropage (default)
-    MF_ZEROPAGE     = 0x0010,           // ZEROPAGE = stored in zeropage (6502)
-    MF_REGISTER     = 0x0020,           // REGISTER = attempt to stick in register (A,X,Y,?)
-    MF_STACK        = 0x0030,
-    MF_ROM          = 0x0040,
-    MF_STORAGE_MASK = 0x0070,
+    SS_NONE         = 0x0000,
+    SS_ABSOLUTE     = 0x0010,           // ABSOLUTE = non-zeropage (default)
+    SS_ZEROPAGE     = 0x0020,           // ZEROPAGE = stored in zeropage (6502)
+    SS_REGISTER     = 0x0030,           // REGISTER = attempt to stick in register (A,X,Y,?)
+    SS_STACK        = 0x0040,
+    SS_ROM          = 0x0050,
+    SS_STORAGE_MASK = 0x0070,
 
     // flags for scope --- Since we're potentially combining these scopes into the same (sub-) symbol table.
     MF_PARAM        = 0x0100,
@@ -82,7 +86,7 @@ enum VarHint {
 };
 
 
-typedef struct SymbolRecordStruct {
+typedef struct SymbolRecordStruct {     // 112 bytes!
     //--- definition
     char name[SYMBOL_NAME_LIMIT];
     enum SymbolKind kind;
@@ -103,7 +107,6 @@ typedef struct SymbolRecordStruct {
 
     // used by function params
     enum VarHint hint;                  // Hint for Function Param Symbol
-    bool isStack;                       // Function Parma: Is On Stack?
 
     struct SymbolExtStruct *funcExt;
     struct SymbolRecordStruct *userTypeDef;     // user defined type
@@ -153,6 +156,7 @@ extern SymbolRecord * addSymbol(SymbolTable *, char *name, enum SymbolKind kind,
 extern void setSymbolArraySize(SymbolRecord *symbol, int arraySize);
 extern void setStructSize(SymbolRecord *symbol, int unionSize);
 extern void markFunctionUsed(SymbolRecord *funcSymbol);
+extern void setSymbolLocation(SymbolRecord *symbolRecord, int location, enum ModifierFlags storageType);
 extern int calcVarSize(const SymbolRecord *varSymRec);
 extern int getBaseVarSize(const SymbolRecord *varSymRec);
 extern void addSymbolLocation(SymbolRecord *symbolRecord, int location);

@@ -155,6 +155,15 @@ void markFunctionUsed(SymbolRecord *funcSymbol) {
     }
 }
 
+void setSymbolLocation(SymbolRecord *symbolRecord, int location, enum ModifierFlags storageType) {
+    if (symbolRecord == NULL) return;
+
+    symbolRecord->location = location;
+    symbolRecord->hasLocation = true;
+    symbolRecord->flags = (symbolRecord->flags & (~SS_STORAGE_MASK)) | storageType;
+}
+
+
 int calcVarSize(const SymbolRecord *varSymRec) {// calculate allocation size
     int varSize = 1;
 
