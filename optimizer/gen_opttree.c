@@ -8,11 +8,10 @@
 //
 
 #include <data/syntax_tree.h>
+
 #include "gen_opttree.h"
 #include "common/tree_walker.h"
 
-
-typedef void (*ProcessNodeFunc)(ListNode, const List *);      // pointer to parse function
 
 void WalkList(List *list, ProcessNodeFunc procNode) {
     for (int stmtNum = 1;  stmtNum < list->count;  stmtNum++) {
@@ -120,7 +119,7 @@ void examineSwitchStmtCases(const List *switchStmt) {
                     case N_STR: {
                         /*SymbolRecord *symbol = lookupSymbolNode(caseValueNode, caseStmt->lineNum);
                         caseValue = symbol->constValue;
-                        printf("Case found with symbol kind: %s\n", getSymbolKindName(symbol->kind));*/
+                        printf("Case found with symbol kind: %s\n", getNameOfSymbolKind(symbol->kind));*/
                     }break;
                     default:
                         caseValue = -1;
@@ -239,7 +238,7 @@ void GOST_ProcessProgramNodes(ListNode opNode, const List *statement) {
 }
 
 
-void GOST_ProcessProgram(ListNode node) {
+void optimize_parse_tree(ListNode node) {
     List* programList = getProgramList(node);
     if (programList != NULL) {
         WalkList(programList, &GOST_ProcessProgramNodes);

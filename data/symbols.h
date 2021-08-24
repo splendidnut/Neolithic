@@ -94,7 +94,7 @@ typedef struct SymbolRecordStruct {     // 112 bytes!
     enum SymbolKind kind;
     unsigned int flags;                 // ModifierFlags + SymbolType
     int numElements;                  // number of elements (if array/object)
-    int location;                       // location in memory  (hasLocation if >= 0)
+    int location;                       // location in memory  (has location if >= 0)
 
     //---- All the rest of these are SymbolKind specific
 
@@ -149,7 +149,7 @@ typedef struct SymbolExtStruct {
     struct SymbolTableStruct *localSymbolSet;
 } SymbolExt;
 
-extern char *getSymbolKindName(enum SymbolKind symbolKind);
+extern char* getNameOfSymbolKind(enum SymbolKind symbolKind);
 extern enum SymbolType getSymbolType(const char *baseType);
 
 extern SymbolTable *initSymbolTable(char *name, bool isGlobalTable);

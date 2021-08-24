@@ -20,6 +20,15 @@
 #include "symbols.h"
 #include "data/instr_list.h"
 
+/*-------------------------------------*/
+/*   Internal functions declarations   */
+
+static SymbolRecord * newSymbol(char *tname, enum SymbolKind kind, enum SymbolType type, unsigned int flags);
+
+
+
+//--------------------------------------------------------
+//--- Symbol Kind code
 
 const struct SymbolKindStruct {
     char *kindName;
@@ -37,24 +46,15 @@ const struct SymbolKindStruct {
 
 static const int NumSymbolKinds = sizeof(SymbolKinds) / sizeof(struct SymbolKindStruct);
 
-char *getSymbolKindName(enum SymbolKind symbolKind) {
+
+char* getNameOfSymbolKind(enum SymbolKind symbolKind) {
     int i=0;
-    while (i < 7) {
-        if (SymbolKinds[i].symbolKindEnum == symbolKind) {
+    do {
+        if (SymbolKinds[i].symbolKindEnum == symbolKind)
             return SymbolKinds[i].kindName;
-        }
-        i++;
-    }
+    } while (++i < NumSymbolKinds);
     return "";
 }
-
-/*-------------------------------------*/
-/*   Internal functions declarations   */
-
-static SymbolRecord * newSymbol(char *tname, enum SymbolKind kind, enum SymbolType type, unsigned int flags);
-static void killSymbol(SymbolRecord *symbol);
-static char* lookupSymbolKind(enum SymbolKind symbolKind);
-
 
 
 //--------------------------------------------------------
@@ -320,7 +320,7 @@ void printSymbol(FILE *outputFile, const SymbolRecord *curSymbol, int indentLeve
             " %-32s  %5s  %6s  %04x  %5s  %02x  %02x  %04x  %6s  %20s\n",
             symName,
             location,
-            lookupSymbolKind(curSymbol->kind),
+            getNameOfSymbolKind(curSymbol->kind),
             curSymbol->flags,
             ((curSymbol->flags & MF_POINTER) != 0) ? "true" : "false",
             baseSize,
@@ -416,19 +416,6 @@ SymbolRecord * newSymbol(char *tname, enum SymbolKind kind, enum SymbolType type
     return newSymbol;
 }
 
-void killSymbol(SymbolRecord *symbol) {
-    printf("killed: %s\n", symbol->name);
-    free(symbol);
-}
-
-char* lookupSymbolKind(enum SymbolKind symbolKind) {
-    int i=0;
-    do {
-        if (SymbolKinds[i].symbolKindEnum == symbolKind)
-            return SymbolKinds[i].kindName;
-    } while (++i < NumSymbolKinds);
-    return "";
-}
 
 bool isStructDefined(const SymbolRecord *structSymbol) {
     return (structSymbol && structSymbol->funcExt && structSymbol->funcExt->paramSymbolSet);
@@ -442,6 +429,8 @@ SymbolTable *getStructSymbolSet(const SymbolRecord *structSymbol) {
     }
 }
 
+// NOTE: This is a variable name getter designed specifically to handle DASM style local labels.
+// TODO: Figure out a better way to handle this.
 const char *getVarName(const SymbolRecord *varSym) {
     if (IS_LOCAL(varSym)) {
         char *varName = malloc(strlen(varSym->name)+2);

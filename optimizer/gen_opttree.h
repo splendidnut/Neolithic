@@ -10,4 +10,6 @@
 #ifndef MODULE_GEN_OPTTREE_H
 #define MODULE_GEN_OPTTREE_H
 
+void optimize_parse_tree(ListNode node);
+
 #endif //MODULE_GEN_OPTTREE_H
