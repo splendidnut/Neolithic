@@ -19,6 +19,8 @@
 #define IS_STACK_VAR(sym) (((sym)->flags & SS_STORAGE_MASK) == SS_STACK)
 #define IS_PARAM_VAR(sym) ((sym)->flags & MF_PARAM)
 
+#define HAS_SYMBOL_LOCATION(sym)  ((sym)->location >= 0)
+
 //--------------------------------------
 //   All the flags for symbols
 
@@ -92,12 +94,11 @@ typedef struct SymbolRecordStruct {     // 112 bytes!
     enum SymbolKind kind;
     unsigned int flags;                 // ModifierFlags + SymbolType
     int numElements;                  // number of elements (if array/object)
+    int location;                       // location in memory  (hasLocation if >= 0)
 
-    //---- location data (variables/functions)
-    bool hasLocation;
-    int location;                       // location in memory
+    //---- All the rest of these are SymbolKind specific
 
-    //---- constant value information
+    // constant value information
     bool hasValue;
     int constValue;                     // constant value
     char *constEvalNotes;
@@ -153,13 +154,13 @@ extern enum SymbolType getSymbolType(const char *baseType);
 
 extern SymbolTable *initSymbolTable(char *name, bool isGlobalTable);
 extern SymbolRecord * addSymbol(SymbolTable *, char *name, enum SymbolKind kind, enum SymbolType type, unsigned int flags);
+
+extern void setSymbolLocation(SymbolRecord *symbolRecord, int location, enum ModifierFlags storageType);
 extern void setSymbolArraySize(SymbolRecord *symbol, int arraySize);
 extern void setStructSize(SymbolRecord *symbol, int unionSize);
 extern void markFunctionUsed(SymbolRecord *funcSymbol);
-extern void setSymbolLocation(SymbolRecord *symbolRecord, int location, enum ModifierFlags storageType);
 extern int calcVarSize(const SymbolRecord *varSymRec);
 extern int getBaseVarSize(const SymbolRecord *varSymRec);
-extern void addSymbolLocation(SymbolRecord *symbolRecord, int location);
 extern SymbolRecord * findSymbol(SymbolTable *symbolTable, const char *name);
 
 //--------------------------------------------------------
@@ -183,7 +184,6 @@ extern void addSymbolExt(SymbolRecord *funcSym, SymbolTable *paramTbl, SymbolTab
 extern void showSymbolTable(FILE *outputFile, SymbolTable *symbolTable);
 extern void killSymbolTable(SymbolTable *symbolTable);
 
-extern void symbol_setAddr(SymbolRecord *sym, int funcAddr);
 extern bool isStructDefined(const SymbolRecord *structSymbol);
 extern SymbolTable *getStructSymbolSet(const SymbolRecord *structSymbol);
 extern const char *getVarName(const SymbolRecord *varSym);

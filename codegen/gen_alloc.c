@@ -127,9 +127,10 @@ void allocateVarStorage(const SymbolTable *symbolTable) {
             int varSize = calcVarSize(curSymbol);
 
             // allocate memory
-            MemoryArea *memoryArea = (curSymbol->flags & SS_ZEROPAGE) ? SMA_getZeropageArea() : NULL;
+            bool isZP = ((curSymbol->flags & SS_STORAGE_MASK) == SS_ZEROPAGE);
+            MemoryArea *memoryArea = isZP ? SMA_getZeropageArea() : NULL;
             MemoryAllocation newVarAlloc = SMA_allocateMemory(memoryArea, varSize);
-            addSymbolLocation(curSymbol, newVarAlloc.addr);
+            setSymbolLocation(curSymbol, newVarAlloc.addr, isZP ? SS_ZEROPAGE : SS_ABSOLUTE);
 
             printf("\t%s allocated at %4X\n", curSymbol->name, newVarAlloc.addr);
 
@@ -169,7 +170,7 @@ int allocateLocalVarStorage(const SymbolTable *symbolTable, int curMemloc) {
         // only vars need allocation storage
         if (isVariable(curSymbol) && (curSymbol->location != 0xffff)) {
             int startLoc = curMemloc;
-            addSymbolLocation(curSymbol, curMemloc);
+            setSymbolLocation(curSymbol, curMemloc, SS_ZEROPAGE);       // TODO:  Locals are always stored in ZP (?)
             int varSize = calcVarSize(curSymbol);
             curMemloc += varSize;
 

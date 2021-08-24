@@ -53,8 +53,8 @@ EvalResult eval_node(ListNode node) {
             //   symbols always return their location...
             //   unless they are simple consts (don't take RAM/ROM)
             if (varSym && isEvalForAsm) {
-                if (varSym->hasLocation) {
-                    result.hasResult = varSym->hasLocation;
+                if (HAS_SYMBOL_LOCATION(varSym)) {
+                    result.hasResult = true;
                     result.value = varSym->location;
                 } else {
                     result.hasResult = varSym->hasValue;
@@ -80,7 +80,7 @@ EvalResult eval_addr_of(ListNode node) {
         SymbolRecord *varSym = getEvalSymbolRecord(node.value.str);
         if (varSym) {
             result.value = varSym->location;
-            result.hasResult = varSym->hasLocation;
+            result.hasResult = HAS_SYMBOL_LOCATION(varSym);
             //printf("eval_addr_of %s = %d\n", varSym->name, result.value);
         }
     }

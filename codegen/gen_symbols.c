@@ -13,13 +13,9 @@
 //
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-#include "data/symbols.h"
-#include "data/syntax_tree.h"
-#include "machine/mem.h"
-
+#include "gen_symbols.h"
 #include "codegen/gen_common.h"
 #include "codegen/eval_expr.h"
 #include "data/func_map.h"
@@ -35,13 +31,6 @@ char* getDefName(List *def) {
             ? def->nodes[1].value.str
             : NULL);
 }
-
-//-----------------------------------------------------
-//  Function prototypes
-
-void GS_Structure(List *structDef, SymbolTable *symbolTable);
-int GS_Union(List *unionDef, SymbolTable *symbolTable, int ofs);
-void GS_Enumeration(List *enumDef, SymbolTable *symbolTable);
 
 //-----------------------------------------------------
 
@@ -174,7 +163,8 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
 
     // if there's a memory hint, use it
     if ((varDef->count > 5) && (varDef->nodes[5].type == N_INT)) {
-        addSymbolLocation(varSymRec, varDef->nodes[5].value.num);
+        int addr = varDef->nodes[5].value.num;
+        setSymbolLocation(varSymRec, addr, (addr < 256) ? SS_ZEROPAGE : SS_ABSOLUTE);
     }
 
     int hasInitializer = (varDef->count >= 4) && (varDef->nodes[4].type == N_LIST);
@@ -203,7 +193,7 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
                     && (initExpr->nodes[1].type == N_INT)) {
 
                     int value = initExpr->nodes[1].value.num;
-                    addSymbolLocation(varSymRec, value);
+                    setSymbolLocation(varSymRec, value, (value < 256) ? SS_ZEROPAGE : SS_ABSOLUTE);
                 } else {
                     EvalResult result = evaluate_expression(initExpr);
                     if (result.hasResult) {
@@ -222,6 +212,13 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
     }
     return varSymRec;
 }
+
+
+//----------------------------------------------------------------------------------------------
+//  Function prototypes -- (since struct and union can be nested within themselves/each other)
+
+void GS_Structure(List *structDef, SymbolTable *symbolTable);
+int GS_ProcessUnionList(SymbolTable *symbolTable, const List *varList, int ofs);
 
 //-----------------------------------------------------
 // ['union', EMPTY, ['varList', [ var1, var2 ] ] ]
@@ -244,7 +241,7 @@ int GS_ProcessUnionList(SymbolTable *symbolTable, const List *varList, int ofs) 
             printf("Adding union variable: %s @%d\n", symRec->name, ofs);
             if (symRec != NULL) {
                 int varSize = calcVarSize(symRec);
-                addSymbolLocation(symRec, ofs);
+                setSymbolLocation(symRec, ofs, 0);
                 if (varSize > maxElementSize) maxElementSize = varSize;
             }
         }
@@ -353,7 +350,7 @@ void GS_Structure(List *structDef, SymbolTable *symbolTable) {
             } else {
                 SymbolRecord *symRec = GS_Variable(varDef, structSymTbl, 0);
                 if (symRec != NULL) {
-                    addSymbolLocation(symRec, memOfs);
+                    setSymbolLocation(symRec, memOfs, 0);
                     memOfs += calcVarSize(symRec);
                 }
             }

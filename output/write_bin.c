@@ -95,7 +95,7 @@ int getParamStringValue(const char *param, int paramPos) {
 
     // if param is a symbol, return location or value
     if (paramSym != NULL) {
-        if (paramSym->hasLocation) {
+        if (HAS_SYMBOL_LOCATION(paramSym)) {
             return paramSym->location;
         } else if (paramSym->hasValue){
             return paramSym->constValue;

@@ -1624,8 +1624,7 @@ void GC_Variable(const List *varDef) {
                 //            to be magically movable
 
                 //printf("Size of %s is %d\n", varSymRec->name, staticData->blockSize);
-                varSymRec->location = ICG_MarkStaticArrayData(staticData->blockSize);
-                varSymRec->hasLocation = true;
+                setSymbolLocation(varSymRec, ICG_MarkStaticArrayData(staticData->blockSize), SS_ROM);
 
                 reverseData = false;
             }
@@ -1675,7 +1674,7 @@ void GC_ProcessFunction(char *funcName, List *code) {
 
     // start building function using provided label and current code address
     int funcAddr = ICG_StartOfFunction(funcLabel, funcSym);
-    symbol_setAddr(funcSym, funcAddr);
+    setSymbolLocation(funcSym, funcAddr, SS_ROM);
 
     // load in local symbol table for function
     SymbolExt* funcExt = funcSym->funcExt;

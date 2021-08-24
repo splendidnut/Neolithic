@@ -145,6 +145,14 @@ void setSymbolArraySize(SymbolRecord *symbol, int arraySize) {
     symbol->numElements = arraySize;
 }
 
+void setSymbolLocation(SymbolRecord *symbolRecord, int location, enum ModifierFlags storageType) {
+    if (symbolRecord == NULL) return;
+
+    symbolRecord->location = location;
+    symbolRecord->flags = (symbolRecord->flags & (~SS_STORAGE_MASK)) | storageType;
+}
+
+
 void setStructSize(SymbolRecord *symbol, int unionSize) {
     symbol->numElements = unionSize;
 }
@@ -153,14 +161,6 @@ void markFunctionUsed(SymbolRecord *funcSymbol) {
     if (funcSymbol && funcSymbol->funcExt) {
         funcSymbol->funcExt->cntUses++;
     }
-}
-
-void setSymbolLocation(SymbolRecord *symbolRecord, int location, enum ModifierFlags storageType) {
-    if (symbolRecord == NULL) return;
-
-    symbolRecord->location = location;
-    symbolRecord->hasLocation = true;
-    symbolRecord->flags = (symbolRecord->flags & (~SS_STORAGE_MASK)) | storageType;
 }
 
 
@@ -195,11 +195,6 @@ int getCodeSize(const SymbolRecord *funcSymRec) {
     bool isFunc = isFunction(funcSymRec);
     bool isCodeUsed = (funcSymRec->funcExt->cntUses > 0);
     return (isFunc && isCodeUsed) ? funcSymRec->funcExt->instrBlock->codeSize : 0;
-}
-
-void addSymbolLocation(SymbolRecord *symbolRecord, int location) {
-    symbolRecord->hasLocation = true;
-    symbolRecord->location = location;
 }
 
 void addSymbolExt(SymbolRecord *funcSym, SymbolTable *paramTbl, SymbolTable *localSymTbl) {
@@ -308,7 +303,7 @@ void printSymbol(FILE *outputFile, const SymbolRecord *curSymbol, int indentLeve
     }
 
     char location[6] = "";
-    if (curSymbol->hasLocation) {
+    if (HAS_SYMBOL_LOCATION(curSymbol)) {
         sprintf(location, "%04x", curSymbol->location);
     }
 
@@ -415,7 +410,7 @@ SymbolRecord * newSymbol(char *tname, enum SymbolKind kind, enum SymbolType type
     strncpy(newSymbol->name, tname, SYMBOL_NAME_LIMIT);
     newSymbol->kind = kind;
     newSymbol->flags = flags | type;
-    newSymbol->location = 0xffffffff;
+    newSymbol->location = -1;           // indicate that location has not been set
     newSymbol->constEvalNotes = "";
 
     return newSymbol;
@@ -433,11 +428,6 @@ char* lookupSymbolKind(enum SymbolKind symbolKind) {
             return SymbolKinds[i].kindName;
     } while (++i < NumSymbolKinds);
     return "";
-}
-
-void symbol_setAddr(SymbolRecord *sym, int funcAddr) {
-    sym->location = funcAddr;
-    sym->hasLocation = true;
 }
 
 bool isStructDefined(const SymbolRecord *structSymbol) {

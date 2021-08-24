@@ -109,8 +109,8 @@ void WO_PrintSymbolTable(SymbolTable *workingSymbolTable, char *symTableName) {
                 fprintf(outputFile, "%-20s = $%02X\n",
                         curSymbol->name,
                         curSymbol->location);
-            } else if (curSymbol->hasLocation && !isFunction(curSymbol)
-                        && !isSimpleConst(curSymbol) && !isArrayConst(curSymbol)) {
+            } else if (HAS_SYMBOL_LOCATION(curSymbol) && !isFunction(curSymbol)
+                       && !isSimpleConst(curSymbol) && !isArrayConst(curSymbol)) {
                 fprintf(outputFile, "%-20s = $%04X  ;-- flags: %04X \n",
                         curSymbol->name,
                         curSymbol->location,
