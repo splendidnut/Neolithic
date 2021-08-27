@@ -92,9 +92,9 @@ enum SymbolType getSymbolType(const char *baseType) {
 /*    Public functions                           */
 /*-----------------------------------------------*/
 
-SymbolRecord * addBooleanConst(SymbolTable *symbolTable, char *name, int value) {
+SymbolRecord * addConst(SymbolTable *symbolTable, char *name, int value, enum SymbolType type, enum ModifierFlags flags) {
     SymbolRecord *varSymRec;
-    varSymRec = addSymbol(symbolTable, name, SK_CONST, ST_BOOL, 0);
+    varSymRec = addSymbol(symbolTable, name, SK_CONST, type, flags);
     varSymRec->constValue = value;
     varSymRec->hasValue = true;
     return varSymRec;
@@ -109,8 +109,8 @@ SymbolTable *initSymbolTable(char *name, bool isGlobalTable) {
 
     if (isGlobalTable) {
         // add built-in symbols
-        addBooleanConst(newTable, "false", 0);
-        addBooleanConst(newTable, "true", 1);
+        addConst(newTable, "false", 0, ST_BOOL, 0);
+        addConst(newTable, "true",  1, ST_BOOL, 0);
     }
     return newTable;
 }

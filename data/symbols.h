@@ -152,6 +152,8 @@ typedef struct SymbolExtStruct {
 extern char* getNameOfSymbolKind(enum SymbolKind symbolKind);
 extern enum SymbolType getSymbolType(const char *baseType);
 
+extern SymbolRecord * addConst(SymbolTable *symbolTable, char *name, int value, enum SymbolType type, enum ModifierFlags flags);
+
 extern SymbolTable *initSymbolTable(char *name, bool isGlobalTable);
 extern SymbolRecord * addSymbol(SymbolTable *, char *name, enum SymbolKind kind, enum SymbolType type, unsigned int flags);
 

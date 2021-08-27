@@ -1754,14 +1754,8 @@ void WalkProgram(List *program, ProcessNodeFunc procNode) {
     }
 }
 
-void GC_Program(List *program) {
-    WalkProgram(program, &GC_ProcessProgramNode);
-}
-
 //-------------------------------------------------------------------
 //===
-
-static bool isInitialized = false;
 
 void GC_ProcessProgram(ListNode node) {
 
@@ -1771,7 +1765,7 @@ void GC_ProcessProgram(ListNode node) {
         List *program = node.value.list;
         if (program->nodes[0].value.parseToken == PT_PROGRAM) {
             // generate all the code for the program
-            GC_Program(program);
+            WalkProgram(program, &GC_ProcessProgramNode);
         }
     }
 }
@@ -1787,14 +1781,6 @@ void generate_code(char *name, ListNode node, SymbolTable *symbolTable) {
     initEvaluator(mainSymbolTable);
 
     FE_initDebugger();
-
-    // TODO: This code is still specific to Atari 2600... need to figure out a way to eliminate that constraint.
-    // only need to initial instruction list and output block modules once
-    if (!isInitialized) {
-        IL_Init(0xF000);
-        OB_Init();
-        isInitialized = true;
-    }
 
     // process module -> just needs to run code generator to build output blocks
     GC_ProcessProgram(node);

@@ -46,7 +46,6 @@ extern Instr* IL_AddInstrB(enum MnemonicCode mne);
 //----------------------------------------------------------------
 //  Here are the "actual" intermediate operations
 
-extern void ICG_LoadFromAddr(int ofs);
 extern void ICG_LoadFromArray(const SymbolRecord *arraySymbol, int index, enum SymbolType destType);
 extern void ICG_LoadConst(int constValue, int size);
 

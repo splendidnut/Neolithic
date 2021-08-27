@@ -189,11 +189,6 @@ void GC_AsmInstr(List *instr) {
     // NOTE: -- CANNOT free paramStr as it needs to stick around for the instruction list
 }
 
-void GC_NewConst(char *equName, int value) {
-    SymbolRecord *equSymbol = addSymbol(curFuncSymbolTable, equName, SK_CONST, ST_CHAR, MF_LOCAL);
-    equSymbol->constValue = value;
-    equSymbol->hasValue = true;
-}
 
 void GC_AsmBlock(const List *code, enum SymbolType destType) {
     // TODO: Collect all local labels into a "local" label list (instead of global label list)
@@ -232,7 +227,7 @@ void GC_AsmBlock(const List *code, enum SymbolType destType) {
 
                 // Add as constant to local function scope
                 // TODO: Check this feature
-                GC_NewConst(equName, value);
+                addConst(curFuncSymbolTable, equName, value, ST_CHAR, MF_LOCAL);
             } else if (instrNode.value.parseToken == PT_LABEL) {
                 // handle label def
                 char *labelName = statement->nodes[1].value.str;

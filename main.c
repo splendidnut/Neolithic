@@ -17,6 +17,7 @@
 #include "codegen/gen_alloc.h"
 #include "codegen/gen_calltree.h"
 #include "codegen/gen_code.h"
+#include "cpu_arch/instrs.h"
 #include "output/write_output.h"
 
 const char *verStr = "0.2(alpha)";
@@ -178,14 +179,6 @@ void loadAndParseAllDependencies(PreProcessInfo *preProcessInfo) {
     }
 }
 
-void collectSymbolsFromDependency(PreProcessInfo *preProcessInfo) {
-    return;
-    for_range(curFileIdx, 0, preProcessInfo->numFiles) {
-        char *curFileName = preProcessInfo->includedFiles[curFileIdx];
-        ListNode progNode = SourceFileList_lookupAST(curFileName);
-        generate_symbols(progNode, mainSymbolTable);
-    }
-}
 
 void generateCodeForDependencies(PreProcessInfo *preProcessInfo) {
     for_range(curFileIdx, 0, preProcessInfo->numFiles) {
@@ -218,7 +211,6 @@ int mainCompiler() {
     if (hasDependencies) {
         // Build and output AST, then process and analyze symbols
         loadAndParseAllDependencies(preProcessInfo);
-        collectSymbolsFromDependency(preProcessInfo);
     }
 
     if (GC_ErrorCount > 0) return -1;
@@ -239,6 +231,15 @@ int mainCompiler() {
     generate_var_allocations(mainSymbolTable);
 
     printf("Analysis of %s Complete\n\n", inFileName);
+
+    //-----------------------------------------------------------
+    // Configure output for specific machine
+    // TODO: This code is still specific to Atari 2600... need to figure out a way to eliminate that constraint.
+    // only need to initial instruction list and output block modules once
+
+    IL_Init(getMachineStartAddr(preProcessInfo->machine));
+    OB_Init();
+
 
     //   Now do full compile on any dependencies
     if (hasDependencies) {
