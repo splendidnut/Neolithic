@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "common/common.h"
 #include "labels.h"
 
 static int labelCount = 0;
@@ -25,13 +27,13 @@ void addToLabelList(Label *label) {
 }
 
 char *genLabelName() {
-    char *generatedName = malloc(12);
+    char *generatedName = allocMem(12);
     sprintf(generatedName, "L%04X", labelCount);
     return generatedName;
 }
 
 Label * newGenericLabel(enum LabelType type) {
-    Label *label = malloc(sizeof(struct LabelStruct));
+    Label *label = allocMem(sizeof(struct LabelStruct));
     label->name = genLabelName();
     label->link = NULL;
     label->hasBeenReferenced = false;
@@ -40,7 +42,7 @@ Label * newGenericLabel(enum LabelType type) {
 }
 
 Label * newLabel(char* name, enum LabelType type) {
-    Label *label = malloc(sizeof(struct LabelStruct));
+    Label *label = allocMem(sizeof(struct LabelStruct));
     label->name = strdup(name);
     label->type = type;
     label->link = NULL;

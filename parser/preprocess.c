@@ -78,7 +78,7 @@ void PP_Directive(char *curLine, PreProcessInfo *preProcessInfo) {
 
 
 PreProcessInfo * preprocess(char *inFileStr) {
-    PreProcessInfo *preProcessInfo = malloc(sizeof(PreProcessInfo));
+    PreProcessInfo *preProcessInfo = allocMem(sizeof(PreProcessInfo));
     preProcessInfo->numFiles = 0;
 
     printf("Pre-processing...\n");
@@ -90,7 +90,7 @@ PreProcessInfo * preprocess(char *inFileStr) {
     curProg = inFileStr;
 
     // allocate line buffer
-    char *lineBuffer = (char *)malloc(100);
+    char *lineBuffer = (char *)allocMem(100);
 
     while (curProg < (inFileStr + inFileLen)) {
         char *curLine = PP_readLine(lineBuffer);

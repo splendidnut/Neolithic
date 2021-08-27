@@ -7,7 +7,6 @@
 //
 
 #include <string.h>
-#include <stdlib.h>
 
 #include "gen_asmcode.h"
 #include "gen_common.h"
@@ -19,77 +18,83 @@ static enum AddrModes paramAddrMode;       // indicate whether an ASM param uses
 static char* param2;
 enum ParamExt paramExt;
 
-void GC_Asm_HandlePropertyRef(List *propertyRef, char *paramStr) {
+char* GC_Asm_HandlePropertyRef(List *propertyRef) {
+    char *paramStr;
     if ((propertyRef->nodes[1].type != N_STR)
         || (propertyRef->nodes[2].type != N_STR)) {
         ErrorMessageWithList("GC_Asm_HandlePropertyRef: Invalid property reference", propertyRef);
-        return;
+        return NULL;
     }
     SymbolRecord *structSym = lookupSymbolNode(propertyRef->nodes[1], propertyRef->lineNum);
     SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propertyRef->nodes[2].value.str);
 
     if (!(structSym && propertySym)) {
         ErrorMessageWithList("GC_Asm_HandlePropertyRef: Invalid property reference", propertyRef);
-        return;
+        return NULL;
     }
 
     paramAddrMode = (structSym->location < 256) ? ADDR_ZP : ADDR_ABS;
 
-    sprintf(paramStr, "%s", getVarName(structSym));
+    //sprintf(paramStr, "%s", getVarName(structSym));
+    paramStr = (char *)getVarName(structSym);
     param2 = intToStr(propertySym->location);
     paramExt = PARAM_ADD;
+    return paramStr;
 }
 
-void GC_Asm_HandleArrayLookup(List *arrayLookup, char *paramStr) {
+char * GC_Asm_HandleArrayLookup(List *arrayLookup) {
+    char *paramStr;
     if ((arrayLookup->nodes[1].type != N_STR)
         ||(arrayLookup->nodes[2].type != N_INT)) {
         ErrorMessageWithList("Invalid array lookup", arrayLookup);
-        return;
+        return NULL;
     }
     SymbolRecord *arraySym = lookupSymbolNode(arrayLookup->nodes[1], arrayLookup->lineNum);
     if (!arraySym) {
         ErrorMessageWithList("Couldn't find array symbol", arrayLookup);
-        return;
+        return NULL;
     }
 
     int baseSize = getBaseVarSize(arraySym);
 
     paramAddrMode = (arraySym->location < 256) ? ADDR_ZP : ADDR_ABS;
 
-    sprintf(paramStr, "%s", getVarName(arraySym));
+    //sprintf(paramStr, "%s", getVarName(arraySym));
+    paramStr = (char *)getVarName(arraySym);
     param2 = intToStr(arrayLookup->nodes[2].value.num * baseSize);
     paramExt = PARAM_ADD;
+    return paramStr;
 }
 
-void GC_Asm_EvalExpression(const List *paramExpr, char *paramStr) {
+char * GC_Asm_EvalExpression(const List *paramExpr) {
+    char *paramStr;
     setEvalExpressionMode(true);
     EvalResult evalResult = evaluate_expression(paramExpr);
     if (evalResult.hasResult) {
         int ofs = evalResult.value;
         IL_SetLineComment(get_expression(paramExpr));
-        strcpy(paramStr, intToStr(ofs));
+        paramStr = intToStr(ofs);
         paramAddrMode = (ofs < 256) ? ADDR_ZP : ADDR_ABS;
     } else {
+
         // evaluate the expression and use the string result
-        strcpy(paramStr, get_expression(paramExpr));
+        paramStr = get_expression(paramExpr);
         paramAddrMode = ADDR_ABS;
     }
     setEvalExpressionMode(false);
+    return paramStr;
 }
 
-void GC_Asm_ParamExpr(List *paramExpr, char *paramStr) {
+char* GC_Asm_ParamExpr(List *paramExpr) {
     switch (paramExpr->nodes[0].value.parseToken) {
         case PT_PROPERTY_REF:
-            GC_Asm_HandlePropertyRef(paramExpr, paramStr);
-            return;
+            return GC_Asm_HandlePropertyRef(paramExpr);
 
         case PT_LOOKUP:
-            GC_Asm_HandleArrayLookup(paramExpr, paramStr);
-            return;
+            return GC_Asm_HandleArrayLookup(paramExpr);
 
         default: {
-            GC_Asm_EvalExpression(paramExpr, paramStr);
-            return;
+            return GC_Asm_EvalExpression(paramExpr);
         }
     }
 }
@@ -98,9 +103,7 @@ char *GC_Asm_getParamStr(ListNode instrParamNode, List *instr) {
     char *paramStr;
     switch (instrParamNode.type) {
         case N_LIST:
-            paramStr = malloc(SYMBOL_NAME_LIMIT);
-            paramStr[0] = '\0';
-            GC_Asm_ParamExpr(instrParamNode.value.list, paramStr);
+            paramStr = GC_Asm_ParamExpr(instrParamNode.value.list);
             break;
         case N_INT:
             paramStr = intToStr(instrParamNode.value.num);

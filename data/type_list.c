@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "common/common.h"
 #include "type_list.h"
 
 TypeName* firstTypeName = NULL;
@@ -21,7 +23,7 @@ void TypeList_add(char *name) {
     printf("TypeList_add: %s\n", name);
 #endif
 
-    TypeName *newTypeName = malloc(sizeof(TypeName));
+    TypeName *newTypeName = allocMem(sizeof(TypeName));
     newTypeName->name = name;
     newTypeName->next = NULL;
 

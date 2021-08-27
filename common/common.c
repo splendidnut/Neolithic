@@ -7,8 +7,23 @@
 #include <string.h>
 #include "common.h"
 
+static int memoryUsed = 0;
+
+void *allocMem(int size) {
+    memoryUsed += size;
+    return malloc(size);
+}
+
+void freeMem(void *mem) {
+    free(mem);
+}
+
+void reportMem() {
+    printf("Memory used %d\n", memoryUsed);
+}
+
 char *numToStr(int num) {
-    char *result = malloc(10);
+    char *result = allocMem(10);
     if (num < 0) {
         sprintf(result, "-$%X", -num);
     } else {
@@ -18,7 +33,7 @@ char *numToStr(int num) {
 }
 
 char *intToStr(int num) {
-    char *result = malloc(10);
+    char *result = allocMem(10);
     sprintf(result, "%d", num);
     return result;
 }
@@ -41,7 +56,7 @@ int strToInt(const char *str) {
 
 char *getUnquotedString(const char *srcString) {
     unsigned int len = strlen(srcString) - 2;
-    char *newStr = malloc(len+1);
+    char *newStr = allocMem(len+1);
     strncpy(newStr, srcString+1, len);
     newStr[len] = '\0';
     return newStr;
@@ -65,7 +80,7 @@ char *genFileName(const char *name, const char *ext) {
         nameLen -= 2;
     }
 
-    char *astFileName = malloc(nameLen+6);
+    char *astFileName = allocMem(nameLen+6);
     strcpy(astFileName, name);
     strcpy(astFileName+nameLen, ext);
     return astFileName;
@@ -91,7 +106,7 @@ char *genFileName(const char *name, const char *ext) {
  * @return
  */
 char *buildSourceCodeLine(const SourceCodeLine *srcStr) {
-    char *dstStr = malloc(srcStr->len + 16);
+    char *dstStr = allocMem(srcStr->len + 16);
     sprintf(dstStr, "Line #%-4d:\t", srcStr->lineNum);
     strncat(dstStr, srcStr->data, srcStr->len);
     return dstStr;

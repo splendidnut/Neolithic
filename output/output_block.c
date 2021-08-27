@@ -49,7 +49,7 @@ void OB_AddBlock(OutputBlock *newBlock) {
 }
 
 OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock) {
-    OutputBlock *newBlock = malloc(sizeof(struct SOutputBlock));
+    OutputBlock *newBlock = allocMem(sizeof(struct SOutputBlock));
     newBlock->nextBlock = NULL;
     newBlock->blockName = name;
     newBlock->blockAddr = curAddr;
@@ -70,7 +70,7 @@ void OB_MoveToNextPage() {
 
 OutputBlock *OB_AddData(SymbolRecord *dataSym, char *name, List *dataList) {
     bool isInt = getBaseVarSize(dataSym) > 1;
-    OutputBlock *newBlock = malloc(sizeof(struct SOutputBlock));
+    OutputBlock *newBlock = allocMem(sizeof(struct SOutputBlock));
     newBlock->nextBlock = NULL;
     newBlock->blockName = name;
     newBlock->blockAddr = curAddr;

@@ -1204,7 +1204,7 @@ ListNode parse_program(char *sourceCode) {
     List *prog = createList(100);
     addNode(prog, createParseToken(PT_PROGRAM));
 
-    char *tokenStr = (char *)malloc(100);
+    char *tokenStr = (char *)allocMem(100);
     while (hasToken()) {
         ListNode node;
 

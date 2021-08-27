@@ -28,7 +28,11 @@ typedef struct {
     char *entryPointFuncName;
 } CompilerOptions;
 
-extern CompilerOptions *compilerOptions;
+extern CompilerOptions compilerOptions;
+
+extern void *allocMem(int size);
+extern void freeMem(void *mem);
+extern void reportMem();
 
 extern char *numToStr(int num);
 extern char *intToStr(int num);

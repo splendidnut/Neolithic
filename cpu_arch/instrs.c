@@ -35,7 +35,7 @@ Label *curLabel;
 bool showCycles = false;
 
 Instr* startNewInstruction(enum MnemonicCode mne, enum AddrModes addrMode) {
-    Instr *newInstr = malloc(sizeof(struct InstrStruct));
+    Instr *newInstr = allocMem(sizeof(struct InstrStruct));
     newInstr->mne = mne;
     newInstr->addrMode = addrMode;
     newInstr->showCycles = showCycles;
@@ -167,7 +167,7 @@ void Dbg_IL_ClearOnUpdate(const char *varName, char *clearInfo) {
 
 // clear out appropriate register tracker on var update
 void IL_ClearOnUpdate(const char *varName) {
-    char *clearInfo = malloc(120);
+    char *clearInfo = allocMem(120);
 #ifdef DEBUG_INSTRS
     Dbg_IL_ClearOnUpdate(varName, clearInfo);
 #endif
@@ -786,7 +786,7 @@ int ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym) {
     lastUseForYReg = REG_USED_FOR_NOTHING;
 
     // main function needs to run init code
-    if (strcmp(curBlock->funcSym->name, compilerOptions->entryPointFuncName) == 0) {
+    if (isMainFunction(curBlock->funcSym)) {
         ICG_SystemInitCode();
     }
 
@@ -799,7 +799,7 @@ InstrBlock* ICG_EndOfFunction() {
 
     // All functions except main() will need a RTS at the end.
     //    Add the RTS if it's not already there
-    if (strcmp(curBlock->funcSym->name, compilerOptions->entryPointFuncName) != 0) {
+    if (!isMainFunction(curBlock->funcSym) != 0) {
         if ((curBlock->curInstr == NULL) || (curBlock->curInstr->mne != RTS)) ICG_Return();
     }
 

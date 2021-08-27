@@ -21,7 +21,7 @@ FuncCallMapEntry* FM_findFunction(char *funcName) {
 }
 
 FuncCallMapEntry * FM_addNewFunc(char *srcName) {
-    FuncCallMapEntry *newFuncCallEntry = malloc(sizeof(FuncCallMapEntry));
+    FuncCallMapEntry *newFuncCallEntry = allocMem(sizeof(FuncCallMapEntry));
     newFuncCallEntry->srcFuncName = srcName;
     newFuncCallEntry->deepestSpotCalled = -1;
     newFuncCallEntry->cntFuncsCalled = 0;

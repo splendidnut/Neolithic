@@ -101,7 +101,7 @@ SymbolRecord * addConst(SymbolTable *symbolTable, char *name, int value, enum Sy
 }
 
 SymbolTable *initSymbolTable(char *name, SymbolTable *parentTable) {
-    SymbolTable *newTable = malloc(sizeof(SymbolTable));
+    SymbolTable *newTable = allocMem(sizeof(SymbolTable));
     newTable->name = name;
     newTable->parentTable = parentTable;
     newTable->firstSymbol = NULL;
@@ -200,7 +200,7 @@ int getCodeSize(const SymbolRecord *funcSymRec) {
 void addSymbolExt(SymbolRecord *funcSym, SymbolTable *paramTbl, SymbolTable *localSymTbl) {
     if (funcSym == NULL) return;
 
-    SymbolExt *funcExt = malloc(sizeof(SymbolExt));
+    SymbolExt *funcExt = allocMem(sizeof(SymbolExt));
     memset(funcExt, 0, sizeof(SymbolExt));
 
     funcExt->paramSymbolSet = paramTbl;
@@ -268,7 +268,7 @@ bool isArray(const SymbolRecord *symbol) {
 //---- other checks
 
 bool isMainFunction(const SymbolRecord *symbol) {
-    return (strcmp(symbol->name, "main")==0);
+    return (strcmp(symbol->name, compilerOptions.entryPointFuncName)==0);
 }
 
 enum SymbolType getType(const SymbolRecord *symbol) {
@@ -291,7 +291,7 @@ void printSymbol(FILE *outputFile, const SymbolRecord *curSymbol, int indentLeve
     int indentSize = indentLevel * 2;
 
     // indent labels if indentLevel > 0
-    char *symName = malloc(strlen(curSymbol->name) + indentSize + 1);
+    char *symName = allocMem(strlen(curSymbol->name) + indentSize + 1);
     if (indentLevel > 0) {
         for (int i=0; i<indentLevel*2; i++) symName[i] = ' ';
     }
@@ -404,7 +404,7 @@ void showSymbolTable(FILE *outputFile, SymbolTable *symbolTable) {
 
 
 SymbolRecord * newSymbol(char *tname, enum SymbolKind kind, enum SymbolType type, unsigned int flags) {
-    SymbolRecord *newSymbol = (SymbolRecord *)malloc(sizeof(SymbolRecord));
+    SymbolRecord *newSymbol = (SymbolRecord *)allocMem(sizeof(SymbolRecord));
     memset(newSymbol, 0, sizeof(SymbolRecord));
 
     strncpy(newSymbol->name, tname, SYMBOL_NAME_LIMIT);
@@ -433,7 +433,7 @@ SymbolTable *getStructSymbolSet(const SymbolRecord *structSymbol) {
 // TODO: Figure out a better way to handle this.
 const char *getVarName(const SymbolRecord *varSym) {
     if (IS_LOCAL(varSym)) {
-        char *varName = malloc(strlen(varSym->name)+2);
+        char *varName = allocMem(strlen(varSym->name)+2);
         strcpy(varName, ".");
         return strcat(varName, varSym->name);
     } else {

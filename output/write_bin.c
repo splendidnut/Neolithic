@@ -46,7 +46,7 @@ void WriteBIN_Init(FILE *outFile, SymbolTable *mainSymTbl) {
     mainSymbolTable = mainSymTbl;
     funcSymbolTable = NULL;
     paramSymbolTable = NULL;
-    binData = malloc(65536);
+    binData = allocMem(65536);
     for_range(i, 0, 4095) { binData[i] = 0; }
 }
 

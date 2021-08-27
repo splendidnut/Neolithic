@@ -92,7 +92,7 @@ bool isToken(ListNode node, enum ParseToken parseToken) {
 //   List methods
 
 List * createList(int initialSize) {
-    List* list = (List *)malloc(sizeof(List) + (initialSize * sizeof(ListNode)));
+    List* list = (List *)allocMem(sizeof(List) + (initialSize * sizeof(ListNode)));
     list->count = 0;
     list->size = initialSize;
     list->hasNestedList = false;

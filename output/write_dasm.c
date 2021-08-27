@@ -99,7 +99,7 @@ char *getParamStr(const Instr *instr) {
         suffix = isPlusOne ? "+1]" : "]";
     }
 
-    char *paramStr = malloc(lenParam1 + lenParam2 + 10);  // 10 to given spacing for deliminators
+    char *paramStr = allocMem(lenParam1 + lenParam2 + 10);  // 10 to given spacing for deliminators
     paramStr[0] = '\0';
     if (!instr->usesVar) {
         strcat(paramStr, prefix);
@@ -163,7 +163,7 @@ void WriteDASM_OutputInstr(FILE *output, Instr *instr) {
         char *opExt = getOpExt(instr->mne, addressMode);
 
         // print out instruction line
-        char *instrParams = malloc(80);
+        char *instrParams = allocMem(80);
         sprintf(instrParams, addressMode.format, paramStr);
         sprintf(instrBuf, "%s%s  %s", instrName, opExt, instrParams);
         free(instrParams);

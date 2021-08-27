@@ -288,7 +288,7 @@ int GC_LookupArrayOfs(const List *expr) {
 
 
 void addStructRefComment(const char *prefixComment, const char *structName, const char *propName) {
-    char *propRefStr = malloc(40);
+    char *propRefStr = allocMem(40);
     sprintf(propRefStr, "%s: %s.%s", prefixComment, structName, propName);
     IL_AddCommentToCode(propRefStr);
 }

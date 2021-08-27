@@ -27,7 +27,7 @@ const char *verStr = "0.2(alpha)";
 //-------------------------------------------
 //  Global Variables
 
-CompilerOptions *compilerOptions;
+CompilerOptions compilerOptions;
 SymbolTable * mainSymbolTable;
 char *projectName;
 char *projectDir;
@@ -92,7 +92,7 @@ char* readSourceFile(const char* fileName) {
 
     printf("%ld bytes\n", fsize);
 
-    char *fileData = malloc(fsize + 1);
+    char *fileData = allocMem(fsize + 1);
 
     // Since fread() will magically convert end of line characters
     //  in a text file (windows CRLF -> LF), we need to use
@@ -321,8 +321,7 @@ int main(int argc, char *argv[]) {
 
     inFileName = genFileName(projectName, ".c");
 
-    compilerOptions = malloc(sizeof(CompilerOptions));
-    compilerOptions->entryPointFuncName = "main";
+    compilerOptions.entryPointFuncName = "main";
 
     prepForMachine(Atari2600);
     int result = mainCompiler();

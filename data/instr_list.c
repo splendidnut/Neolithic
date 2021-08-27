@@ -8,7 +8,7 @@
 static int instrCount = 0;
 
 InstrBlock* IB_StartInstructionBlock(char *name) {
-    InstrBlock *newBlock = malloc(sizeof(struct InstrBlockStruct));
+    InstrBlock *newBlock = allocMem(sizeof(struct InstrBlockStruct));
     newBlock->codeSize = 0;
     newBlock->blockName = name;
     newBlock->firstInstr = NULL;

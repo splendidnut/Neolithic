@@ -166,11 +166,11 @@ void initTokenizer(char *theInputStr) {
 	while (tokenStr[tokenStrLen] != '\0') tokenStrLen++;
 
     // alloc memory for currentToken
-	tokenStorage = (TokenObject *)malloc(TOKEN_LINE_LIMIT);
+	tokenStorage = (TokenObject *)allocMem(TOKEN_LINE_LIMIT);
 	currentToken = tokenStorage;
 
 	// alloc memory for currentLine
-    curProgLine = (char *)malloc(TOKEN_LINE_LIMIT + 10);        // Need space for Line Number
+    curProgLine = (char *)allocMem(TOKEN_LINE_LIMIT + 10);        // Need space for Line Number
 
     isFirstTokenOnLine = true;
 }
@@ -362,7 +362,7 @@ TokenType getTokenSymbolType(TokenObject *token) {
 
 char * copyTokenStr(TokenObject *token) {
     assert(token != NULL);
-    char *copyOfTokenStr = (char *)malloc(TOKEN_LENGTH_LIMIT);
+    char *copyOfTokenStr = (char *)allocMem(TOKEN_LENGTH_LIMIT);
     strncpy(copyOfTokenStr, token->tokenStr, TOKEN_LENGTH_LIMIT - 2);
     copyOfTokenStr[TOKEN_LENGTH_LIMIT-1] = '\0';
     return copyOfTokenStr;

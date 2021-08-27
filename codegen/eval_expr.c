@@ -157,7 +157,7 @@ char* get_node(const ListNode node) {
     char *result;
     switch (node.type) {
         case N_INT:
-            result = malloc(8);
+            result = allocMem(8);
             sprintf(result, "%d", node.value.num);
             break;
         case N_LIST:
@@ -192,7 +192,7 @@ char* get_expression(const List *expr) {
 
         if (!(leftResult && rightResult) || (opNode.type != N_TOKEN)) return (char *) EXPR_ERR;
 
-        result = malloc(strlen(leftResult) + strlen(rightResult) + 5);
+        result = allocMem(strlen(leftResult) + strlen(rightResult) + 5);
         strcpy(result, leftResult);
         switch (opNode.value.parseToken) {
             case PT_ADD:
@@ -228,7 +228,7 @@ char* get_expression(const List *expr) {
                 result = (char *) EXPR_ERR;
         }
     } else {
-        result = malloc(strlen(leftResult) + 4);
+        result = allocMem(strlen(leftResult) + 4);
         switch(opNode.value.parseToken) {
             case PT_NOT:
                 strcpy(result, "!");
