@@ -100,15 +100,15 @@ SymbolRecord * addConst(SymbolTable *symbolTable, char *name, int value, enum Sy
     return varSymRec;
 }
 
-SymbolTable *initSymbolTable(char *name, bool isGlobalTable) {
+SymbolTable *initSymbolTable(char *name, SymbolTable *parentTable) {
     SymbolTable *newTable = malloc(sizeof(SymbolTable));
     newTable->name = name;
+    newTable->parentTable = parentTable;
     newTable->firstSymbol = NULL;
     newTable->lastSymbol = NULL;
-    newTable->parentTable = NULL;
 
-    if (isGlobalTable) {
-        // add built-in symbols
+    if (parentTable == NULL) {
+        // add built-in symbols if this is the global table
         addConst(newTable, "false", 0, ST_BOOL, 0);
         addConst(newTable, "true",  1, ST_BOOL, 0);
     }

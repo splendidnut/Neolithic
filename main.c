@@ -199,7 +199,7 @@ int mainCompiler() {
 
     printf("\n");
     printf("Initializing symbol table\n");
-    mainSymbolTable = initSymbolTable("main", true);
+    mainSymbolTable = initSymbolTable("main", NULL);
 
     PreProcessInfo *preProcessInfo = preprocess(mainFileData);
     if (preProcessInfo->machine == Machine_Unknown) {
