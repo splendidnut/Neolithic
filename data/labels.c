@@ -3,7 +3,6 @@
 //
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "common/common.h"
@@ -27,7 +26,7 @@ void addToLabelList(Label *label) {
 }
 
 char *genLabelName() {
-    char *generatedName = allocMem(12);
+    char *generatedName = allocMem(6);
     sprintf(generatedName, "L%04X", labelCount);
     return generatedName;
 }
@@ -35,6 +34,7 @@ char *genLabelName() {
 Label * newGenericLabel(enum LabelType type) {
     Label *label = allocMem(sizeof(struct LabelStruct));
     label->name = genLabelName();
+    label->type = type;
     label->link = NULL;
     label->hasBeenReferenced = false;
     addToLabelList(label);
@@ -43,7 +43,7 @@ Label * newGenericLabel(enum LabelType type) {
 
 Label * newLabel(char* name, enum LabelType type) {
     Label *label = allocMem(sizeof(struct LabelStruct));
-    label->name = strdup(name);
+    label->name = name;
     label->type = type;
     label->link = NULL;
     label->hasBeenReferenced = false;

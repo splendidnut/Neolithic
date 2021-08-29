@@ -35,7 +35,7 @@ char* getDefName(List *def) {
 //-----------------------------------------------------
 
 SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierFlags modFlags) {
-    char *varName = strdup(varDef->nodes[1].value.str);
+    char *varName = varDef->nodes[1].value.str;
 
 #ifdef DEBUG_GEN_SYMBOLS
     printf("Variable: %s  ", varName);
@@ -271,7 +271,7 @@ int GS_Union(List *unionDef, SymbolTable *symbolTable, int ofs) {
 
     char *unionName = getDefName(unionDef);
     if (unionName != NULL) {
-        return GS_UnionWithName(varList, symbolTable, strdup(unionName), ofs);
+        return GS_UnionWithName(varList, symbolTable, unionName, ofs);
     } else {
         return GS_ProcessUnionList(symbolTable, varList, ofs);
     }
@@ -302,7 +302,7 @@ void GS_Enumeration(List *enumDef, SymbolTable *symbolTable) {
     int index = 2;
     while (index < enumCnt) {
         List *enumNode = enumDef->nodes[index].value.list;
-        char *enumName = strdup(enumNode->nodes[0].value.str);
+        char *enumName = enumNode->nodes[0].value.str;
         int enumValue = enumNode->nodes[1].value.num;
 
         addSymbolForEnumValue(symbolTable, enumName, enumValue);
@@ -318,7 +318,7 @@ void GS_Structure(List *structDef, SymbolTable *symbolTable) {
     bool isAnonymousSt = false;
 
     if (structDef->nodes[1].type == N_STR) {
-        structName = strdup(structDef->nodes[1].value.str);
+        structName = structDef->nodes[1].value.str;
     } else {
         structName = "__temp";
         isAnonymousSt = true;
@@ -459,7 +459,7 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
     SymbolRecord *funcSym;
     SymbolTable *paramListTbl = NULL;
     SymbolTable *localVarTbl = NULL;
-    char *funcName = strdup(funcDef->nodes[1].value.str);
+    char *funcName = funcDef->nodes[1].value.str;
 
     if (findSymbol(symbolTable, funcName)) {
         ErrorMessage("Duplicate function name", funcName, funcDef->lineNum);

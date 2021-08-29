@@ -99,8 +99,8 @@ char* GC_Asm_ParamExpr(List *paramExpr) {
     }
 }
 
-char *GC_Asm_getParamStr(ListNode instrParamNode, List *instr) {
-    char *paramStr;
+const char *GC_Asm_getParamStr(ListNode instrParamNode, List *instr) {
+    const char *paramStr;
     switch (instrParamNode.type) {
         case N_LIST:
             paramStr = GC_Asm_ParamExpr(instrParamNode.value.list);
@@ -113,12 +113,12 @@ char *GC_Asm_getParamStr(ListNode instrParamNode, List *instr) {
             // first, attempt to find label... if that fails, attempt to find the symbol
             Label *asmLabel = findLabel(instrParamNode.value.str);
             if (asmLabel) {
-                paramStr = strdup(asmLabel->name);
+                paramStr = asmLabel->name;
             } else {
                 SymbolRecord *varSym = lookupSymbolNode(instrParamNode, instr->lineNum);
                 if (varSym != NULL) {
                     paramAddrMode = (varSym->location < 256) ? ADDR_ZP : ADDR_ABS;
-                    paramStr = strdup(getVarName(varSym));
+                    paramStr = getVarName(varSym);
                 } else {
                     paramStr = "";
                 }
@@ -140,7 +140,7 @@ char *GC_Asm_getParamStr(ListNode instrParamNode, List *instr) {
  */
 void GC_AsmInstr(List *instr) {
     enum AddrModes addrMode = ADDR_NONE;
-    char *paramStr = NULL;
+    const char *paramStr = NULL;
 
     // need to reset these before every instruction
     param2 = NULL;

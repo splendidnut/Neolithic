@@ -6,8 +6,11 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "data/symbols.h"
+
 #include "eval_expr.h"
+#include "data/symbols.h"
+#include "data/identifiers.h"
+
 
 static SymbolTable *mainSymbolTable;
 static SymbolTable *localSymbolTable;
@@ -172,7 +175,7 @@ char* get_node(const ListNode node) {
                     result = "ERROR";
                 }
             } else {
-                result = strdup(node.value.str);
+                result = Ident_lookup(node.value.str);
             }
             break;
         default:

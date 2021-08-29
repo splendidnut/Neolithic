@@ -29,7 +29,7 @@ void GCT_FindFuncCalls(List *stmt, SymbolRecord *srcFunc) {
 
     ListNode opNode = stmt->nodes[0];
     if (isToken(opNode, PT_FUNC_CALL)) {
-        char *destFuncName = strdup(stmt->nodes[1].value.str);
+        char *destFuncName = stmt->nodes[1].value.str;
 #ifdef DEBUG_CALL_TREE
         printf("\tFound Call: %s\n", destFuncName);
 #endif

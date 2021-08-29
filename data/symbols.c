@@ -3,10 +3,9 @@
 //
 //   Code to handle symbol tables
 //
-//   At this point, it's a bit overly complicated, partially due to my attempt
-//   to keep this somewhat 16-bit-ish for old DOS compilers.  The other reason
-//   is due the hack job done when adding new features and some past attempts
-//   at reorganizing the code.
+//   At this point, it's a bit overly complicated, partially due to the
+//   hack job done when adding new features and some past attempts at
+//   reorganizing the code.
 //
 //   TODO:
 //      Cleanup!  Need to potentially rework/separate the Symbol flags into
@@ -291,7 +290,7 @@ void printSymbol(FILE *outputFile, const SymbolRecord *curSymbol, int indentLeve
     int indentSize = indentLevel * 2;
 
     // indent labels if indentLevel > 0
-    char *symName = allocMem(strlen(curSymbol->name) + indentSize + 1);
+    char symName[48];       // name buffer only used for print statement...
     if (indentLevel > 0) {
         for (int i=0; i<indentLevel*2; i++) symName[i] = ' ';
     }
@@ -329,7 +328,6 @@ void printSymbol(FILE *outputFile, const SymbolRecord *curSymbol, int indentLeve
             value,
             userTypeName);
 
-    free(symName);
 }
 
 void printSubSymbolSet(FILE *outputFile, SymbolRecord *curSymbol, int indentLevel);

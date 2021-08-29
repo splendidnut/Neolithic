@@ -117,7 +117,7 @@ void RemapLabel(InstrBlock *instrBlock, Label *oldLabel, Label *newLabel) {
         if (isBranch(curInstr->mne) || isJump) {
             if ((curInstr->paramName != NULL)
                 && (strncmp(curInstr->paramName, oldLabel->name, 30) == 0)) {
-                curInstr->paramName = strdup(newLabel->name);
+                curInstr->paramName = newLabel->name;
             }
         }
         if (curInstr->label != NULL && (strcmp(curInstr->label->name, oldLabel->name) == 0)) {

@@ -6,6 +6,7 @@
 #define MODULE_EVAL_EXPR_H
 
 #include <stdbool.h>
+#include "data/symbols.h"
 #include "data/syntax_tree.h"
 
 typedef struct {

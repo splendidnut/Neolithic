@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "common/common.h"
+#include "data/identifiers.h"
 #include "data/syntax_tree.h"
 #include "machine/machine.h"
 #include "parser/parser.h"
@@ -189,6 +191,8 @@ void generateCodeForDependencies(PreProcessInfo *preProcessInfo) {
 }
 
 int mainCompiler() {
+    reportMem();
+
     char* mainFileData = readSourceFile(inFileName);
     if (mainFileData == NULL) {
         printf("Unable to open file\n");
@@ -213,6 +217,8 @@ int mainCompiler() {
         loadAndParseAllDependencies(preProcessInfo);
     }
 
+    reportMem();
+
     if (GC_ErrorCount > 0) return -1;
 
     // now build AST and symbols for main file
@@ -223,6 +229,8 @@ int mainCompiler() {
 
     //--------------------------------------------------------
     //--- Now compile!
+
+    reportMem();
 
     generate_symbols(mainProgNode, mainSymbolTable);
     if (GC_ErrorCount > 0) return -1;               // abort if any issues when processing symbols

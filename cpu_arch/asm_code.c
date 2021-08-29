@@ -4,7 +4,6 @@
 
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 
@@ -85,14 +84,15 @@ enum MnemonicCode lookupMnemonic(char *name) {
     // exit early if name is longer than an opcode
     if (strlen(name) > 4) return MNE_NONE;
 
-    char *lookupName = strdup(name);
+    char lookupName[8];
     int i = 0;
 
     // convert to all uppercase (needed by lookup)
-    while (lookupName[i] != '\0') {
-        lookupName[i] = toupper(lookupName[i]);
+    while (name[i] != '\0') {
+        lookupName[i] = toupper(name[i]);
         i++;
     }
+    lookupName[i] = '\0';
 
     // try to find the opcode
     enum MnemonicCode mnemonicCode = MNE_NONE;
@@ -103,7 +103,6 @@ enum MnemonicCode lookupMnemonic(char *name) {
         }
     }
 
-    free(lookupName);
     return mnemonicCode;
 }
 

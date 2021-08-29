@@ -20,7 +20,7 @@
 #include <assert.h>
 
 #include "tokenize.h"
-
+#include "data/identifiers.h"
 
 /*------------------------------------------
      Local Variables
@@ -33,7 +33,6 @@ static int tokenIndex;
 static bool isFirstTokenOnLine;
 
 // keep track of program line info for error messages (currently ONLY for the tokenizer/parser)
-static char *curProgLine;       // contents of current program line
 static char *progLineStart;     // start in file buffer for current program line
 static int progLineNum;         // line number of current program line
 
@@ -169,15 +168,11 @@ void initTokenizer(char *theInputStr) {
 	tokenStorage = (TokenObject *)allocMem(TOKEN_LINE_LIMIT);
 	currentToken = tokenStorage;
 
-	// alloc memory for currentLine
-    curProgLine = (char *)allocMem(TOKEN_LINE_LIMIT + 10);        // Need space for Line Number
-
     isFirstTokenOnLine = true;
 }
 
 void killTokenizer() {
     /* dealloc currentToken */
-    free(curProgLine);
     free(currentToken);
 }
 
@@ -199,12 +194,6 @@ SourceCodeLine getProgramLineString() {
 
         while (progLineStart[col] != '\n' && col < (TOKEN_LINE_LIMIT - 2)) col++;
 
-        strncpy(curProgLine, progLineStart, col);
-        curProgLine[col] = '\n';
-        curProgLine[col + 1] = '\0';
-
-    } else {
-        curProgLine[0] = '\0';
     }
 
     // alright, we have all the information, package it up nicely for returning
@@ -362,18 +351,12 @@ TokenType getTokenSymbolType(TokenObject *token) {
 
 char * copyTokenStr(TokenObject *token) {
     assert(token != NULL);
-    char *copyOfTokenStr = (char *)allocMem(TOKEN_LENGTH_LIMIT);
-    strncpy(copyOfTokenStr, token->tokenStr, TOKEN_LENGTH_LIMIT - 2);
-    copyOfTokenStr[TOKEN_LENGTH_LIMIT-1] = '\0';
-    return copyOfTokenStr;
+    return Ident_add(token->tokenStr, NULL);
 }
 
 int copyTokenInt(TokenObject *token) {
     assert(token != NULL);
-    int resultInt = 0;
-    char str[11];
-    strncpy(str, token->tokenStr, 10);
-    return strToInt(str);
+    return strToInt(token->tokenStr);
 }
 
 //---------------------------------------------------------

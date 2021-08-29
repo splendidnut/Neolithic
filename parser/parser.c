@@ -726,7 +726,7 @@ ListNode parse_var_node(const char *baseType, const List *modList, const char *r
     if (regHint) {
         List *regHintList = createList(2);
         addNode(regHintList, createParseToken(PT_HINT));
-        addNode(regHintList, createStrNode(strdup(regHint)));
+        addNode(regHintList, createStrNode(regHint));
         addNode(typeList, createListNode(regHintList));
     }
 
