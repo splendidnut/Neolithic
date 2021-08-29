@@ -78,6 +78,21 @@ ListNode createAddrModeNode(enum AddrModes addrMode) {
     return result;
 }*/
 
+void unwarpNodeList(List *nodeList, ListNode *node) {
+    if (node->type != N_EMPTY) {
+        // process compound stmt - mainly for multiple vars declared on a single line (comma separated list)
+        if (isListNode((*node))) {
+            List *subNodeList = node->value.list;
+            for (int cnt=0; cnt<subNodeList->count; cnt++) {
+                addNode(nodeList, subNodeList->nodes[cnt]);
+            }
+        } else {
+            // add normal node to program (for most cases)
+            addNode(nodeList, *node);
+        }
+    }
+}
+
 
 bool isListNode(ListNode node) {
     return (node.type == N_LIST && node.value.list->nodes[0].type == N_LIST);
@@ -87,12 +102,35 @@ bool isToken(ListNode node, enum ParseToken parseToken) {
     return (node.type == N_TOKEN && node.value.parseToken == parseToken);
 }
 
+//---------------------------------------------
+//  List/Tree Memory allocator
+
+static int treeMemoryUsed = 0;
+static int treeListCount = 0;
+static int treeLargestChunk = 0;
+
+void *TREE_allocMem(int size) {
+    if (size > treeLargestChunk) treeLargestChunk = size;
+    treeMemoryUsed += size;
+    treeListCount++;
+    return malloc(size);
+}
+
+void TREE_freeMem(void *mem) {
+    free(mem);
+}
+
+void printParseTreeMemUsage() {
+    printf("\nParse Tree objects: %d", treeListCount);
+    printf("\nParse Tree largest object: %d", treeLargestChunk);
+    printf("\nParse Tree memory usage: %d\n", treeMemoryUsed);
+}
 
 //---------------------------------------------
 //   List methods
 
 List * createList(int initialSize) {
-    List* list = (List *)allocMem(sizeof(List) + (initialSize * sizeof(ListNode)));
+    List* list = (List *)TREE_allocMem(sizeof(List) + (initialSize * sizeof(ListNode)));
     list->count = 0;
     list->size = initialSize;
     list->hasNestedList = false;

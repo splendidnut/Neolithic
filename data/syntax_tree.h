@@ -53,10 +53,14 @@ extern ListNode createParseToken(enum ParseToken parseToken);
 extern ListNode createMnemonicNode(enum MnemonicCode mne);
 extern ListNode createAddrModeNode(enum AddrModes addrMode);
 
+extern void unwarpNodeList(List *nodeList, ListNode *node);
+
 extern bool isListNode(ListNode node);
 extern bool isToken(ListNode node, enum ParseToken parseToken);
 
 //--- List functions
+
+extern void printParseTreeMemUsage();
 
 extern List * createList(int initialSize);
 extern int getListCount(List *list);
