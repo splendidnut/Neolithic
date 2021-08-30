@@ -62,12 +62,12 @@ extern void printParseTreeMemUsage();
 
 extern List * createList(int initialSize);
 extern List * condenseList(List *inList);
-extern int getListCount(List *list);
 extern int canAddToList(List *list);
 extern int addNode(List *list, ListNode node);
-extern List *wrapNode(ListNode node);
 extern void unwarpNodeList(List *nodeList, ListNode *node);
 extern void reverseList(List *list);
+
+extern void showNode(FILE *outputFile, ListNode node, int indentLevel);
 extern void showList(FILE *outputFile, const List *list, int indentLevel);
 extern void destroyList(List *list);
 

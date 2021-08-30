@@ -109,7 +109,7 @@ void GC_LoadPrimitive(ListNode loadNode, enum SymbolType destType, int lineNum) 
     } else if (loadNode.type == N_INT) {
         ICG_LoadConst(loadNode.value.num, destSize);
     } else {
-        ErrorMessageWithList("Error loading primitive", wrapNode(loadNode));
+        ErrorMessageWithNode("Error loading primitive", loadNode, lineNum);
     }
 }
 
@@ -991,7 +991,7 @@ void GC_Compare(ListNode arg, int lineNum) {
             }
         } break;
         default:
-            ErrorMessageWithList("Unsupported compare op: ", wrapNode(arg));
+            ErrorMessageWithNode("Unsupported compare op: ", arg, lineNum);
     }
 }
 

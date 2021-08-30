@@ -18,9 +18,11 @@ int GC_ErrorCount = 0;
 //--- Error Handlers
 
 void ErrorMessageWithList(const char* errorMsg, const List *stmt) {
-    printf("ERROR on line %d: %s ", stmt->lineNum, errorMsg);
     if (stmt != NULL) {
+        printf("ERROR on line %d: %s ", stmt->lineNum, errorMsg);
         showList(stdout, stmt, 0);
+    } else {
+        printf("ERROR: %s", errorMsg);
     }
     printf("\n");
     GC_ErrorCount++;
@@ -28,7 +30,7 @@ void ErrorMessageWithList(const char* errorMsg, const List *stmt) {
 
 void ErrorMessageWithNode(const char* errorMsg, ListNode node, int lineNum) {
     printf("ERROR on line %d: %s ", lineNum, errorMsg);
-    showList(stdout, wrapNode(node), 0);
+    showNode(stdout, node, 0);
     printf("\n");
     GC_ErrorCount++;
 }

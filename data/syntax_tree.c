@@ -149,10 +149,6 @@ List * condenseList(List *inList) {
     return outList;
 }
 
-int getListCount(List *list) {
-    return (list->count);
-}
-
 int canAddToList(List *list) {
     return (list->count < list->size);
 }
@@ -167,12 +163,6 @@ int addNode(List *list, ListNode node) {
         if (node.type == N_LIST) list->hasNestedList = true;
     }
     return canAdd;
-}
-
-List *wrapNode(ListNode node) {
-    List *wrappedList = createList(1);
-    addNode(wrappedList, node);
-    return wrappedList;
 }
 
 void unwarpNodeList(List *nodeList, ListNode *node) {
@@ -204,8 +194,35 @@ void reverseList(List *list) {
     }
 }
 
+void showNode(FILE *outputFile, ListNode node, int indentLevel) {
+    switch (node.type) {
+        case N_LIST:
+            showList(outputFile, node.value.list, indentLevel + 1);
+            break;
+        case N_STR:
+            fprintf(outputFile, "'%s'", node.value.str);
+            break;
+        case N_CHAR:
+            fprintf(outputFile, "'%c'", node.value.ch);
+            break;
+        case N_EMPTY:
+            fprintf(outputFile, "EMPTY");
+            break;
+        case N_TOKEN:
+            fprintf(outputFile, "%s", getParseTokenName(node.value.parseToken));
+            break;
+        case N_MNE:
+            fprintf(outputFile, "%s", getMnemonicStr(node.value.mne));
+            break;
+        case N_ADDR_MODE:
+            fprintf(outputFile, "%s", getAddrModeSt(node.value.addrMode).name);
+            break;
+        default:
+            fprintf(outputFile, "%d", node.value.num);
+    }
+}
+
 void showList(FILE *outputFile, const List *list, int indentLevel) {
-    ListNode node;
     int index;
 
     // start of new ident level?
@@ -219,32 +236,7 @@ void showList(FILE *outputFile, const List *list, int indentLevel) {
         if (index>0) {
             fprintf(outputFile, ", ");
         }
-        node = list->nodes[index];
-        switch (node.type) {
-            case N_LIST:
-                showList(outputFile, node.value.list, indentLevel+1);
-                break;
-            case N_STR:
-                fprintf(outputFile, "'%s'",node.value.str);
-                break;
-            case N_CHAR:
-                fprintf(outputFile, "'%c'", node.value.ch);
-                break;
-            case N_EMPTY:
-                fprintf(outputFile, "EMPTY");
-                break;
-            case N_TOKEN:
-                fprintf(outputFile, "%s", getParseTokenName(node.value.parseToken));
-                break;
-            case N_MNE:
-                fprintf(outputFile, "%s", getMnemonicStr(node.value.mne));
-                break;
-            case N_ADDR_MODE:
-                fprintf(outputFile, "%s", getAddrModeSt(node.value.addrMode).name);
-                break;
-            default:
-                fprintf(outputFile, "%d",node.value.num);
-        }
+        showNode(outputFile, list->nodes[index], indentLevel);
     }
     fprintf(outputFile, ")");
 }
