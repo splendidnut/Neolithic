@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "common/common.h"
 #include "instrs.h"
@@ -24,6 +25,33 @@ LastRegisterUse lastUseForAReg;
 LastRegisterUse lastUseForXReg;
 LastRegisterUse lastUseForYReg;
 
+//---------------------------------------------
+//  Instruction List Memory allocator
+
+static unsigned int instrMemoryUsed = 0;
+static unsigned int instrMaxMemoryUsed = 0;
+static unsigned int instrListCount = 0;
+static unsigned int instrLargestChunk = 0;
+
+void *INSTR_allocMem(unsigned int size) {
+    if (size > instrLargestChunk) instrLargestChunk = size;
+    instrMemoryUsed += size;
+    if (instrMemoryUsed > instrMaxMemoryUsed) instrMaxMemoryUsed = instrMemoryUsed;
+    instrListCount++;
+    return malloc(size);
+}
+
+void INSTR_freeMem(List *mem) {
+    instrMemoryUsed -= (sizeof (List) + (mem->size * sizeof(ListNode)));
+    free(mem);
+}
+
+void printInstrListMemUsage() {
+    printf("\nInstruction List objects: %d", instrListCount);
+    printf("\nInstruction List largest object: %d bytes", instrLargestChunk);
+    printf("\nInstruction List memory usage: %d  (max: %d)\n", instrMemoryUsed, instrMaxMemoryUsed);
+}
+
 //---------------------------------------------------
 //   Instruction List handling
 
@@ -35,7 +63,7 @@ Label *curLabel;
 bool showCycles = false;
 
 Instr* startNewInstruction(enum MnemonicCode mne, enum AddrModes addrMode) {
-    Instr *newInstr = allocMem(sizeof(struct InstrStruct));
+    Instr *newInstr = INSTR_allocMem(sizeof(struct InstrStruct));
     newInstr->mne = mne;
     newInstr->addrMode = addrMode;
     newInstr->showCycles = showCycles;
@@ -50,8 +78,8 @@ Instr* startNewInstruction(enum MnemonicCode mne, enum AddrModes addrMode) {
  * @return pointer to new instruction node
  */
 Instr* IL_AddInstrS(enum MnemonicCode mne, enum AddrModes addrMode, const char *param1, const char *param2, enum ParamExt paramExt) {
+    assert(param1 != NULL);
     Instr *newInstr = startNewInstruction(mne, addrMode);
-    newInstr->usesVar = true;
     newInstr->paramName = param1;
     newInstr->param2 = param2;
     newInstr->paramExt = paramExt;
@@ -68,7 +96,6 @@ Instr* IL_AddInstrS(enum MnemonicCode mne, enum AddrModes addrMode, const char *
 
 Instr* IL_AddInstrN(enum MnemonicCode mne, enum AddrModes addrMode, int ofs) {
     Instr *newInstr = startNewInstruction(mne, addrMode);
-    newInstr->usesVar = false;
     newInstr->offset = ofs;
     newInstr->paramName = NULL;
     newInstr->paramExt = PARAM_NORMAL;
@@ -541,15 +568,15 @@ void ICG_Branch(enum MnemonicCode mne, const Label *label) {
 }
 
 void ICG_Not() {
-    IL_AddInstrS(EOR, ADDR_IMM, "$FF", NULL, PARAM_NORMAL);
+    IL_AddInstrN(EOR, ADDR_IMM, 0xFF);
 }
 
 void ICG_NotBool() {
-    IL_AddInstrS(EOR, ADDR_IMM, "$01", NULL, PARAM_NORMAL);
+    IL_AddInstrN(EOR, ADDR_IMM, 0x01);
 }
 
 void ICG_Negate() {
-    IL_AddInstrS(EOR, ADDR_IMM, "$FF", NULL, PARAM_NORMAL);
+    IL_AddInstrN(EOR, ADDR_IMM, 0xFF);
     IL_AddInstrN(CLC, ADDR_NONE, 0);
     IL_AddInstrN(ADC, ADDR_IMM, 1);
 }

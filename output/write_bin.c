@@ -124,7 +124,7 @@ int getInstrParamValue(const Instr *curOutInstr) {
 
     int paramValue;
 
-    if (!curOutInstr->usesVar) {
+    if (NOT_INSTR_USES_VAR(curOutInstr)) {
         paramValue = curOutInstr->offset;
         if (curOutInstr->addrMode == ADDR_REL) {
             paramValue -= 3;
@@ -208,7 +208,7 @@ void WriteBIN_FunctionBlock(const OutputBlock *block) {
                         printf("Relative to Current Address: %4X\n", writeAddr);
                     }
 #endif
-                    if (curOutInstr->usesVar) {
+                    if (DOES_INSTR_USES_VAR(curOutInstr)) {
                         paramValue -= writeAddr + 1;
                     } else {
                         paramValue += 1;

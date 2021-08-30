@@ -74,54 +74,50 @@ void WriteDASM_EndOfBank() {
 
 /**
  * Get the parameter string to use when outputting the ASM code for an instruction
- * @param instr
- * @return
+ *
+ * @param instr - instruction to pull parameters from
+ * @param paramStrBuffer - buffer to store parameter string
  */
 // PARAM_NORMAL,
 //    PARAM_LO = 0x1,           <param
 //    PARAM_HI = 0x2,           >param
 //    PARAM_ADD = 0x4,          (param1 + param2)
 //    PARAM_PLUS_ONE = 0x10     (param1 + param2 + 1)  -- special case
-char *getParamStr(const Instr *instr) {
+void LoadParamStr(const Instr *instr, char *paramStrBuffer) {
     bool isRel = (instr->addrMode == ADDR_REL);
     bool isPlusOne = (instr->paramExt & PARAM_PLUS_ONE);
-
-    int lenParam1 = (instr->paramName != NULL) ? strlen(instr->paramName) : 10;
-    int lenParam2 = (instr->param2 != NULL) ? strlen(instr->param2) : 0;
 
     // figure out which parameter to use (varName or offset)
     char *prefix = "";
     char *suffix = "";
-    if ((!instr->usesVar) && isRel) prefix = "*+";
+    if (NOT_INSTR_USES_VAR(instr) && isRel) prefix = "*+";
 
     if (instr->param2 || isPlusOne) {
         prefix = "[";
         suffix = isPlusOne ? "+1]" : "]";
     }
 
-    char *paramStr = allocMem(lenParam1 + lenParam2 + 10);  // 10 to given spacing for deliminators
-    paramStr[0] = '\0';
-    if (!instr->usesVar) {
-        strcat(paramStr, prefix);
-        strcat(paramStr, numToStr(instr->offset));
+    paramStrBuffer[0] = '\0';
+    if (NOT_INSTR_USES_VAR(instr)) {
+        strcat(paramStrBuffer, prefix);
+        strcat(paramStrBuffer, numToStr(instr->offset));
     } else {
         switch (instr->paramExt & 0x3) {
-            case PARAM_LO: strcat(paramStr, "<"); break;
-            case PARAM_HI: strcat(paramStr, ">"); break;
+            case PARAM_LO: strcat(paramStrBuffer, "<"); break;
+            case PARAM_HI: strcat(paramStrBuffer, ">"); break;
         }
-        strcat(paramStr, prefix);
-        strcat(paramStr, instr->paramName);
+        strcat(paramStrBuffer, prefix);
+        strcat(paramStrBuffer, instr->paramName);
     }
 
     // append 2nd parameter
     if (instr->param2 && (instr->paramExt & PARAM_ADD)) {
         if (instr->param2[0] != '-') {
-            strcat(paramStr, "+");
+            strcat(paramStrBuffer, "+");
         }
-        strcat(paramStr, instr->param2);
+        strcat(paramStrBuffer, instr->param2);
     }
-    strcat(paramStr, suffix);
-    return paramStr;
+    strcat(paramStrBuffer, suffix);
 }
 
 char *getOpExt(enum MnemonicCode mne, struct StAddressMode addressMode) {
@@ -155,19 +151,17 @@ void WriteDASM_OutputInstr(FILE *output, Instr *instr) {
     //----------------------------------------------
     //  Generate instruction line with parameters
 
-    char outStr[128], instrBuf[40];
+    char outStr[128], instrBuf[40], paramStrBuffer[80], instrParams[80];
+
     if (addressMode.mode != ADDR_NONE) {
         //----------------------------------
         // process parameters
-        char *paramStr = getParamStr(instr);
+        LoadParamStr(instr, paramStrBuffer);
         char *opExt = getOpExt(instr->mne, addressMode);
 
         // print out instruction line
-        char *instrParams = allocMem(80);
-        sprintf(instrParams, addressMode.format, paramStr);
+        sprintf(instrParams, addressMode.format, paramStrBuffer);
         sprintf(instrBuf, "%s%s  %s", instrName, opExt, instrParams);
-        free(instrParams);
-        free(paramStr);
     } else if (instr->mne == MNE_DATA) {
         sprintf(instrBuf, "%s $%2X", instrName, instr->offset);
     } else {

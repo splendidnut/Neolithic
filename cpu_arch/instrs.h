@@ -10,6 +10,8 @@
 
 #define CALC_ADDR_MODE(ofs) ((ofs) < 0x100 ? ADDR_ZP : ADDR_ABS)
 
+extern void printInstrListMemUsage();
+
 //----------------------------------------------
 //  Register-Use Tracking
 

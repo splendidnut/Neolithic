@@ -9,15 +9,18 @@
 #include "data/labels.h"
 #include "symbols.h"
 
+#define DOES_INSTR_USES_VAR(instr) ((instr)->paramName != NULL)
+#define NOT_INSTR_USES_VAR(instr) ((instr)->paramName == NULL)
 
 /**
  *  InstrStruct - Structure of a single assembly instruction (6502 based)
+ *
+ *  TODO: Optimize this structure
  */
 typedef struct InstrStruct {
     enum MnemonicCode mne;
     enum AddrModes addrMode;
     bool showCycles;            // TODO: maybe optimize this functionality later?
-    bool usesVar;
     int offset;
     const char *paramName;
 
