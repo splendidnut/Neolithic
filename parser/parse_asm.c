@@ -10,6 +10,7 @@
 #include "parse_asm.h"
 #include "parser.h"
 
+#define MAX_ASSEMBLY_STATEMENTS 300
 
 //-----------------------------------------------------------------
 
@@ -186,8 +187,9 @@ ListNode parse_pseudo_op() {
     }
 }
 
+
 ListNode parse_asmBlock() {
-    List *list = createList(200);
+    List *list = createList(MAX_ASSEMBLY_STATEMENTS);
     acceptToken(TT_ASM);
     addNode(list, createParseToken(PT_ASM));
 
@@ -220,5 +222,7 @@ ListNode parse_asmBlock() {
         }
     }
     acceptToken(TT_CLOSE_BRACE);
+
+    list = condenseList(list);
     return createListNode(list);
 }

@@ -29,6 +29,13 @@
 #include "parse_asm.h"
 #include "parse_directives.h"
 
+// These define the largest lists allocated during parsing
+#define MAX_STATEMENTS_IN_BLOCK 300
+#define MAX_PROG_DECLARATIONS 300
+#define STRUCT_VAR_LIMIT 200
+#define MAX_ITEMS_IN_LIST 257
+#define MAX_SWITCH_CASES 32
+
 //---------------------------
 //  Global variables
 
@@ -116,7 +123,7 @@ bool isClosingListToken(TokenObject *token) {
 }
 
 ListNode parse_list() {
-    List *items = createList(257);
+    List *items = createList(MAX_ITEMS_IN_LIST);
     addNode(items, createParseToken(PT_LIST));
 
     while (!isClosingListToken(peekToken())) {
@@ -125,6 +132,8 @@ ListNode parse_list() {
         acceptOptionalToken(TT_COMMA);
     }
     getToken(); // -- eat closing token
+
+    items = condenseList(items);
     return createListNode(items);
 }
 
@@ -278,6 +287,7 @@ ListNode parse_arguments() {
             acceptToken(TT_COMMA);
             addNode(list, parse_expr());
         }
+        list = condenseList(list);
         return createListNode(list);
     } else {
         return createEmptyNode();
@@ -864,7 +874,7 @@ ListNode parse_func_parameters(void) {
 
 ListNode parse_enum() {
     int currentEnumValue = 0;           // set initial enum value
-    List *enumList = createList(260);
+    List *enumList = createList(MAX_ITEMS_IN_LIST);
     acceptToken(TT_ENUM);
     addNode(enumList, createParseToken(PT_ENUM));
 
@@ -891,6 +901,8 @@ ListNode parse_enum() {
         acceptOptionalToken(TT_COMMA);
     }
     acceptToken(TT_CLOSE_BRACE);
+
+    enumList = condenseList(enumList);
     return createListNode(enumList);
 }
 
@@ -904,7 +916,6 @@ ListNode parse_enum() {
 //    union UnionTag { var; var; } varName/typeName;
 //
 
-#define STRUCT_VAR_LIMIT 200
 
 ListNode parse_structOrUnion();     // Forward Declaration
 
@@ -927,6 +938,7 @@ ListNode parse_struct_vars() {
 
         acceptOptionalToken(TT_SEMICOLON);
     }
+    varList = condenseList(varList);
     return createListNode(varList);
 }
 
@@ -1028,7 +1040,7 @@ ListNode parse_stmt_do() {
 // Parse switch statement:
 //    [switch, [expr], [case, value, [code]], [case, value, [code]], ..., [default, [code]] ]
 ListNode parse_stmt_switch() {
-    List *switchStmt = createList(20);
+    List *switchStmt = createList(MAX_SWITCH_CASES);
     acceptToken(TT_SWITCH);
     addNode(switchStmt, createParseToken(PT_SWITCH));
     acceptToken(TT_OPEN_PAREN);
@@ -1063,6 +1075,8 @@ ListNode parse_stmt_switch() {
         while (peekToken()->tokenType != TT_CLOSE_BRACE);
     }
     acceptToken(TT_CLOSE_BRACE);
+
+    switchStmt = condenseList(switchStmt);
     return createListNode(switchStmt);
 }
 
@@ -1134,7 +1148,7 @@ ListNode parse_stmt() {
 }
 
 ListNode parse_stmt_block(void) {
-    List *list = createList(300);   // TODO: need to make list auto expand!!!
+    List *list = createList(MAX_STATEMENTS_IN_BLOCK);   // TODO: maybe make list auto expand?
     addNode(list, createParseToken(PT_CODE));
 
     acceptToken(TT_OPEN_BRACE);
@@ -1162,6 +1176,7 @@ ListNode parse_stmt_block(void) {
     }
     acceptToken(TT_CLOSE_BRACE);
 
+    list = condenseList(list);
     return createListNode(list);
 }
 
@@ -1187,7 +1202,7 @@ ListNode parse_program(char *sourceCode) {
 
     ListNode progNode;
 
-    List *prog = createList(100);
+    List *prog = createList(MAX_PROG_DECLARATIONS);
     addNode(prog, createParseToken(PT_PROGRAM));
 
     char *tokenStr = (char *)allocMem(100);
@@ -1240,6 +1255,7 @@ ListNode parse_program(char *sourceCode) {
     killTokenizer();
 
     parserErrorCount = errorCount;
+    prog = condenseList(prog);
     progNode = createListNode(prog);
     return progNode;
 }

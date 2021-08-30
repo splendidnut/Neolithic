@@ -78,20 +78,6 @@ ListNode createAddrModeNode(enum AddrModes addrMode) {
     return result;
 }*/
 
-void unwarpNodeList(List *nodeList, ListNode *node) {
-    if (node->type != N_EMPTY) {
-        // process compound stmt - mainly for multiple vars declared on a single line (comma separated list)
-        if (isListNode((*node))) {
-            List *subNodeList = node->value.list;
-            for (int cnt=0; cnt<subNodeList->count; cnt++) {
-                addNode(nodeList, subNodeList->nodes[cnt]);
-            }
-        } else {
-            // add normal node to program (for most cases)
-            addNode(nodeList, *node);
-        }
-    }
-}
 
 
 bool isListNode(ListNode node) {
@@ -105,9 +91,9 @@ bool isToken(ListNode node, enum ParseToken parseToken) {
 //---------------------------------------------
 //  List/Tree Memory allocator
 
-static int treeMemoryUsed = 0;
-static int treeListCount = 0;
-static int treeLargestChunk = 0;
+static unsigned int treeMemoryUsed = 0;
+static unsigned int treeListCount = 0;
+static unsigned int treeLargestChunk = 0;
 
 void *TREE_allocMem(int size) {
     if (size > treeLargestChunk) treeLargestChunk = size;
@@ -116,7 +102,8 @@ void *TREE_allocMem(int size) {
     return malloc(size);
 }
 
-void TREE_freeMem(void *mem) {
+void TREE_freeMem(List *mem) {
+    treeMemoryUsed -= (sizeof (List) + (mem->size * sizeof(ListNode)));
     free(mem);
 }
 
@@ -137,6 +124,29 @@ List * createList(int initialSize) {
     list->lineNum = getProgLineNum();
     list->progLine = getProgramLineString();
     return list;
+}
+
+/**
+ * Return a condensed version of the provided list
+ *
+ * Takes provided list, copies everything to a new list that's just big enough
+ * to fit everything, and then frees the old list.
+ *
+ * @param inList
+ * @return condensed version of inList
+ */
+List * condenseList(List *inList) {
+    List *outList = createList(inList->count);
+    outList->count = inList->count;
+    outList->size = inList->size;
+    outList->hasNestedList = inList->hasNestedList;
+    outList->lineNum = inList->lineNum;
+    outList->progLine = inList->progLine;
+    for_range (cnt, 0, inList->count) {
+        outList->nodes[cnt] = inList->nodes[cnt];
+    }
+    TREE_freeMem(inList);
+    return outList;
 }
 
 int getListCount(List *list) {
@@ -164,6 +174,22 @@ List *wrapNode(ListNode node) {
     addNode(wrappedList, node);
     return wrappedList;
 }
+
+void unwarpNodeList(List *nodeList, ListNode *node) {
+    if (node->type != N_EMPTY) {
+        // process compound stmt - mainly for multiple vars declared on a single line (comma separated list)
+        if (isListNode((*node))) {
+            List *subNodeList = node->value.list;
+            for (int cnt=0; cnt<subNodeList->count; cnt++) {
+                addNode(nodeList, subNodeList->nodes[cnt]);
+            }
+        } else {
+            // add normal node to program (for most cases)
+            addNode(nodeList, *node);
+        }
+    }
+}
+
 
 void reverseList(List *list) {
     int startPoint = 1;
