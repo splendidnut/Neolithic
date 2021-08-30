@@ -26,8 +26,6 @@ typedef struct SOutputBlock {
         List *dataList;          // if data list
     };
 
-    // doubly-linked list (to make element swapping easier)
-    struct SOutputBlock *prevBlock;
     struct SOutputBlock *nextBlock;
 } OutputBlock;
 

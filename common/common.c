@@ -7,9 +7,9 @@
 #include <string.h>
 #include "common.h"
 
-static int memoryUsed = 0;
+static unsigned int memoryUsed = 0;
 
-void *allocMem(int size) {
+void *allocMem(unsigned int size) {
     memoryUsed += size;
     return malloc(size);
 }
@@ -73,7 +73,7 @@ char *getUnquotedString(const char *srcString) {
  */
 char *genFileName(const char *name, const char *ext) {
     // generate file name
-    int nameLen = strlen(name);
+    unsigned int nameLen = strlen(name);
 
     // strip off .c extension
     if ((name[nameLen-2] == '.') && (name[nameLen-1] == 'c')) {

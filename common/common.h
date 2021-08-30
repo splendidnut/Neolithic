@@ -30,7 +30,7 @@ typedef struct {
 
 extern CompilerOptions compilerOptions;
 
-extern void *allocMem(int size);
+extern void *allocMem(unsigned int size);
 extern void freeMem(void *mem);
 extern void reportMem();
 

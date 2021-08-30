@@ -92,12 +92,14 @@ bool isToken(ListNode node, enum ParseToken parseToken) {
 //  List/Tree Memory allocator
 
 static unsigned int treeMemoryUsed = 0;
+static unsigned int treeMaxMemoryUsed = 0;
 static unsigned int treeListCount = 0;
 static unsigned int treeLargestChunk = 0;
 
-void *TREE_allocMem(int size) {
+void *TREE_allocMem(unsigned int size) {
     if (size > treeLargestChunk) treeLargestChunk = size;
     treeMemoryUsed += size;
+    if (treeMemoryUsed > treeMaxMemoryUsed) treeMaxMemoryUsed = treeMemoryUsed;
     treeListCount++;
     return malloc(size);
 }
@@ -109,8 +111,8 @@ void TREE_freeMem(List *mem) {
 
 void printParseTreeMemUsage() {
     printf("\nParse Tree objects: %d", treeListCount);
-    printf("\nParse Tree largest object: %d", treeLargestChunk);
-    printf("\nParse Tree memory usage: %d\n", treeMemoryUsed);
+    printf("\nParse Tree largest object: %d bytes", treeLargestChunk);
+    printf("\nParse Tree memory usage: %d  (max: %d)\n", treeMemoryUsed, treeMaxMemoryUsed);
 }
 
 //---------------------------------------------
