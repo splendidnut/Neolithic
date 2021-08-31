@@ -94,12 +94,13 @@ OutputBlock *OB_AddData(SymbolRecord *dataSym, char *name, List *dataList) {
 
 void OB_PrintBlockList() {
     OutputBlock *block = firstBlock;
-    printf("%-30s  addr  size  bank\n", "Block Name");
-    printf("------------------------------------------------------\n");
+    printf("%-32s  addr   end    size  bank\n", "Block Name");
+    printf("-----------------------------------------------------------\n");
     while (block != NULL) {
-        printf("%-30s  %04X  %04X   %02X\n",
+        printf("%-32s  %04X - %04X   %04X   %02X\n",
                 block->blockName,
                 block->blockAddr,
+               (block->blockAddr + block->blockSize - 1),
                 block->blockSize,
                 block->bankNum);
         block = block->nextBlock;
