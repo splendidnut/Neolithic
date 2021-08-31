@@ -30,10 +30,7 @@ extern struct OutputAdapter DASM_Adapter;
 
 //-----------------------
 
-extern void WO_Init(char *projectName, enum OutputType outputType, SymbolTable *mainSymTbl);
-extern void WO_Done();
-extern void WO_PrintSymbolTable(SymbolTable *workingSymbolTable, char *symTableName);
-extern void WO_WriteAllBlocks();
+extern void WriteOutput(char *projectName, enum OutputType outputType, SymbolTable *mainSymTbl);
 
 
 #endif //MODULE_WRITE_OUTPUT_H

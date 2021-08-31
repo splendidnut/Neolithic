@@ -9,7 +9,6 @@
 #include <string.h>
 
 #include "common/common.h"
-#include "data/identifiers.h"
 #include "data/syntax_tree.h"
 #include "machine/machine.h"
 #include "parser/parser.h"
@@ -23,8 +22,6 @@
 #include "output/write_output.h"
 
 const char *verStr = "0.2(alpha)";
-
-//#define DEBUG
 
 //-------------------------------------------
 //  Global Variables
@@ -191,8 +188,6 @@ void generateCodeForDependencies(PreProcessInfo *preProcessInfo) {
 }
 
 int mainCompiler() {
-    reportMem();
-
     char* mainFileData = readSourceFile(inFileName);
     if (mainFileData == NULL) {
         printf("Unable to open file\n");
@@ -254,44 +249,25 @@ int mainCompiler() {
         generateCodeForDependencies(preProcessInfo);
     }
 
-    //----- Compile main file
-    ListNode progNode = SourceFileList_lookupAST(inFileName);
-
     //------------------------------------------
-    // Output ASM code and SYM file
+    //----- Compile main file
 
     printf("Compiling main program %s\n", inFileName);
-
-    WO_Init(projectName, OUT_DASM, mainSymbolTable);
-
-    // this needs to be done before the program is processed
-    //  because the Code Generator makes changes to the symbol table
-    //    (adds static data structures)
-
-    WO_PrintSymbolTable(mainSymbolTable, "Main");
-
+    ListNode progNode = SourceFileList_lookupAST(inFileName);
     generate_code(inFileName, progNode, mainSymbolTable);
 
-    // need to add error check here
     if (GC_ErrorCount == 0) {
         //OPT_RunOptimizer();
-        WO_WriteAllBlocks();    // output all the code and the variables
-
         printf("Output layout:\n");
         OB_PrintBlockList();
+
+        //------------------------------------------
+        // Output ASM code and BIN file
+
+        WriteOutput(projectName, OUT_DASM, mainSymbolTable);
+        WriteOutput(projectName, OUT_BIN, mainSymbolTable);
     } else {
         printf("Unable to process program due to errors\n");
-    }
-
-    WO_Done();
-
-    //----------------------------------------
-    //  Output binary
-
-    if (GC_ErrorCount == 0) {
-        WO_Init(projectName, OUT_BIN, mainSymbolTable);
-        WO_WriteAllBlocks();
-        WO_Done();
     }
 
     //--- Finish off by outputting the symbol table
@@ -309,31 +285,79 @@ int mainCompiler() {
 }
 
 
+//------------------------------------------------------------------------------------------
+
+bool showMemoryUsage;
+enum Machines targetMachine;
+
+void reportMemoryUsage() {
+    printf("\n\nsizeof SymbolRecord = %d\n", sizeof(SymbolRecord));
+    printf("sizeof SymbolExtStruct = %d\n", sizeof(struct SymbolExtStruct));
+    printf("sizeof LabelStruct = %d\n", sizeof(struct LabelStruct));
+    printf("sizeof ListStruct = %d\n", sizeof(struct ListStruct));
+    printf("sizeof ListNode = %d\n", sizeof(ListNode));
+
+    printParseTreeMemUsage();
+
+    printInstrListMemUsage();
+
+    //printHashTable();
+
+    printf("Other ");
+    reportMem();
+}
+
+void setDefaultCompilerParameters() {
+    showMemoryUsage = false;
+    compilerOptions.entryPointFuncName = "main";
+    targetMachine = Atari2600;
+}
+
+
+void parseCommandLineParameters(int argc, char *argv[]) {
+    // argv[0] = full path to executable? (path + name)  TODO: might just be portion of command line used to call exe
+    // argv[1] = (infile)
+    // argv[2++] = params
+
+    // Process any command line parameters
+    for (int c=2; c<argc; c++) {
+        char *cmdParam = argv[c];
+
+        if ((cmdParam[0] == '-') && (cmdParam[1] != 0)) switch(cmdParam[1]) {
+            case 'm':
+                showMemoryUsage = true;
+                printf("Show memory usage: ON\n");
+                break;
+            case 'e':
+                printf("Change entry point name to: %s\n", (cmdParam + 2));
+            default:
+                printf("Arg %d: %s\n", c, cmdParam);
+        }
+    }
+}
 
 int main(int argc, char *argv[]) {
     printf("Neolithic Compiler v%s - Simplified C Cross-compiler for the 6502\n", verStr);
 
-#ifndef DEBUG
     if (argc < 2) {
         printf("Usage:\tneolithic (infile)\n");
         return -1;
     }
+    // TODO: split directory from file name, if any
     projectDir = "";
     projectName = argv[1];
-#endif
-
-#ifdef DEBUG
-    projectDir = "/Users/pblackman/projects/neolithic/";
-    projectName = "bca";
-#endif
 
     inFileName = genFileName(projectName, ".c");
 
-    compilerOptions.entryPointFuncName = "main";
+    // Process Compiler Parameters
+    setDefaultCompilerParameters();
+    if (argc > 2) parseCommandLineParameters(argc, argv);
 
-    prepForMachine(Atari2600);
-    int result = mainCompiler();
+    prepForMachine(targetMachine);
 
-    free(compilerOptions);
+    int result = mainCompiler();        // Call the main compiler
+
+    if (showMemoryUsage) reportMemoryUsage();
+
     return result;
 }

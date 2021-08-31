@@ -138,10 +138,10 @@ char *getOpExt(enum MnemonicCode mne, struct StAddressMode addressMode) {
  * @param output
  * @param instr
  */
+static int runningCycleCount = 0;
 void WriteDASM_OutputInstr(FILE *output, Instr *instr) {
     struct StAddressMode addressMode = getAddrModeSt(instr->addrMode);
     char *instrName = getMnemonicStr(instr->mne);
-    static int runningCycleCount = 0;
 
     // first print any label
     if (instr->label != NULL) {
@@ -213,60 +213,33 @@ void WriteDASM_CodeBlock(InstrBlock *instrBlock, FILE *output) {
 //---------------------------------------------------------
 //  Symbol Table handling
 
-/**
- * Output Symbol Table
- * @param workingSymbolTable
- */
-
-void WriteDASM_PrintConstantSymbols(SymbolTable *workingSymbolTable) {
+void WO_PrintSymbolTable(SymbolTable *workingSymbolTable, char *symTableName) {
     SymbolRecord *curSymbol = workingSymbolTable->firstSymbol;
+    if (curSymbol == NULL) return;
 
-    int constSymbolCount = 0;
-    while (curSymbol != NULL) {
-        if (isSimpleConst(curSymbol)) {
-            constSymbolCount++;
-        }
-        curSymbol = curSymbol->next;
-    }
-    if (constSymbolCount > 0) {
-        curSymbol = workingSymbolTable->firstSymbol;
-        fprintf(outputFile, " ;-- Constants\n");
-        while (curSymbol != NULL) {
-            if (isSimpleConst(curSymbol)) {
-                if (IS_LOCAL(curSymbol)) {
-                    fprintf(outputFile, ".");
-                }
-                fprintf(outputFile, "%-20s = $%02X  ;--%s\n",
-                        curSymbol->name,
-                        curSymbol->constValue,
-                        curSymbol->constEvalNotes);
-            }
-            curSymbol = curSymbol->next;
-        }
-    }
-    fprintf(outputFile, "\n");
-}
+    //---- count symbols that are not functions (vars and consts separately)
 
-void WriteDASM_PrintSymbolTable(SymbolTable *workingSymbolTable, char *symTableName) {
-    SymbolRecord *curSymbol = workingSymbolTable->firstSymbol;
-
-    //---- count symbols that are not functions
     int countSymbols = 0;
+    int constSymbolCount = 0;
+
     while (curSymbol != NULL) {
         if (!isFunction(curSymbol)) countSymbols++;
+        if (isSimpleConst(curSymbol)) constSymbolCount++;
         curSymbol = curSymbol->next;
     }
 
+
     // ---- print all symbols if there are any
-    curSymbol = workingSymbolTable->firstSymbol;
-    if ((curSymbol != NULL) && (countSymbols > 0)) {
+    if (countSymbols > 0) {
+        curSymbol = workingSymbolTable->firstSymbol;
+
         fprintf(outputFile, " ;-- %s Variables\n", symTableName);
         while (curSymbol != NULL) {
             int loc = curSymbol->location;
 
             if (IS_LOCAL(curSymbol)
-                    && !isSimpleConst(curSymbol)
-                    && (!IS_ALIAS(curSymbol))) {                       // locale function vars
+                && !isSimpleConst(curSymbol)
+                && (!IS_ALIAS(curSymbol))) {                       // locale function vars
                 fprintf(outputFile, ".%-20s = $%02X\n",
                         curSymbol->name,
                         curSymbol->location);
@@ -286,18 +259,37 @@ void WriteDASM_PrintSymbolTable(SymbolTable *workingSymbolTable, char *symTableN
         };
     }
     fprintf(outputFile, "\n");
-    WriteDASM_PrintConstantSymbols(workingSymbolTable);
+
+    if (constSymbolCount > 0) {
+        curSymbol = workingSymbolTable->firstSymbol;
+        fprintf(outputFile, " ;-- Constants\n");
+        while (curSymbol != NULL) {
+            if (isSimpleConst(curSymbol)) {
+                if (IS_LOCAL(curSymbol)) {
+                    fprintf(outputFile, ".");
+                }
+                fprintf(outputFile, "%-20s = $%02X  ;--%s\n",
+                        curSymbol->name,
+                        curSymbol->constValue,
+                        curSymbol->constEvalNotes);
+            }
+            curSymbol = curSymbol->next;
+        }
+    }
+    fprintf(outputFile, "\n");
 }
+
+
 
 void WriteDASM_FuncSymTables(SymbolRecord *funcSym) {// add the symbol (local/param) tables to the output code
     SymbolExt* funcExt = funcSym->funcExt;
     SymbolTable *funcSymbols = funcExt->localSymbolSet;
     SymbolTable *funcParams = funcExt->paramSymbolSet;
     if (funcSymbols != NULL) {
-        WriteDASM_PrintSymbolTable(funcSymbols, "Local");
+        WO_PrintSymbolTable(funcSymbols, "Local");
     }
     if (funcParams != NULL) {
-        WriteDASM_PrintSymbolTable(funcParams, "Parameter");
+        WO_PrintSymbolTable(funcParams, "Parameter");
     }
 }
 
@@ -332,6 +324,7 @@ void WriteDASM_Init(FILE *outFile, SymbolTable *mainSymTbl) {
     // print preamble
     if (outputFile != stdout) {
         fprintf(outputFile, "\t\tprocessor 6502\n\n");
+        WO_PrintSymbolTable(mainSymbolTable, "Main");
         WriteDASM_StartOfBank();
     }
 }
