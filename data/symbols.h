@@ -90,7 +90,7 @@ enum VarHint {
 
 typedef struct SymbolRecordStruct {     // 112 bytes!
     //--- definition
-    char name[SYMBOL_NAME_LIMIT];
+    char *name;
     enum SymbolKind kind;
     unsigned int flags;                 // ModifierFlags + SymbolType
     int numElements;                  // number of elements (if array/object)
@@ -140,9 +140,11 @@ typedef struct SymbolExtStruct {
     int funcDepth;
     int cntParams;
     int localVarMemUsed;   // local variable memory required
+    /*
     bool isInlined;
     struct ListStruct *inlinedCode; // source of function code (for use with inlining)
     struct InstrStruct *instrList;  // compiled function code as instruction list
+     */
     struct InstrBlockStruct *instrBlock;
 
     struct SymbolTableStruct *paramSymbolSet;

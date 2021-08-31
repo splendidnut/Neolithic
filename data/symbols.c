@@ -19,12 +19,6 @@
 #include "symbols.h"
 #include "data/instr_list.h"
 
-/*-------------------------------------*/
-/*   Internal functions declarations   */
-
-static SymbolRecord * newSymbol(char *tname, enum SymbolKind kind, enum SymbolType type, unsigned int flags);
-
-
 
 //--------------------------------------------------------
 //--- Symbol Kind code
@@ -83,6 +77,23 @@ enum SymbolType getSymbolType(const char *baseType) {
             symbolType = SymbolTypes[index].type;
     }
     return symbolType;
+}
+
+//-----------------------------------------------------------------------
+//   Internal function
+//-----------------------------------------------------------------------
+
+SymbolRecord * newSymbol(char *tname, enum SymbolKind kind, enum SymbolType type, unsigned int flags) {
+    SymbolRecord *newSymbol = (SymbolRecord *)allocMem(sizeof(SymbolRecord));
+    memset(newSymbol, 0, sizeof(SymbolRecord));
+
+    newSymbol->name = tname;
+    newSymbol->kind = kind;
+    newSymbol->flags = flags | type;
+    newSymbol->location = -1;           // indicate that location has not been set
+    newSymbol->constEvalNotes = "";
+
+    return newSymbol;
 }
 
 
@@ -211,7 +222,10 @@ void addSymbolExt(SymbolRecord *funcSym, SymbolTable *paramTbl, SymbolTable *loc
 SymbolRecord * findSymbol(SymbolTable *symbolTable, const char* name) {
     if (name[0] == '\0') return NULL;
     SymbolRecord *curSymbol = symbolTable->firstSymbol;
-    while (curSymbol && strncmp(curSymbol->name, name, SYMBOL_NAME_LIMIT) != 0) {
+    while (curSymbol != NULL) {
+        char *curName = curSymbol->name;
+        if (curName && (strncmp(curSymbol->name, name, SYMBOL_NAME_LIMIT) == 0))
+            return curSymbol;
         curSymbol = curSymbol->next;
     }
     return curSymbol;
@@ -394,26 +408,6 @@ void showSymbolTable(FILE *outputFile, SymbolTable *symbolTable) {
     }
     fprintf(outputFile, "\n");
 }
-
-
-
-//-----------------------------------------------------------------------
-//   Internal functions
-
-
-SymbolRecord * newSymbol(char *tname, enum SymbolKind kind, enum SymbolType type, unsigned int flags) {
-    SymbolRecord *newSymbol = (SymbolRecord *)allocMem(sizeof(SymbolRecord));
-    memset(newSymbol, 0, sizeof(SymbolRecord));
-
-    strncpy(newSymbol->name, tname, SYMBOL_NAME_LIMIT);
-    newSymbol->kind = kind;
-    newSymbol->flags = flags | type;
-    newSymbol->location = -1;           // indicate that location has not been set
-    newSymbol->constEvalNotes = "";
-
-    return newSymbol;
-}
-
 
 bool isStructDefined(const SymbolRecord *structSymbol) {
     return (structSymbol && structSymbol->funcExt && structSymbol->funcExt->paramSymbolSet);
