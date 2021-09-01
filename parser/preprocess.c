@@ -80,6 +80,7 @@ void PP_Directive(char *curLine, PreProcessInfo *preProcessInfo) {
 PreProcessInfo * preprocess(char *inFileStr) {
     PreProcessInfo *preProcessInfo = allocMem(sizeof(PreProcessInfo));
     preProcessInfo->numFiles = 0;
+    preProcessInfo->machine = 0;
 
     printf("Pre-processing...\n");
 
