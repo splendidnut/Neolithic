@@ -5,6 +5,8 @@
 #ifndef MODULE_COMMON_H
 #define MODULE_COMMON_H
 
+#include <stdbool.h>
+
 // Fun macro for doing a simple 'for' loop
 // TODO: Maybe add to Neolithic language spec?
 
@@ -26,6 +28,10 @@ typedef struct {
 
 typedef struct {
     char *entryPointFuncName;
+    bool showCallTree;
+    bool showVarAllocations;
+    bool showOutputBlockList;
+    char maxFuncCallDepth;
 } CompilerOptions;
 
 extern CompilerOptions compilerOptions;

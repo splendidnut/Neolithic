@@ -258,8 +258,11 @@ int mainCompiler() {
 
     if (GC_ErrorCount == 0) {
         //OPT_RunOptimizer();
-        printf("Output layout:\n");
-        OB_PrintBlockList();
+
+        if (compilerOptions.showOutputBlockList) {
+            printf("Output layout:\n");
+            OB_PrintBlockList();
+        }
 
         //------------------------------------------
         // Output ASM code and BIN file
@@ -308,11 +311,53 @@ void reportMemoryUsage() {
 }
 
 void setDefaultCompilerParameters() {
+    targetMachine = Atari2600;
+
     showMemoryUsage = false;
     compilerOptions.entryPointFuncName = "main";
-    targetMachine = Atari2600;
+
+    compilerOptions.showCallTree = false;
+    compilerOptions.maxFuncCallDepth = 3;
+
+    compilerOptions.showVarAllocations = false;
+
+    compilerOptions.showOutputBlockList = false;
 }
 
+/**
+ * Parse command line parameters
+ *
+ * Potential options:
+ *   -a (analyze) (assembly)
+ *   -b (build) (binary)
+ *   -c (config)
+ *   -d (debug)
+ *   -e (entry-point) (error)
+ *   -f (function map)
+ *   -g (generate)  (a=assembly, b=binary)
+ *   -h (HELP)
+ *   -i (info) (include)
+ *   -j
+ *   -k
+ *   -l (layout)
+ *   -m (machine) (module) (memory)
+ *   -n
+ *   -o (optimize) (output)
+ *   -p (project)
+ *   -q (quiet)
+ *   -r (report)
+ *   -s (show) (set)
+ *   -t (target)
+ *   -u
+ *   -v (view) (variables)
+ *   -w (warnings)
+ *   -x
+ *   -y
+ *   -z
+ *
+ * @param argc
+ * @param argv
+ */
 
 void parseCommandLineParameters(int argc, char *argv[]) {
     // argv[0] = full path to executable? (path + name)  TODO: might just be portion of command line used to call exe
@@ -324,17 +369,32 @@ void parseCommandLineParameters(int argc, char *argv[]) {
         char *cmdParam = argv[c];
 
         if ((cmdParam[0] == '-') && (cmdParam[1] != 0)) switch(cmdParam[1]) {
+            case 'e':
+                printf("Change entry point name to: %s\n", (cmdParam + 2));
+                break;
+            case 'f':
+                printf("Show function map: ON\n");
+                compilerOptions.showCallTree = true;
+                break;
+            case 'l':
+                printf("Show output block layout: ON\n");
+                compilerOptions.showOutputBlockList = true;
+                break;
             case 'm':
                 showMemoryUsage = true;
                 printf("Show memory usage: ON\n");
                 break;
-            case 'e':
-                printf("Change entry point name to: %s\n", (cmdParam + 2));
+            case 'v':
+                printf("Show variable allocation info: ON\n");
+                compilerOptions.showVarAllocations = true;
+                break;
             default:
                 printf("Arg %d: %s\n", c, cmdParam);
         }
     }
 }
+
+//------------------------------------------------------
 
 int main(int argc, char *argv[]) {
     printf("Neolithic Compiler v%s - Simplified C Cross-compiler for the 6502\n", verStr);

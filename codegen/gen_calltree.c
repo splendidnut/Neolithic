@@ -8,7 +8,6 @@
 //
 
 #include <stdio.h>
-#include <string.h>
 
 #include "common/common.h"
 #include "gen_calltree.h"
@@ -16,7 +15,6 @@
 
 static SymbolTable *mainSymTable;
 
-#define DEBUG_CALL_TREE
 
 //-------------------------------------------------------------------------
 //  Build a call tree to figure out function depths
@@ -30,9 +28,6 @@ void GCT_FindFuncCalls(List *stmt, SymbolRecord *srcFunc) {
     ListNode opNode = stmt->nodes[0];
     if (isToken(opNode, PT_FUNC_CALL)) {
         char *destFuncName = stmt->nodes[1].value.str;
-#ifdef DEBUG_CALL_TREE
-        printf("\tFound Call: %s\n", destFuncName);
-#endif
         SymbolRecord *destFuncSym = findSymbol(mainSymTable, destFuncName);
         FM_addCallToMap(srcFunc, destFuncSym);
     }
@@ -71,9 +66,6 @@ void GCT_Function(List *statement, int codeNodeIndex) {
     if (statement->count >= codeNodeIndex) {
         ListNode codeNode = statement->nodes[codeNodeIndex];
         if (codeNode.type == N_LIST) {
-#ifdef DEBUG_CALL_TREE
-            printf("Processing function: %s\n", funcName);
-#endif
             SymbolRecord *funcSym = findSymbol(mainSymTable, funcName);
             GCT_CodeBlock(codeNode.value.list, funcSym);
         }
@@ -107,12 +99,14 @@ void generate_callTree(ListNode node, SymbolTable *symbolTable) {
     List *program = node.value.list;
     if (program->nodes[0].value.parseToken == PT_PROGRAM) {
         GCT_Program(program);
+
         int callTreeDepth = FM_calculateCallTree();
-        if (callTreeDepth > 3) {
+        if (callTreeDepth > compilerOptions.maxFuncCallDepth) {
             printf("WARNING: Call tree is very Deep\n");
         }
-#ifdef DEBUG_CALL_TREE
-        FM_displayCallTree();
-#endif
+
+        if (compilerOptions.showCallTree) {
+            FM_displayCallTree();
+        }
     }
 }

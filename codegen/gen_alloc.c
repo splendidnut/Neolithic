@@ -85,9 +85,11 @@ void collectFunctionsInOrder(const SymbolTable *symbolTable) {
     qsort(depthSymbolList, cntDepthSymbols, sizeof(DepthSymbolRecord), cmp_depths);
 
     //--- now print the list
-    printf("Collected functions (sorted):\n");
-    for (int idx = 0; idx < cntDepthSymbols; idx++) {
-        printf("  %d %s\n", depthSymbolList[idx].depth, depthSymbolList[idx].symbol->name);
+    if (compilerOptions.showCallTree) {
+        printf("Collected functions (sorted by depth):\n");
+        for (int idx = 0; idx < cntDepthSymbols; idx++) {
+            printf("  %d %s\n", depthSymbolList[idx].depth, depthSymbolList[idx].symbol->name);
+        }
     }
 }
 
@@ -118,7 +120,9 @@ int calcStorageNeeded(const SymbolTable *symbolTable) {
  * @return
  */
 void allocateVarStorage(const SymbolTable *symbolTable) {
-    printf("\nVariables for %s\n", (symbolTable->name != NULL ? symbolTable->name : "(none)"));
+    if (compilerOptions.showVarAllocations) {
+        printf("\nVariables for %s\n", (symbolTable->name != NULL ? symbolTable->name : "(none)"));
+    }
     SymbolRecord *curSymbol = symbolTable->firstSymbol;
     while (curSymbol != NULL) {
 
@@ -132,7 +136,9 @@ void allocateVarStorage(const SymbolTable *symbolTable) {
             MemoryAllocation newVarAlloc = SMA_allocateMemory(memoryArea, varSize);
             setSymbolLocation(curSymbol, newVarAlloc.addr, isZP ? SS_ZEROPAGE : SS_ABSOLUTE);
 
-            printf("\t%s allocated at %4X\n", curSymbol->name, newVarAlloc.addr);
+            if (compilerOptions.showVarAllocations) {
+                printf("\t%s allocated at %4X\n", curSymbol->name, newVarAlloc.addr);
+            }
 
         }
         curSymbol = curSymbol->next;
@@ -146,11 +152,15 @@ void allocateVarStorage(const SymbolTable *symbolTable) {
  *
  */
 void allocateStackFrameStorage() {
-    printf("\nStack Frames:\n");
+    if (compilerOptions.showVarAllocations) {
+        printf("\nStack Frames:\n");
+    }
     for_range(frmNum, 0, MAX_STACK_FRAMES-1) if (stackSizes[frmNum] > 0) {
         MemoryAllocation newVarAlloc = SMA_allocateMemory(0, stackSizes[frmNum]);
         stackLocs[frmNum] = newVarAlloc.addr;
-        printf("\tFrame %d allocated %2d bytes at %4X\n", frmNum, stackSizes[frmNum], newVarAlloc.addr);
+        if (compilerOptions.showVarAllocations) {
+            printf("\tFrame %d allocated %2d bytes at %4X\n", frmNum, stackSizes[frmNum], newVarAlloc.addr);
+        }
     }
 }
 
@@ -163,7 +173,9 @@ void allocateStackFrameStorage() {
  * @return
  */
 int allocateLocalVarStorage(const SymbolTable *symbolTable, int curMemloc) {
-    printf("\nVariables for %s\n", (symbolTable->name != NULL ? symbolTable->name : "(none)"));
+    if (compilerOptions.showVarAllocations) {
+        printf("\nVariables for %s\n", (symbolTable->name != NULL ? symbolTable->name : "(none)"));
+    }
     SymbolRecord *curSymbol = symbolTable->firstSymbol;
     while (curSymbol != NULL) {
 
@@ -174,7 +186,9 @@ int allocateLocalVarStorage(const SymbolTable *symbolTable, int curMemloc) {
             int varSize = calcVarSize(curSymbol);
             curMemloc += varSize;
 
-            printf("\t%-20s allocated at %4X\n", curSymbol->name, startLoc);
+            if (compilerOptions.showVarAllocations) {
+                printf("\t%-20s allocated at %4X\n", curSymbol->name, startLoc);
+            }
         }
         curSymbol = curSymbol->next;
     }
@@ -198,7 +212,9 @@ void allocateLocalVars() {
  *
  */
 void calcLocalVarAllocs() {
-    printf("\nCalculate Local Variable allocations\n");
+    if (compilerOptions.showVarAllocations) {
+        printf("\nCalculate Local Variable allocations\n");
+    }
 
     // Walk thru all functions needing local frame for local vars
     int lastDepth = 20;
@@ -211,7 +227,9 @@ void calcLocalVarAllocs() {
         if (depth < lastDepth) {
             lastDepth = depth;
             lastStackSize += stackSizes[depth+1];
-            printf(" @Depth: %d  -- Current Stack Size %d\n", depth, lastStackSize);
+            if (compilerOptions.showVarAllocations) {
+                printf(" @Depth: %d  -- Current Stack Size %d\n", depth, lastStackSize);
+            }
         }
 
         // figure out if this function calls other functions
@@ -238,22 +256,23 @@ void calcLocalVarAllocs() {
         }
 
         //  DEBUG
+        if (compilerOptions.showVarAllocations) {
 #ifdef DEBUG_ALLOCATOR
-        printf("  Func %-20s (calls %d funcs) needs %d bytes for locals\n",
-               curSymbol->name,
-               funcsCalled,
-               localMemNeeded);
+            printf("  Func %-20s (calls %d funcs) needs %d bytes for locals\n",
+                   curSymbol->name,
+                   funcsCalled,
+                   localMemNeeded);
 #endif
+        }
     }
 }
 
 void generate_var_allocations(SymbolTable *symbolTable) {
-    printf("Allocating memory for variables\n");
+    collectFunctionsInOrder(symbolTable);
 
     // allocate global variables
+    printf("Allocating memory for variables\n");
     allocateVarStorage(symbolTable);
-
-    collectFunctionsInOrder(symbolTable);
 
     // now process all function local variables
     initStackFrames();

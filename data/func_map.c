@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 
 #include "func_map.h"
 
@@ -38,11 +37,6 @@ FuncCallMapEntry * FM_addNewFunc(char *srcName) {
     return newFuncCallEntry;
 }
 
-void FM_addFuncCall(FuncCallMapEntry *mapEntry, char *destName) {
-    if (destName == NULL) return;
-    mapEntry->dstFuncName[mapEntry->cntFuncsCalled++] = destName;
-}
-
 void FM_addCallToMap(SymbolRecord *srcFuncSym, SymbolRecord *dstFuncSym) {
     FuncCallMapEntry *funcCallMapEntry = FM_findFunction(srcFuncSym->name);
 
@@ -51,7 +45,9 @@ void FM_addCallToMap(SymbolRecord *srcFuncSym, SymbolRecord *dstFuncSym) {
         funcCallMapEntry = curFuncCallEntry;
     }
     markFunctionUsed(dstFuncSym);
-    FM_addFuncCall(funcCallMapEntry, dstFuncSym->name);
+    if (dstFuncSym->name != NULL) {
+        funcCallMapEntry->dstFuncName[funcCallMapEntry->cntFuncsCalled++] = dstFuncSym->name;
+    }
 }
 
 void FM_addFunctionDef(SymbolRecord *funcSym) {
@@ -86,6 +82,17 @@ void FM_followChainsToCalculateDepth(FuncCallMapEntry *funcMapEntry, int depth) 
     }
 }
 
+int FM_calculateCallTree() {
+    FuncCallMapEntry *funcMapEntry = FM_findFunction("main");
+    if (funcMapEntry != NULL) {
+        FM_followChainsToCalculateDepth(funcMapEntry, 1);
+    }
+    return deepestDepth;
+}
+
+//--------------------------------------------------------------------------
+//  Functions for displaying information about the Function Map / Call Tree
+
 void FM_printChainNode(FuncCallMapEntry *funcMapEntry, int depth) {
     int cntDestFunc;
     for (cntDestFunc = 0; cntDestFunc<funcMapEntry->cntFuncsCalled; cntDestFunc++) {
@@ -107,7 +114,8 @@ void FM_printChainNode(FuncCallMapEntry *funcMapEntry, int depth) {
     }
 }
 
-void FM_printNormalCallTree() {
+void FM_displayCallTree() {
+    printf("\nFunction Call Tree\n");
     FuncCallMapEntry *funcMapEntry = firstFuncCallEntry;
     while (funcMapEntry != NULL) {
         SymbolRecord *funcSym = funcMapEntry->funcSym;
@@ -117,24 +125,10 @@ void FM_printNormalCallTree() {
                funcSym->funcExt->cntUses);
 
         int cntDestFunc;
-        for (cntDestFunc = 0; cntDestFunc<funcMapEntry->cntFuncsCalled; cntDestFunc++) {
+        for (cntDestFunc = 0; cntDestFunc < funcMapEntry->cntFuncsCalled; cntDestFunc++) {
             printf("    -  %s\n", funcMapEntry->dstFuncName[cntDestFunc]);
         }
 
         funcMapEntry = funcMapEntry->next;
     }
-}
-
-int FM_calculateCallTree() {
-    FuncCallMapEntry *funcMapEntry = FM_findFunction("main");
-    if (funcMapEntry != NULL) {
-        FM_followChainsToCalculateDepth(funcMapEntry, 1);
-    }
-    return deepestDepth;
-}
-
-
-void FM_displayCallTree() {
-    printf("Function Call Tree\n");
-    FM_printNormalCallTree();
 }
