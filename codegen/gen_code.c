@@ -21,6 +21,7 @@
 #include "parser/parse_directives.h"
 #include "flatten_tree.h"
 #include "gen_asmcode.h"
+#include "type_checker.h"
 
 //-------------------------------------------
 //  Variables used in code generation
@@ -1374,7 +1375,13 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
     if (IS_ALIAS(varSymRec)) {
         // We're aliasing something, we need to link the definition to the symbol record
 
-        varSymRec->alias = (List *)(initList->nodes[1].value.list);
+        // TODO: check to make sure alias is valid
+        List *alias = (List *)(initList->nodes[1].value.list);
+        varSymRec->alias = alias;
+        if (!TypeCheck_Alias(alias, destType)) {
+            ErrorMessageWithList("Error processing alias", alias);
+            return;
+        }
 
     } else if (!isConst(varSymRec)) {
         // WE have an initializer for a variable, handle it!
