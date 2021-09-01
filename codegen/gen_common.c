@@ -37,7 +37,7 @@ void ErrorMessageWithNode(const char* errorMsg, ListNode node, int lineNum) {
 
 void ErrorMessage(const char* errorMsg, const char* errorStr, int lineNum) {
     printf("ERROR on line %d: %s", lineNum, errorMsg);
-    if (errorStr != NULL) printf(" %s", errorStr);
+    if (errorStr != NULL) printf(" '%s'", errorStr);
     printf("\n");
     GC_ErrorCount++;
 }

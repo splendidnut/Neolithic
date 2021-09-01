@@ -71,8 +71,7 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
                 childTable = userTypeSymbol->funcExt->paramSymbolSet;
             }
         } else {
-            printf("Unknown symbol type: '%s'\n", baseType);
-            showSymbolTable(stdout, symbolTable);
+            ErrorMessage("Unknown user-defined type", baseType, varDef->lineNum);
         }
     }
 
