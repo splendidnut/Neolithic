@@ -460,7 +460,7 @@ void ICG_LoadPropertyVar(const SymbolRecord *structSym, const SymbolRecord *prop
 
     IL_AddComment(
             IL_AddInstrS(LDA, addrMode, structName, numToStr(propertyOfs), PARAM_NORMAL + PARAM_ADD),
-            "load from variable that uses struct with property offset");
+            getStructRefComment("load structure ref", structName, propertySym->name));
 }
 
 void ICG_LoadRegConst(const char destReg, int ofs) {
@@ -639,6 +639,18 @@ void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym, int dataSi
             break;
     }
 }
+
+
+void ICG_OpPropertyVar(enum MnemonicCode mne, const SymbolRecord *structSym, const SymbolRecord *propertySym) {
+    const char *structName = getVarName(structSym);
+    enum AddrModes addrMode = (structSym->location < 0x100 ? ADDR_ZP : ADDR_ABS);
+    unsigned char propertyOfs = (propertySym->location & 0xff);
+
+    IL_AddComment(
+            IL_AddInstrS(mne, addrMode, structName, numToStr(propertyOfs), PARAM_NORMAL + PARAM_ADD),
+            getStructRefComment("structure ref", structName, propertySym->name));
+}
+
 
 void ICG_OpIndexedWithOffset(enum MnemonicCode mne, const SymbolRecord *varSym, int ofs) {
     const char *varName = getVarName(varSym);

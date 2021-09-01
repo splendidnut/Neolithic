@@ -11,5 +11,6 @@
 #include "data/symbols.h"
 
 bool TypeCheck_Alias(const List *expr, enum SymbolType destType);
+bool TypeCheck_PropertyReference(const List *propertyRef, enum SymbolType destType);
 
 #endif //NEOLITHIC_TYPE_CHECKER_H

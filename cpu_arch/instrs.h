@@ -80,6 +80,7 @@ extern void ICG_PreOp(enum MnemonicCode preOp);
 
 extern void ICG_OpWithConst(enum MnemonicCode mne, int num, int dataSize);
 extern void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym, int dataSize);
+extern void ICG_OpPropertyVar(enum MnemonicCode mne, const SymbolRecord *structSym, const SymbolRecord *propertySym);
 extern void ICG_OpIndexedWithOffset(enum MnemonicCode mne, const SymbolRecord *varSym, int ofs);
 extern void ICG_OpWithAddr(enum MnemonicCode mne, int addr);
 extern void ICG_OpWithStack(enum MnemonicCode mne);

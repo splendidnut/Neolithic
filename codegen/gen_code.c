@@ -287,58 +287,6 @@ int GC_LookupArrayOfs(const List *expr) {
 //---
 
 
-void addStructRefComment(const char *prefixComment, const char *structName, const char *propName) {
-    char *propRefStr = allocMem(40);
-    sprintf(propRefStr, "%s: %s.%s", prefixComment, structName, propName);
-    IL_AddCommentToCode(propRefStr);
-}
-
-
-// TODO:  Try to eliminate the need for this function.
-//          It mucks up the ASM output... uses address instead of symbol name.
-//          So the addStructRefComment function is being used to let the programmer know what is going on.
-
-int GC_GetPropertyRefOfs(const List *expr) {
-    if (expr->nodes[2].type != N_STR) {
-        ErrorMessageWithNode("Invalid property - not an identifier", expr->nodes[2], expr->lineNum);
-        return -1;
-    }
-
-    char *propName = expr->nodes[2].value.str;
-
-    // setup line comment for property references
-    // TODO: Maybe add a property reference labeling system for easier to read ASM code?
-
-    if (expr->nodes[1].type == N_STR) {
-        char *structName = expr->nodes[1].value.str;
-        addStructRefComment("GC_GetPropertyRefOfs", structName, propName);
-    }
-
-    SymbolRecord *structSymbol = lookupSymbolNode(expr->nodes[1], expr->lineNum);
-
-    //--- DEBUG Code
-    /*
-    if (IS_ALIAS(structSymbol)) {
-        ErrorMessageWithList("Need to handle alias", expr);
-        ErrorMessageWithList(" with the following:", structSymbol->alias);
-    }
-    //*/
-
-    int ofs = -1;
-    if (isStructDefined(structSymbol)) {
-        ofs = structSymbol->location;
-        SymbolRecord *propertySymbol = findSymbol(getStructSymbolSet(structSymbol), propName);
-
-        if (propertySymbol != NULL) {
-            ofs = structSymbol->location + propertySymbol->location;
-        } else {
-            ErrorMessage("Missing property: ", propName, expr->lineNum);
-        }
-    }
-    return ofs;
-}
-
-
 // TODO: Improve this function to be able to handle more cases.
 //       Need to handle referencing struct pointer case.
 //       Need to produce better ASM source code.
@@ -433,6 +381,20 @@ void GC_SimpleOP(const List *expr, enum MnemonicCode mne, enum SymbolType destTy
     }
 }
 
+
+// TODO: This could be done a better way... BUT This is way nicer than was previously done
+//         There's a bit of redundancy between the call out to type check and the two symbol lookups.
+
+void GC_OpWithPropertyRef(enum MnemonicCode mne, const List *expr, enum SymbolType destType) {
+    if (TypeCheck_PropertyReference(expr, destType)) {
+        SymbolRecord *structSym = lookupSymbolNode(expr->nodes[1], expr->lineNum);
+        SymbolRecord *propSym = findSymbol(getStructSymbolSet(structSym), expr->nodes[2].value.str);
+        ICG_OpPropertyVar(mne, structSym, propSym);
+    }
+}
+
+
+
 bool isSimplePropertyRef(ListNode arg2) {
     return (arg2.type == N_LIST)
                && isToken(arg2.value.list->nodes[0], PT_PROPERTY_REF)
@@ -487,9 +449,8 @@ void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, en
             SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSymbol);
             ICG_OpIndexedWithOffset(mne, baseSymbol, propertySymbol->location);
         } else {
-            int ofs = GC_GetPropertyRefOfs(arg2.value.list);
             ICG_PreOp(preOp);
-            ICG_OpWithAddr(mne, ofs);
+            GC_OpWithPropertyRef(mne, arg2.value.list, destType);
         }
     } else if (arg2.type == N_LIST) {
         ICG_PushAcc();
@@ -591,8 +552,7 @@ void GC_IncStmt(const List *stmt, enum SymbolType destType) {
                 ICG_IncUsingAddr(ofs, 1);
                 break;
             case PT_PROPERTY_REF:
-                ofs = GC_GetPropertyRefOfs(expr);
-                ICG_IncUsingAddr(ofs, 1);
+                GC_OpWithPropertyRef(INC, expr, destType);
                 break;
             default:
                 ErrorMessageWithList("Invalid increment statement", stmt);
@@ -612,8 +572,7 @@ void GC_DecStmt(const List *stmt, enum SymbolType destType) {
                 ICG_DecUsingAddr(ofs, 1);
                 break;
             case PT_PROPERTY_REF:
-                ofs = GC_GetPropertyRefOfs(expr);
-                ICG_DecUsingAddr(ofs, 1);
+                GC_OpWithPropertyRef(DEC, expr, destType);
                 break;
             default:
                 ErrorMessageWithList("Invalid decrement statement", stmt);
@@ -1372,17 +1331,14 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
 
     List *initList = varDef->nodes[4].value.list;
 
-    if (IS_ALIAS(varSymRec)) {
-        // We're aliasing something, we need to link the definition to the symbol record
-
-        // TODO: check to make sure alias is valid
+    if (IS_ALIAS(varSymRec)) {        // We're aliasing something, we need to link the definition to the symbol record
         List *alias = (List *)(initList->nodes[1].value.list);
         varSymRec->alias = alias;
+
         if (!TypeCheck_Alias(alias, destType)) {
             ErrorMessageWithList("Error processing alias", alias);
             return;
         }
-
     } else if (!isConst(varSymRec)) {
         // WE have an initializer for a variable, handle it!
 

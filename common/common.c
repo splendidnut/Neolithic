@@ -62,6 +62,11 @@ char *getUnquotedString(const char *srcString) {
     return newStr;
 }
 
+char * getStructRefComment(const char *prefixComment, const char *structName, const char *propName) {
+    char *propRefStr = allocMem(40);
+    sprintf(propRefStr, "%s: %s.%s", prefixComment, structName, propName);
+    return propRefStr;
+}
 
 /**
  * Generate a filename with the given extension, starting from a filename
