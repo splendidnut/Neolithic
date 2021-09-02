@@ -31,6 +31,7 @@ typedef struct {
     bool showCallTree;
     bool showVarAllocations;
     bool showOutputBlockList;
+    bool reportFunctionProcessing;
     char maxFuncCallDepth;
 } CompilerOptions;
 

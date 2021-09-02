@@ -321,6 +321,8 @@ void setDefaultCompilerParameters() {
 
     compilerOptions.showVarAllocations = false;
 
+    compilerOptions.reportFunctionProcessing = false;
+
     compilerOptions.showOutputBlockList = false;
 }
 

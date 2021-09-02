@@ -1659,25 +1659,33 @@ void GC_ProcessFunction(char *funcName, List *code) {
 }
 
 void GC_Function(const List *function, int codeNodeIndex) {
+    bool hasCode, isFuncUsed=false;
     char *funcName = function->nodes[1].value.str;
 
-    if (function->count >= codeNodeIndex) {
-        ListNode codeNode = function->nodes[codeNodeIndex];
-        if (codeNode.type == N_LIST) {
-
-            SymbolRecord *funcSym = findSymbol(mainSymbolTable, funcName);
-            if (!isMainFunction(funcSym) && (funcSym->funcExt->cntUses == 0)) {
-                printf("Skipping unused function %s\n", funcName);
-            } else {
-                printf("Processing function: %s\n", funcName);
-                List *code = codeNode.value.list;
-                GC_ProcessFunction(funcName, code);
-            }
-        } else {
-            printf("Processing function definition: %s\n", funcName);
-        }
-    } else {
+    if (function->count < codeNodeIndex) {
         ErrorMessage("Error processing function", funcName, function->lineNum);
+        return;
+    }
+
+    ListNode codeNode = function->nodes[codeNodeIndex];
+    hasCode = (codeNode.type == N_LIST);
+
+    if (hasCode) {
+        SymbolRecord *funcSym = findSymbol(mainSymbolTable, funcName);
+        isFuncUsed = isMainFunction(funcSym) || (funcSym->funcExt->cntUses > 0);
+        if (isFuncUsed) {
+            GC_ProcessFunction(funcName, codeNode.value.list);
+        }
+    }
+
+    if (compilerOptions.reportFunctionProcessing) {
+        if (hasCode && isFuncUsed) {
+            printf("Processed function: %s\n", funcName);
+        } else if (hasCode) {
+            printf("Skipped unused function %s\n", funcName);
+        } else {
+            printf("Processed function definition: %s\n", funcName);
+        }
     }
 }
 
