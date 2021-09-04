@@ -195,27 +195,18 @@ void WriteBIN_FunctionBlock(const OutputBlock *block) {
             binData[writeAddr++] = (curOutInstr->mne != MNE_DATA) ? opcodeEntry.opcode : curOutInstr->offset;
 
             //DEBUG
-            //printf("Outputting %2X\n", opcodeEntry.opcode);
-
+#ifdef DEBUG_WRITE_BIN
+            printf("%04X: Outputting %2X  (%02X, %s)\n",
+                   writeAddr, opcodeEntry.opcode, curOutInstr->mne, addressMode.name);
+#endif
             if (addrMode != ADDR_NONE) {
                 int paramValue = getInstrParamValue(curOutInstr);
                 if (addrMode == ADDR_REL) {
-#ifdef DEBUG_WRITE_BIN
-                    if (curOutInstr->usesVar) {
-                        printf("Current Address: %4X\n", writeAddr);
-                        printf("Parameter value is %4X\n", paramValue);
-                    } else {
-                        printf("Relative to Current Address: %4X\n", writeAddr);
-                    }
-#endif
                     if (DOES_INSTR_USES_VAR(curOutInstr)) {
                         paramValue -= writeAddr + 1;
                     } else {
                         paramValue += 1;
                     }
-#ifdef DEBUG_WRITE_BIN
-                    printf("Opcode parameter is %4X\n", paramValue);
-#endif
                     binData[writeAddr++] = paramValue;
                 } else if (addressMode.instrSize == 2) {
                     binData[writeAddr++] = paramValue & 0xff;
