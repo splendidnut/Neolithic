@@ -351,7 +351,7 @@ void setDefaultCompilerParameters() {
  *   -s (show) (set)
  *   -t (target)
  *   -u
- *   -v (view) (variables)
+ *   -v (view) (variables) (verbose)
  *   -w (warnings)
  *   -x
  *   -y

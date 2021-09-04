@@ -651,6 +651,31 @@ void ICG_OpPropertyVar(enum MnemonicCode mne, const SymbolRecord *structSym, con
             getStructRefComment("structure ref", structName, propertySym->name));
 }
 
+void ICG_OpPropertyVarIndexed(enum MnemonicCode mne, const SymbolRecord *structSym, const SymbolRecord *propertySym) {
+    const char *structName = getVarName(structSym);
+    const char *propOfsParam = numToStr(propertySym->location & 0xff);
+
+    // DEC and INC operations are special because they don't have Absolute,Y address mode available,
+    //   so things need to be done differently
+    if ((mne == DEC) || (mne == INC)) {
+
+        // TODO: Maybe find a better way to handle the fact that INC/DEC have limited address modes.
+
+        IL_AddComment(
+                IL_AddInstrS(LDX, ADDR_ABY, structName, propOfsParam, PARAM_NORMAL + PARAM_ADD),
+                getStructRefComment("structure ref", structName, propertySym->name));
+        IL_AddInstrB((mne == INC) ? INX : DEX);
+        IL_AddInstrB(TXA);
+        IL_AddInstrS(STA, ADDR_ABY, structName, propOfsParam, PARAM_NORMAL + PARAM_ADD);
+    }
+    else {
+
+        IL_AddComment(
+                IL_AddInstrS(mne, ADDR_ABY, structName, propOfsParam, PARAM_NORMAL + PARAM_ADD),
+                getStructRefComment("structure ref", structName, propertySym->name));
+    }
+}
+
 
 void ICG_OpIndexedWithOffset(enum MnemonicCode mne, const SymbolRecord *varSym, int ofs) {
     const char *varName = getVarName(varSym);

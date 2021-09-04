@@ -301,9 +301,8 @@ void GC_LoadAlias(const List *expr, SymbolRecord *structSymbol) {
 
         SymbolRecord *arraySymbol = lookupSymbolNode(alias->nodes[1], alias->lineNum);
         SymbolRecord *indexSymbol = lookupSymbolNode(alias->nodes[2], alias->lineNum);
-        //ListNode indexNode = alias->nodes[2];
 
-        int multiplier = calcVarSize(structSymbol);
+        char multiplier = (char)calcVarSize(structSymbol);
         ICG_MultiplyWithConst(indexSymbol, multiplier & 0x7f);
         ICG_MoveAccToIndex('Y');
 
@@ -389,7 +388,14 @@ void GC_OpWithPropertyRef(enum MnemonicCode mne, const List *expr, enum SymbolTy
     if (TypeCheck_PropertyReference(expr, destType)) {
         SymbolRecord *structSym = lookupSymbolNode(expr->nodes[1], expr->lineNum);
         SymbolRecord *propSym = findSymbol(getStructSymbolSet(structSym), expr->nodes[2].value.str);
-        ICG_OpPropertyVar(mne, structSym, propSym);
+
+        if (IS_ALIAS(structSym)) {
+            GC_LoadAlias(expr, structSym);
+            SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSym);
+            ICG_OpPropertyVarIndexed(mne, baseSymbol, propSym);
+        } else {
+            ICG_OpPropertyVar(mne, structSym, propSym);
+        }
     }
 }
 
