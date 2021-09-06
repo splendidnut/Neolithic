@@ -1210,6 +1210,7 @@ void GC_DoWhile(const List *stmt, enum SymbolType destType) {
     ListNode condNode = stmt->nodes[2];
     if (condNode.type == N_LIST) {
         Label *doneWithLoop = newGenericLabel(L_CODE);
+        IL_AddCommentToCode(buildSourceCodeLine(&condNode.value.list->progLine));
         GC_HandleCondExpr(condNode, ST_BOOL, doneWithLoop, stmt->lineNum);
         ICG_Jump(startLoopLabel, "beginning of loop");
         IL_Label(doneWithLoop);
