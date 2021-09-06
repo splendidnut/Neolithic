@@ -40,22 +40,8 @@ void GC_FuncCall(const List *stmt, enum SymbolType destType);
 //-----------------------------------------------------------------------------
 //  Some utility functions
 
-// TODO: This method could use some more cleanup.
 SymbolRecord* getArraySymbol(const List *expr, ListNode arrayNode) {
-    SymbolRecord *arraySymbol = NULL;
-    switch (arrayNode.type) {
-        case N_LIST:
-            // if we attempt to get an array symbol and find a list,
-            //   then we actually have an address operator being applied to the array.
-            arraySymbol = 0;
-            break;
-        case N_STR:
-            arraySymbol = lookupSymbolNode(arrayNode, expr->lineNum);
-            break;
-        default:
-            ErrorMessageWithNode("Invalid array lookup", arrayNode, expr->lineNum);
-            return NULL;
-    }
+    SymbolRecord *arraySymbol = lookupSymbolNode(arrayNode, expr->lineNum);
 
     if ((arraySymbol != NULL) && (!isArray(arraySymbol) && !isPointer(arraySymbol))) {
         ErrorMessageWithNode("Not an array or pointer", arrayNode, expr->lineNum);
@@ -242,43 +228,46 @@ void GC_Lookup(const List *expr, enum SymbolType destType) {
     }
 }
 
-/**
- * Lookup offset for use in INC, DEC, storage expr, or ASM instructions
- *
- * Used for Array offsets used on storage variables
- *
- * @param expr
- * @return
- */
-int GC_LookupArrayOfs(const List *expr) {
-    SymbolRecord* arraySymbol = getArraySymbol(expr, expr->nodes[1]);
+//------------------------------------------------------------
+//  Helper functions for array lookups
 
+//  Three cases of array lookups:
+//    (lookup, arrayName, indexNum)   -- index is number or const, so can be applied directly to op param
+//    (lookup, arrayName, indexVar)   -- index is in a variable... so it must be loaded into Y reg
+//    (lookup, arrayName, expr)       -- index is calculated... so it must be processed and loaded into Y reg
+
+bool isArrayIndexConst(const List *arrayExpr) {
+    ListNode indexNode = arrayExpr->nodes[2];
+    if (indexNode.type == N_INT) return true;
+
+    if (indexNode.type != N_STR) {
+        ErrorMessageWithList("Invalid array lookup", arrayExpr);
+        return false;
+    }
+
+    SymbolRecord *indexSym = lookupSymbolNode(indexNode, arrayExpr->lineNum);
+    return (indexSym && isConst(indexSym));
+}
+
+int GC_GetArrayIndex(const SymbolRecord* arraySymbol, const List *expr) {
     if (arraySymbol == NULL) return -1;
 
+    SymbolRecord* varSym;
     ListNode indexNode = expr->nodes[2];
-
     int multiplier = getBaseVarSize(arraySymbol);
-    int index = 0;
     switch (indexNode.type) {
-        case N_INT:     // numeric constant used as index
-            index = indexNode.value.num;
-            break;
-        case N_STR: {   // variable used as index
-            SymbolRecord *varSym = lookupSymbolNode(indexNode, expr->lineNum);
-            if (varSym) {
-                if (isConst(varSym)) {
-                    index = varSym->constValue;
-                } else {
-                    ICG_LoadIndexVar(varSym, getBaseVarSize(varSym));
-                    return -1000;
-                }
+        case N_INT:
+            return (indexNode.value.num * multiplier);
+        case N_STR:
+            varSym = lookupSymbolNode(indexNode, expr->lineNum);
+            if (varSym && isConst(varSym)) {
+                return (varSym->constValue * multiplier);
             }
-        } break;
+            break;
         default:
             ErrorMessageWithList("Invalid array lookup", expr);
     }
-    //printf(" array: %s @ %d[%d]\n", arraySymbol->name, arraySymbol->location, index);
-    return arraySymbol->location + (index * multiplier);
+    return -1;
 }
 
 
@@ -380,6 +369,18 @@ void GC_SimpleOP(const List *expr, enum MnemonicCode mne, enum SymbolType destTy
     }
 }
 
+void GC_OpWithArrayElement(enum MnemonicCode mne, const List *expr) {
+    SymbolRecord *arraySym = getArraySymbol(expr, expr->nodes[1]);
+    if (isArrayIndexConst(expr)) {
+        int ofs = GC_GetArrayIndex(arraySym, expr);
+        ICG_OpWithOffset(mne, arraySym, ofs);
+    } else {
+        // Array Index is an expression or a variable
+        SymbolRecord *varSym = lookupSymbolNode(expr->nodes[2], expr->lineNum);
+        if (varSym) ICG_LoadIndexVar(varSym, getBaseVarSize(varSym));
+        ICG_OpIndexed(mne, varSym);
+    }
+}
 
 // TODO: This could be done a better way... BUT This is way nicer than was previously done
 //         There's a bit of redundancy between the call out to type check and the two symbol lookups.
@@ -548,14 +549,13 @@ void GC_ShiftRight(const List *expr, enum SymbolType destType) {
     }
 }
 
+
 void GC_IncStmt(const List *stmt, enum SymbolType destType) {
     if (stmt->nodes[1].type == N_LIST) {
-        int ofs;
         List *expr = stmt->nodes[1].value.list;
         switch (expr->nodes[0].value.parseToken) {
             case PT_LOOKUP:
-                ofs = GC_LookupArrayOfs(expr);
-                ICG_IncUsingAddr(ofs, 1);
+                GC_OpWithArrayElement(INC, expr);
                 break;
             case PT_PROPERTY_REF:
                 GC_OpWithPropertyRef(INC, expr, destType);
@@ -574,8 +574,7 @@ void GC_DecStmt(const List *stmt, enum SymbolType destType) {
         List *expr = stmt->nodes[1].value.list;
         switch (expr->nodes[0].value.parseToken) {
             case PT_LOOKUP:
-                ofs = GC_LookupArrayOfs(expr);
-                ICG_DecUsingAddr(ofs, 1);
+                GC_OpWithArrayElement(DEC, expr);
                 break;
             case PT_PROPERTY_REF:
                 GC_OpWithPropertyRef(DEC, expr, destType);
@@ -803,27 +802,32 @@ void GC_StoreToStructProperty(const List *expr) {
     }
 }
 
+void GC_StoreToArray(const List *expr) {
+    SymbolRecord *arraySym = getArraySymbol(expr, expr->nodes[1]);
+    IL_SetLineComment(arraySym->name);
+
+    if (isArrayIndexConst(expr)) {
+        // Array index is a constant value (either a const variable or a numeric literal)
+        int ofs = GC_GetArrayIndex(arraySym, expr);
+        ICG_StoreVarOffset(arraySym, ofs, getBaseVarSize(arraySym));
+
+    } else {
+        // Array Index is an expression or a variable
+        SymbolRecord *varSym = lookupSymbolNode(expr->nodes[2], expr->lineNum);
+        if (varSym) ICG_LoadIndexVar(varSym, getBaseVarSize(varSym));
+        ICG_StoreVarIndexed(arraySym);
+    }
+}
+
 /*** Process Storage Expression - (Left-side of assignment) */
 void GC_ExpressionForStore(const List *expr, enum SymbolType destType) {
     ListNode opNode = expr->nodes[0];
     if (opNode.type == N_TOKEN) {
         switch (opNode.value.parseToken) {
-            case PT_PROPERTY_REF:
-                GC_StoreToStructProperty(expr);
-                break;
-            case PT_LOOKUP: {
-                SymbolRecord *varSymRec = lookupSymbolNode(expr->nodes[1], expr->lineNum);
-                IL_SetLineComment(varSymRec->name);
-
-                int ofs = GC_LookupArrayOfs(expr);
-                if (ofs == -1000) { // means that index has already been loaded
-                    ICG_StoreVarIndexed(varSymRec);
-                } else {
-                    ICG_StoreVarOffset(varSymRec, ofs - varSymRec->location, getBaseVarSize(varSymRec));
-                }
-            } break;
-            case PT_INC:  GC_Inc(expr, ST_NONE);   break;
-            case PT_DEC:  GC_Dec(expr, ST_NONE);   break;
+            case PT_PROPERTY_REF:  GC_StoreToStructProperty(expr);  break;
+            case PT_LOOKUP:        GC_StoreToArray(expr);           break;
+            case PT_INC:           GC_Inc(expr, ST_NONE);           break;
+            case PT_DEC:           GC_Dec(expr, ST_NONE);           break;
         }
     } else {
         ErrorMessageWithNode("Invalid token in assignment expr\n", expr->nodes[0], expr->lineNum);
@@ -1676,6 +1680,7 @@ void GC_Function(const List *function, int codeNodeIndex) {
     ListNode codeNode = function->nodes[codeNodeIndex];
     hasCode = (codeNode.type == N_LIST);
 
+    // only process function code, if it exists, and the function is used
     if (hasCode) {
         SymbolRecord *funcSym = findSymbol(mainSymbolTable, funcName);
         isFuncUsed = isMainFunction(funcSym) || (funcSym->funcExt->cntUses > 0);

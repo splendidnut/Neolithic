@@ -82,6 +82,7 @@ extern void ICG_OpWithConst(enum MnemonicCode mne, int num, int dataSize);
 extern void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym, int dataSize);
 extern void ICG_OpPropertyVar(enum MnemonicCode mne, const SymbolRecord *structSym, const SymbolRecord *propertySym);
 extern void ICG_OpPropertyVarIndexed(enum MnemonicCode mne, const SymbolRecord *structSym, const SymbolRecord *propertySym);
+extern void ICG_OpIndexed(enum MnemonicCode mne, const SymbolRecord *varSym);
 extern void ICG_OpIndexedWithOffset(enum MnemonicCode mne, const SymbolRecord *varSym, int ofs);
 extern void ICG_OpWithAddr(enum MnemonicCode mne, int addr);
 extern void ICG_OpWithStack(enum MnemonicCode mne);
@@ -91,8 +92,10 @@ extern void ICG_MoveAccToIndex(const char destReg);
 extern void ICG_PushAcc();
 extern void ICG_PullAcc();
 
-extern void ICG_IncUsingAddr(int varOfs, int size);
-extern void ICG_DecUsingAddr(int varOfs, int size);
+//extern void ICG_IncUsingAddr(int varOfs, int size);
+//extern void ICG_DecUsingAddr(int varOfs, int size);
+extern void ICG_OpWithOffset(enum MnemonicCode mne, SymbolRecord *baseVarSym, int ofs);
+
 extern void ICG_ShiftLeft(const SymbolRecord *varSym, int count);
 extern void ICG_ShiftRight(const SymbolRecord *varSym, int count);
 extern void ICG_AddToInt(const SymbolRecord *varSym);

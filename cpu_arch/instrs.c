@@ -193,8 +193,9 @@ void Dbg_IL_ClearOnUpdate(const char *varName, char *clearInfo) {
 
 
 // clear out appropriate register tracker on var update
-void IL_ClearOnUpdate(const char *varName) {
+void IL_ClearOnUpdate(const SymbolRecord *varSym) {
     char *clearInfo = allocMem(120);
+    char *varName = varSym->name;
 #ifdef DEBUG_INSTRS
     Dbg_IL_ClearOnUpdate(varName, clearInfo);
 #endif
@@ -545,7 +546,7 @@ void ICG_StoreVarIndexed(const SymbolRecord *varSym) {
 
 void ICG_StoreVarSym(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);
-    IL_ClearOnUpdate(varName);
+    IL_ClearOnUpdate(varSym);
     IL_AddInstrS(STA, ADDR_ZP, varName, NULL, PARAM_NORMAL);
     if (getBaseVarSize(varSym) == 2) {
         IL_AddInstrS(STX, ADDR_ZP, varName, "1", PARAM_ADD);
@@ -630,7 +631,7 @@ void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym, int dataSi
             //   cleared out.
         case INC:
         case DEC:
-            IL_ClearOnUpdate(varSym->name);
+            IL_ClearOnUpdate(varSym);
             break;
 
             // all other instructions will change the accumulator
@@ -659,7 +660,7 @@ void ICG_OpPropertyVarIndexed(enum MnemonicCode mne, const SymbolRecord *structS
     //   so things need to be done differently
     if ((mne == DEC) || (mne == INC)) {
 
-        // TODO: Maybe find a better way to handle the fact that INC/DEC have limited address modes.
+        // TODO: Maybe find a better way to handle the fact that INC/DEC have limited addressing modes.
 
         IL_AddComment(
                 IL_AddInstrS(LDX, ADDR_ABY, structName, propOfsParam, PARAM_NORMAL + PARAM_ADD),
@@ -674,6 +675,13 @@ void ICG_OpPropertyVarIndexed(enum MnemonicCode mne, const SymbolRecord *structS
                 IL_AddInstrS(mne, ADDR_ABY, structName, propOfsParam, PARAM_NORMAL + PARAM_ADD),
                 getStructRefComment("structure ref", structName, propertySym->name));
     }
+}
+
+void ICG_OpIndexed(enum MnemonicCode mne, const SymbolRecord *varSym) {
+    const char *varName = getVarName(varSym);
+    IL_AddComment(
+            IL_AddInstrS(mne, ADDR_ABY, varName, NULL, PARAM_NORMAL + PARAM_ADD),
+            "op with data from array using index");
 }
 
 
@@ -723,23 +731,44 @@ void ICG_Nop() {     IL_AddInstrB(NOP); }
 
 //---------------------------------------------------------
 
-void ICG_IncUsingAddr(int varOfs, int size) {
-    //IL_ClearOnUpdate(varName);
-    IL_AddInstrN(INC, ADDR_ZP, varOfs);
+void ICG_IncUsingAddr(const SymbolRecord *baseSymbol, int varOfs, int size) {
+    enum AddrModes addrMode = CALC_ADDR_MODE(baseSymbol->location);
+    const char *varName = getVarName(baseSymbol);
+    char *numOfsStr = numToStr(varOfs);
+
+    IL_AddInstrS(INC, addrMode, varName, numOfsStr, PARAM_ADD);
     if (size == 2) {
         IL_AddInstrN(BNE, ADDR_REL, +4);
-        IL_AddInstrN(INC, ADDR_ZP, varOfs+1);
+        IL_AddInstrS(INC, addrMode, varName, numOfsStr, PARAM_ADD + PARAM_PLUS_ONE);
     }
 }
 
-void ICG_DecUsingAddr(int varOfs, int size) {
+void ICG_DecUsingAddr(const SymbolRecord *baseSymbol, int varOfs, int size) {
+    enum AddrModes addrMode = CALC_ADDR_MODE(baseSymbol->location);
+    const char *varName = getVarName(baseSymbol);
+    char *numOfsStr = numToStr(varOfs);
+
     if (size == 2) {
-        IL_AddInstrN(LDA, ADDR_ZP, varOfs);
+        IL_AddInstrS(LDA, addrMode, varName, numOfsStr, PARAM_ADD);
         IL_AddInstrN(BNE, ADDR_REL, +4);
-        IL_AddInstrN(DEC, ADDR_ZP, varOfs+1);
+        IL_AddInstrS(DEC, addrMode, varName, numOfsStr, PARAM_ADD + PARAM_PLUS_ONE);
     }
-    IL_AddInstrN(DEC, ADDR_ZP, varOfs);
+    IL_AddInstrS(DEC, addrMode, varName, numOfsStr, PARAM_ADD);
 }
+
+void ICG_OpWithOffset(enum MnemonicCode mne, SymbolRecord *baseVarSym, int ofs) {
+    switch (mne) {
+        case INC:
+            ICG_IncUsingAddr(baseVarSym, ofs, 1);
+            break;
+        case DEC:
+            ICG_DecUsingAddr(baseVarSym, ofs, 1);
+            break;
+        default:
+            break;
+    }
+}
+
 
 void ICG_ShiftLeft(const SymbolRecord *varSym, int count) {
     if (varSym != NULL) ICG_LoadVar(varSym);
