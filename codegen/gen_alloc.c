@@ -137,7 +137,7 @@ void allocateVarStorage(const SymbolTable *symbolTable) {
             setSymbolLocation(curSymbol, newVarAlloc.addr, isZP ? SS_ZEROPAGE : SS_ABSOLUTE);
 
             if (compilerOptions.showVarAllocations) {
-                printf("\t%s allocated at %4X\n", curSymbol->name, newVarAlloc.addr);
+                printf("\t%-32s allocated at %4X\n", curSymbol->name, newVarAlloc.addr);
             }
 
         }

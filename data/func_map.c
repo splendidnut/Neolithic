@@ -63,10 +63,15 @@ void FM_addFunctionDef(SymbolRecord *funcSym) {
 int deepestDepth = 0;
 void FM_followChainsToCalculateDepth(FuncCallMapEntry *funcMapEntry, int depth) {
 
-    // mark the depth of the current function
-    funcMapEntry->deepestSpotCalled = depth-1;
-    if (funcMapEntry->funcSym != NULL) {
-        funcMapEntry->funcSym->funcExt->funcDepth = depth-1;
+    // mark the depth of the current function (only if it's deeper than before
+    int newDepth = depth-1;
+
+    if (funcMapEntry->deepestSpotCalled < newDepth) {
+        funcMapEntry->deepestSpotCalled = newDepth;
+
+        if (funcMapEntry->funcSym != NULL) {
+            funcMapEntry->funcSym->funcExt->funcDepth = newDepth;
+        }
     }
 
     int cntDestFunc = 0;
