@@ -9,7 +9,6 @@
 
 SymbolTable *mainSymbolTable;
 SymbolTable *curFuncSymbolTable;
-SymbolTable *curFuncParamTable;
 
 
 int GC_ErrorCount = 0;
@@ -50,8 +49,6 @@ SymbolRecord *lookupSymbolNode(const ListNode symbolNode, int lineNum) {
     SymbolRecord *symRec = NULL;
     if (curFuncSymbolTable != NULL)
         symRec = findSymbol(curFuncSymbolTable, symbolName);
-    if ((symRec == NULL) && (curFuncParamTable != NULL))
-        symRec = findSymbol(curFuncParamTable, symbolName);
     if (symRec == NULL)
         symRec = findSymbol(mainSymbolTable, symbolName);
     if (symRec == NULL) {

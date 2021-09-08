@@ -34,7 +34,7 @@ extern void IL_HideCycles();
 extern void IL_MoveToNextPage();
 
 extern void IL_Init(int startCodeAddr);
-extern void IL_Preload(const SymbolRecord *varSym, enum VarHint hint);
+extern void IL_Preload(const SymbolRecord *varSym);
 extern void IL_Label(Label *label);
 extern void IL_SetLineComment(const char *comment);
 extern Instr* IL_AddComment(Instr *inInstr, char *comment);

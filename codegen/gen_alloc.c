@@ -104,8 +104,11 @@ int calcStorageNeeded(const SymbolTable *symbolTable) {
     SymbolRecord *curSymbol = symbolTable->firstSymbol;
     while (curSymbol != NULL) {
         if (isVariable(curSymbol) && (curSymbol->location != 0xffff)) {
-            int varSize = calcVarSize(curSymbol);
-            sizeNeeded += varSize;
+
+            if (!IS_PARAM_VAR(curSymbol)) {
+                int varSize = calcVarSize(curSymbol);
+                sizeNeeded += varSize;
+            }
         }
         curSymbol = curSymbol->next;
     }
@@ -182,12 +185,20 @@ int allocateLocalVarStorage(const SymbolTable *symbolTable, int curMemloc) {
         // only vars need allocation storage
         if (isVariable(curSymbol) && (curSymbol->location != 0xffff)) {
             int startLoc = curMemloc;
-            setSymbolLocation(curSymbol, curMemloc, SS_ZEROPAGE);       // TODO:  Locals are always stored in ZP (?)
-            int varSize = calcVarSize(curSymbol);
-            curMemloc += varSize;
 
+            unsigned int curStorage = (curSymbol->flags & SS_STORAGE_MASK);
+            if ((curStorage != SS_STACK) && (curSymbol->hint == VH_NONE)) {
+                setSymbolLocation(curSymbol, curMemloc, SS_ZEROPAGE);       // TODO:  Locals are always stored in ZP (?)
+                int varSize = calcVarSize(curSymbol);
+                curMemloc += varSize;
+
+            }
             if (compilerOptions.showVarAllocations) {
-                printf("\t%-20s allocated at %4X\n", curSymbol->name, startLoc);
+                if (curStorage != SS_STACK) {
+                    printf("\t%-20s allocated at %4X\n", curSymbol->name, startLoc);
+                } else {
+                    printf("\t%-20s allocated on stack\n", curSymbol->name);
+                }
             }
         }
         curSymbol = curSymbol->next;

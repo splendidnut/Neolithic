@@ -231,6 +231,45 @@ SymbolRecord * findSymbol(SymbolTable *symbolTable, const char* name) {
     return curSymbol;
 }
 
+char getDestRegFromHint(enum VarHint hint) {
+    char destReg;
+    switch (hint) {
+        case VH_A_REG: destReg = 'A'; break;
+        case VH_X_REG: destReg = 'X'; break;
+        case VH_Y_REG: destReg = 'Y'; break;
+        default:
+            destReg = 'S';
+    }
+    return destReg;
+}
+
+/**
+ * Find all parameter-type variables from the provided symbol table
+ *
+ * @param symTblWithParams - symbol table containing the parameters
+ * @return SymbolList of all the variables which are function parameters
+ */
+SymbolList *getParamSymbols(SymbolTable *symTblWithParams) {
+    if (symTblWithParams == NULL) return NULL;
+
+    SymbolList *paramList = malloc(sizeof(SymbolList));
+    paramList->count = 0;
+    paramList->cntStackVars = 0;
+
+    SymbolRecord *firstSymbol = symTblWithParams->firstSymbol;
+    while (firstSymbol != NULL) {
+        if (IS_PARAM_VAR(firstSymbol)) {
+            paramList->list[paramList->count] = firstSymbol;
+            paramList->count++;
+
+            if (IS_STACK_VAR(firstSymbol)) paramList->cntStackVars++;
+        }
+        firstSymbol = firstSymbol->next;
+    }
+    return paramList;
+}
+
+
 /**
  * isSimpleConst - is this a constant that has a singular value?
  * @param symbol

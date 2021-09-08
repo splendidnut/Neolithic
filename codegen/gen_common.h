@@ -10,7 +10,6 @@
 
 extern SymbolTable *mainSymbolTable;
 extern SymbolTable *curFuncSymbolTable;
-extern SymbolTable *curFuncParamTable;
 
 extern int GC_ErrorCount;
 
@@ -18,6 +17,6 @@ extern void ErrorMessageWithList(const char* errorMsg, const List *stmt);
 extern void ErrorMessageWithNode(const char* errorMsg, ListNode node, int lineNum);
 extern void ErrorMessage(const char* errorMsg, const char* errorStr, int lineNum);
 
-extern SymbolRecord *lookupSymbolNode(const ListNode symbolNode, int lineNum);
+extern SymbolRecord *lookupSymbolNode(ListNode symbolNode, int lineNum);
 
 #endif //MODULE_GEN_COMMON_H

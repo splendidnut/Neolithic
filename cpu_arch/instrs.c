@@ -225,8 +225,9 @@ void IL_ClearOnUpdate(const SymbolRecord *varSym) {
 #endif
 }
 
-void IL_Preload(const SymbolRecord *varSym, enum VarHint hint) {
+void IL_Preload(const SymbolRecord *varSym) {
     char *name = (char *)varSym->name;
+    enum VarHint hint = varSym->hint;
     switch (hint) {
         case VH_A_REG:
             lastUseForAReg.loadedWith = LW_VAR;

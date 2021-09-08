@@ -50,19 +50,10 @@ SymbolRecord* getArraySymbol(const List *expr, ListNode arrayNode) {
     return arraySymbol;
 }
 
-
-bool isParam(const char *varName) {
-    SymbolRecord *symRec = NULL;
-    if (curFuncParamTable != NULL)
-        symRec = findSymbol(curFuncParamTable, varName);
-    return (symRec != NULL);
-}
-
 //-------------------------------------------------------
 //   Simple Code Generation
 
-void GC_LoadParamVar(ListNode loadNode, const char *varName, int lineNum) {
-    SymbolRecord *varRec = findSymbol(curFuncParamTable, varName);
+void GC_LoadParamVar(SymbolRecord *varRec, int lineNum) {
     switch (varRec->hint) {
         case VH_A_REG: break;   // already in A
         case VH_X_REG: ICG_MoveIndexToAcc('X'); break;
@@ -72,7 +63,7 @@ void GC_LoadParamVar(ListNode loadNode, const char *varName, int lineNum) {
             if (IS_STACK_VAR(varRec)) {
                 ICG_LoadFromStack(varRec->location);
             } else {
-                ErrorMessageWithNode("Inaccessible parameter", loadNode, lineNum);
+                ErrorMessage("Inaccessible parameter", varRec->name, lineNum);
             }
         }
     }
@@ -80,12 +71,13 @@ void GC_LoadParamVar(ListNode loadNode, const char *varName, int lineNum) {
 
 
 void GC_LoadVar(ListNode loadNode, int lineNum) {
-    char *varName = loadNode.value.str;
-    if (isParam(varName)) {
-        GC_LoadParamVar(loadNode, varName, lineNum);
+    SymbolRecord *varSymbol = lookupSymbolNode(loadNode, lineNum);
+    if (varSymbol == NULL) return;
+
+    if (IS_PARAM_VAR(varSymbol)) {
+        GC_LoadParamVar(varSymbol, lineNum);
     } else {
-        SymbolRecord *varRec = lookupSymbolNode(loadNode, lineNum);
-        if (varRec != NULL) ICG_LoadVar(varRec);
+        ICG_LoadVar(varSymbol);
     }
 }
 
@@ -1223,53 +1215,57 @@ void GC_DoWhile(const List *stmt, enum SymbolType destType) {
     }
 }
 
+//------------------------------------------------------------------------------------------------
+//   Handle functions and parameters
+
+
+
 /**
- * Handling loading parameters to pass into function call
+ * Handling loading parameters to pass into function call  (function arguments)
  *
  * @param paramNode
  * @param destReg
  * @param lineNum
  */
-void GC_HandleParamLoad(const ListNode paramNode, const char destReg, int lineNum) {
+
+void GC_LoadFuncArg(const SymbolRecord *curParam, ListNode *argNode,
+                    int lineNum) {
+    if ((curParam->hint == VH_NONE) && (!IS_STACK_VAR(curParam))) {
+        ErrorMessageWithNode("Unable to load parameter: ", (*argNode), lineNum);
+        return;
+    }
+
+    char destReg = getDestRegFromHint(curParam->hint);
     IL_SetLineComment("loading param");
 
     // handle loading constants
-    if (paramNode.type == N_INT) {
+    if ((*argNode).type == N_INT) {
         if (destReg == 'S') {
-            GC_HandleLoad(paramNode, ST_NONE, lineNum);
+            GC_HandleLoad((*argNode), ST_NONE, lineNum);
             ICG_PushAcc();
         } else {
-            ICG_LoadRegConst(destReg, paramNode.value.num);
+            ICG_LoadRegConst(destReg, (*argNode).value.num);
         }
     } else {
 
         // first check to see if user is passing a struct variable.
         //   If so, we need to do something special to pass the pointer of the struct (16-bit value)
         //   TODO: fix this when 16-bit support is figured out
-        if (paramNode.type == N_STR) {
-            SymbolRecord *varSym = findSymbol(mainSymbolTable, paramNode.value.str);
+        if ((*argNode).type == N_STR) {
+            SymbolRecord *varSym = findSymbol(mainSymbolTable, (*argNode).value.str);
             if (varSym && isStructDefined(varSym)) {
                 IL_AddCommentToCode("Handle struct/pointer being passed");
                 ICG_LoadPointerAddr(varSym);
                 return;
             }
         }
-        GC_HandleLoad(paramNode, ST_NONE, lineNum);
+        GC_HandleLoad((*argNode), ST_NONE, lineNum);
         switch (destReg) {
             case 'X': ICG_MoveAccToIndex('X'); break;
             case 'Y': ICG_MoveAccToIndex('Y'); break;
             case 'S': ICG_PushAcc(); break;
         }
     }
-}
-
-void GC_FuncCallCleanup(SymbolRecord *firstParam) {
-    int stackAdj = 0;
-    while (firstParam != NULL) {
-        if (IS_STACK_VAR(firstParam)) stackAdj++;
-        firstParam = firstParam->next;
-    }
-    if (stackAdj>0) ICG_AdjustStack(stackAdj);
 }
 
 void GC_FuncCall(const List *stmt, enum SymbolType destType) {
@@ -1282,54 +1278,36 @@ void GC_FuncCall(const List *stmt, enum SymbolType destType) {
         return;
     }
 
-    SymbolTable *funcParams;
-    SymbolRecord *curParam;
+    SymbolList* funcParamList = getParamSymbols(funcSym->funcExt->localSymbolSet);
 
+    //------
     int requiredParams = funcSym->funcExt->cntParams;
-    bool requiresCleanup = false;
+    bool hasParamList = (stmt->nodes[2].type == N_LIST);
+
+    if ((requiredParams > 0) && !hasParamList) {
+        ErrorMessageWithNode("Missing parameters in function call", funcNameNode, stmt->lineNum);
+        return;
+    }
 
     // Check for parameter list and process it
-    if (stmt->nodes[2].type == N_LIST) {
+    bool requiresCleanup = false;
+    if (hasParamList) {
         List *args = stmt->nodes[2].value.list;
-        int lineNum = stmt->lineNum;
-        if (requiredParams == args->count) {
-
+        if ((requiredParams == args->count) && (funcParamList != NULL)) {
             requiresCleanup = true;
 
-            // now we can load the parameters
-            funcParams = funcSym->funcExt->paramSymbolSet;
-            curParam = funcParams->firstSymbol;
-            int argIndex = 0;
-            while (curParam != NULL) {
-                // If param has a hint, check to see if it's available;
-                switch (curParam->hint) {
-                    case VH_A_REG: GC_HandleParamLoad(args->nodes[argIndex], 'A', lineNum); break;
-                    case VH_X_REG: GC_HandleParamLoad(args->nodes[argIndex], 'X', lineNum); break;
-                    case VH_Y_REG: GC_HandleParamLoad(args->nodes[argIndex], 'Y', lineNum); break;
-
-                    // otherwise, attempt to put param on stack
-                    default: {
-                        if (IS_STACK_VAR(curParam)) {
-                            GC_HandleParamLoad(args->nodes[argIndex], 'S', lineNum);
-                        } else {
-                            ErrorMessageWithList("Unable to load parameter: ", args);
-                        }
-                    }
-                }
-                argIndex++;
-                curParam = curParam->next;
+            for_range(argIndex, 0, funcParamList->count) {
+                GC_LoadFuncArg(funcParamList->list[argIndex], &(args->nodes[argIndex]), stmt->lineNum);
             }
         } else {
             ErrorMessageWithList("Incorrect number of parameters in function call", stmt);
         }
-    } else if (requiredParams > 0) {
-        ErrorMessageWithNode("Missing parameters in function call", funcNameNode, stmt->lineNum);
     }
     ICG_Call(funcName);
 
     // now clean-up stack
-    if (requiresCleanup && (funcParams->firstSymbol != NULL)) {
-        GC_FuncCallCleanup(funcParams->firstSymbol);
+    if (requiresCleanup && (funcParamList != NULL)) {
+        if (funcParamList->cntStackVars > 0) ICG_AdjustStack(funcParamList->cntStackVars);
     }
 }
 
@@ -1631,13 +1609,10 @@ void GC_CodeBlock(List *code) {
 }
 
 /*** Preload any parameters into appropriate registers */
-void GC_PreloadParams(SymbolTable *params) {
-    SymbolRecord *curParam = params->firstSymbol;
-    while (curParam != NULL) {
-        if (curParam->hint != VH_NONE) {
-            IL_Preload(curParam, curParam->hint);
-        }
-        curParam = curParam->next;
+void GC_PreloadParams(SymbolList *params) {
+    for_range(paramCnt, 0, params->count) {
+        SymbolRecord *curParam = params->list[paramCnt];
+        if (curParam->hint != VH_NONE) IL_Preload(curParam);
     }
 }
 
@@ -1652,15 +1627,15 @@ void GC_ProcessFunction(char *funcName, List *code) {
     // load in local symbol table for function
     SymbolExt* funcExt = funcSym->funcExt;
     curFuncSymbolTable = funcExt->localSymbolSet;
-    curFuncParamTable = funcExt->paramSymbolSet;
 
     setEvalLocalSymbolTable(curFuncSymbolTable);
 
-    if (curFuncParamTable != NULL) {
-        // need to let the code generator/instruction generator
-        //  know about parameters that have been preloaded
-        //   into registers
-        GC_PreloadParams(curFuncParamTable);
+    // need to let the code generator/instruction generator
+    //  know about parameters that have been preloaded
+    //   into registers
+    SymbolList* funcParamList = getParamSymbols(curFuncSymbolTable);
+    if (funcParamList != NULL) {
+        GC_PreloadParams(funcParamList);
     }
 
     GC_CodeBlock(code);
@@ -1722,7 +1697,6 @@ void GC_ProcessProgramNode(ListNode opNode, const List *statement) {
         }
     }
     curFuncSymbolTable = NULL;
-    curFuncParamTable = NULL;
 }
 
 void WalkProgram(List *program, ProcessNodeFunc procNode) {
@@ -1757,7 +1731,6 @@ void generate_code(char *name, ListNode node, SymbolTable *symbolTable) {
 
     mainSymbolTable = symbolTable;
     curFuncSymbolTable = NULL;
-    curFuncParamTable = NULL;
     reverseData = false;
 
     initEvaluator(mainSymbolTable);

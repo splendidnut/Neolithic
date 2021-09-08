@@ -284,12 +284,8 @@ void WO_PrintSymbolTable(SymbolTable *workingSymbolTable, char *symTableName) {
 void WriteDASM_FuncSymTables(SymbolRecord *funcSym) {// add the symbol (local/param) tables to the output code
     SymbolExt* funcExt = funcSym->funcExt;
     SymbolTable *funcSymbols = funcExt->localSymbolSet;
-    SymbolTable *funcParams = funcExt->paramSymbolSet;
     if (funcSymbols != NULL) {
         WO_PrintSymbolTable(funcSymbols, "Local");
-    }
-    if (funcParams != NULL) {
-        WO_PrintSymbolTable(funcParams, "Parameter");
     }
 }
 

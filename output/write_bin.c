@@ -10,7 +10,6 @@
 static FILE *outputFile;
 static SymbolTable *mainSymbolTable;
 static SymbolTable *funcSymbolTable;
-static SymbolTable *paramSymbolTable;
 
 //---------------------------------------------------------
 // Output Adapter API
@@ -45,7 +44,6 @@ void WriteBIN_Init(FILE *outFile, SymbolTable *mainSymTbl) {
     outputFile = outFile;
     mainSymbolTable = mainSymTbl;
     funcSymbolTable = NULL;
-    paramSymbolTable = NULL;
     binData = allocMem(65536);
     for_range(i, 0, 4095) { binData[i] = 0; }
 }
@@ -83,8 +81,11 @@ int getParamStringValue(const char *param, int paramPos) {
 
     // attempt to lookup the param in the symbol tables
     SymbolRecord *paramSym = NULL;
-    if (paramSymbolTable != NULL) {
-        paramSym = findSymbol(paramSymbolTable, param);
+    // TODO:  Fix this goofy-ness
+    //   While working on moving params into the local symbol table, I stumbled upon this annoyance
+    //  Due to local vars have '.', and params don't, we have to look for param vars separately
+    if (funcSymbolTable != NULL) {
+        paramSym = findSymbol(funcSymbolTable, param);
     }
     if ((paramSym == NULL) && (funcSymbolTable != NULL)) {
         paramSym = findSymbol(funcSymbolTable, param + 1);
@@ -179,7 +180,6 @@ void WriteBIN_FunctionBlock(const OutputBlock *block) {
     if (instrBlock == NULL) return;
 
     funcSymbolTable = instrBlock->funcSym->funcExt->localSymbolSet;
-    paramSymbolTable = instrBlock->funcSym->funcExt->paramSymbolSet;
 
     WriteBIN_PreprocessLabels(instrBlock, writeAddr);
 

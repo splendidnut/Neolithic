@@ -373,19 +373,17 @@ void GS_Structure(List *structDef, SymbolTable *symbolTable) {
 
 enum RegParams { PARAM_A = 0x1, PARAM_X = 0x2, PARAM_Y = 0x4 };     // All available registers.
 
-enum RegParams getAvailableParams(const SymbolTable *funcParams) {
+enum RegParams getAvailableParams(SymbolList *funcParamList) {
     enum RegParams availParams = PARAM_A | PARAM_X | PARAM_Y;           // start off with all available
 
-    // first collect and allocate based on current hints
-    SymbolRecord *curParam = funcParams->firstSymbol;
-    while (curParam != NULL) {
+    for_range(paramIdx, 0, funcParamList->count) {
+        SymbolRecord *curParam = funcParamList->list[paramIdx];
         switch (curParam->hint) {
             case VH_A_REG: availParams &= ~PARAM_A; break;
             case VH_X_REG: availParams &= ~PARAM_X; break;
             case VH_Y_REG: availParams &= ~PARAM_Y; break;
             default: break;
         }
-        curParam = curParam->next;
     }
     return availParams;
 }
@@ -411,40 +409,47 @@ void assignRemainingHints(const SymbolTable *funcParams, enum RegParams *availPa
     }
 }
 
-void assignParamStackPos(const SymbolTable *funcParams) {
-    SymbolRecord *curParam = funcParams->firstSymbol;
+
+void assignParamStackPos(SymbolList *funcParamList) {
 
     // first count stack params
-    int numStackParams = 0;
-    while (curParam != NULL) {
-        if (curParam-> hint == VH_NONE) numStackParams++;
-        curParam = curParam->next;
+    int numStackParams = 0;//funcParamList->cntStackVars;
+
+    for_range (paramIdx, 0, funcParamList->count) {
+        SymbolRecord *curParam = funcParamList->list[paramIdx];
+        if (curParam->hint == VH_NONE) {
+            numStackParams++;
+        }
     }
+    funcParamList->cntStackVars = numStackParams;
+    printf("numStackParams: %d\n", numStackParams);
 
     // now assign stack locations
     int curStackPos = 2 + numStackParams;   // +2 to skip return address bytes on stack
-    curParam = funcParams->firstSymbol;
-    while (curParam != NULL) {
-        bool isStack = (curParam-> hint == VH_NONE);
-        if (isStack) {
+
+    for_range (paramIdx, 0, funcParamList->count) {
+        SymbolRecord *curParam = funcParamList->list[paramIdx];
+        if (curParam->hint == VH_NONE) {
             setSymbolLocation(curParam, curStackPos, SS_STACK);
             curStackPos--;
+        } else {
+            printf("-> %s uses Hint\n", curParam->name);
         }
-        curParam = curParam->next;
     }
 }
 
+
 void GS_FuncParamAlloc(const SymbolRecord *funcSym) {
-    SymbolTable *funcParams = funcSym->funcExt->paramSymbolSet;
+    SymbolList *funcParamList = getParamSymbols(funcSym->funcExt->localSymbolSet);
 
     //  If there are hints, use them first...
-    enum RegParams availParams = getAvailableParams(funcParams);
+    enum RegParams availParams = getAvailableParams(funcParamList);
 
     // next assign any missing hints (HACK)
     //assignRemainingHints(funcParams, &availParams);
 
     // next assign stack spots
-    assignParamStackPos(funcParams);
+    assignParamStackPos(funcParamList);
 }
 
 /**
@@ -468,6 +473,8 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
 
     FM_addFunctionDef(funcSym);
 
+    localVarTbl = initSymbolTable(funcName, symbolTable);
+
     //----------------------------------------------
     // generate param list symbol table
 
@@ -480,11 +487,9 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
 
         if (paramCnt > 3) printf("\tToo many function parameters defined\n");
 
-        paramListTbl = initSymbolTable(funcName, symbolTable);
-
         // go thru parameter list and process entry as a variable
         for_range ( paramIndex, 1, paramList->count) {
-            GS_Variable(paramList->nodes[paramIndex].value.list, paramListTbl, MF_PARAM);
+            GS_Variable(paramList->nodes[paramIndex].value.list, localVarTbl, MF_PARAM);
         }
     }
 
@@ -494,8 +499,6 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
     if (funcDef->count > 5) {
         ListNode funcCodeNode = funcDef->nodes[5];
         List *funcCode = funcCodeNode.value.list;
-
-        localVarTbl = initSymbolTable(funcName, symbolTable);
 
         // go thru function code block, find vars, and process them as local vars.
         for_range (funcStmtNum, 1, funcCode->count) {
@@ -507,11 +510,12 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
                 }
             }
         }
+    }
 
-        if (localVarTbl->firstSymbol == NULL) {
-            killSymbolTable(localVarTbl);
-            localVarTbl = NULL;
-        }
+    //--- Remove table if there are no variables
+    if (localVarTbl->firstSymbol == NULL) {
+        killSymbolTable(localVarTbl);
+        localVarTbl = NULL;
     }
 
     // ---------------------------

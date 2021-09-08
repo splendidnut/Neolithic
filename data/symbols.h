@@ -151,6 +151,18 @@ typedef struct SymbolExtStruct {
     struct SymbolTableStruct *localSymbolSet;
 } SymbolExt;
 
+/**
+ * Structure to hold a small symbol list (used mainly for function parameters)
+ */
+
+#define MAX_SYMBOL_LIST_CNT 10
+typedef struct stSymbolList {
+    int count;
+    int cntStackVars;
+    SymbolRecord *list[MAX_SYMBOL_LIST_CNT];
+} SymbolList;
+
+
 extern char* getNameOfSymbolKind(enum SymbolKind symbolKind);
 extern enum SymbolType getSymbolType(const char *baseType);
 
@@ -166,6 +178,8 @@ extern void markFunctionUsed(SymbolRecord *funcSymbol);
 extern int calcVarSize(const SymbolRecord *varSymRec);
 extern int getBaseVarSize(const SymbolRecord *varSymRec);
 extern SymbolRecord * findSymbol(SymbolTable *symbolTable, const char *name);
+extern char getDestRegFromHint(enum VarHint hint);
+extern SymbolList *getParamSymbols(SymbolTable *symTblWithParams);
 
 //--------------------------------------------------------
 //--- TODO:  convert some/most of these to simple macros?
