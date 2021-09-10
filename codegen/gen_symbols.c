@@ -413,7 +413,7 @@ void assignRemainingHints(const SymbolTable *funcParams, enum RegParams *availPa
 void assignParamStackPos(SymbolList *funcParamList) {
 
     // first count stack params
-    int numStackParams = 0;//funcParamList->cntStackVars;
+    int numStackParams = 0;
 
     for_range (paramIdx, 0, funcParamList->count) {
         SymbolRecord *curParam = funcParamList->list[paramIdx];
@@ -421,8 +421,10 @@ void assignParamStackPos(SymbolList *funcParamList) {
             numStackParams++;
         }
     }
+
+    // NOTE: This is NEEDED for letting any function call know how much stack is used for params
+    //         Mainly for cleanup purposes
     funcParamList->cntStackVars = numStackParams;
-    printf("numStackParams: %d\n", numStackParams);
 
     // now assign stack locations
     int curStackPos = 2 + numStackParams;   // +2 to skip return address bytes on stack
@@ -432,8 +434,6 @@ void assignParamStackPos(SymbolList *funcParamList) {
         if (curParam->hint == VH_NONE) {
             setSymbolLocation(curParam, curStackPos, SS_STACK);
             curStackPos--;
-        } else {
-            printf("-> %s uses Hint\n", curParam->name);
         }
     }
 }
