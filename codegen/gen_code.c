@@ -1151,6 +1151,7 @@ void GC_Switch(const List *stmt, enum SymbolType destType) {
             List *caseStmt = caseStmtNode.value.list;
             if (caseStmt->nodes[0].value.parseToken == PT_CASE) {
                 Label *nextCaseLabel = newGenericLabel(L_CODE);
+                IL_AddCommentToCode(buildSourceCodeLine(&caseStmtNode.value.list->progLine));
 
                 // handle case condition check
                 ListNode caseValueNode = caseStmt->nodes[1];
