@@ -272,36 +272,52 @@ int GC_GetArrayIndex(const SymbolRecord* arraySymbol, const List *expr) {
 //       Need to handle referencing struct pointer case.
 //       Need to produce better ASM source code.
 
-void GC_LoadAlias(const List *expr, SymbolRecord *structSymbol) {
+enum ParseToken GC_LoadAlias(const List *expr, SymbolRecord *structSymbol) {
     List *alias = structSymbol->alias;
 
     // exit early if alias is already loaded
-    if (ICG_IsCurrentTag('Y', structSymbol)) return;
+    if (ICG_IsCurrentTag('Y', structSymbol)) return PT_LOOKUP;
 
-    if (isToken(alias->nodes[0], PT_LOOKUP)) {
-
-        SymbolRecord *arraySymbol = lookupSymbolNode(alias->nodes[1], alias->lineNum);
-        SymbolRecord *indexSymbol = lookupSymbolNode(alias->nodes[2], alias->lineNum);
-
-        char multiplier = (char)calcVarSize(structSymbol);
-        ICG_MultiplyWithConst(indexSymbol, multiplier & 0x7f);
-        ICG_MoveAccToIndex('Y');
-
-        // Make sure instruction generator knows the use, so we don't have to keep reloading
-        ICG_Tag('Y', structSymbol);
-
+    // get alias type
+    enum ParseToken aliasType;
+    if (alias->nodes[0].type == N_TOKEN) {
+        aliasType = alias->nodes[0].value.parseToken;
     } else {
-        ErrorMessageWithList("-Need to handle alias", expr);
-        ErrorMessageWithList("- with the following:", structSymbol->alias);
+        aliasType = PT_EMPTY;
     }
+
+    switch (aliasType) {
+        case PT_LOOKUP: {
+            SymbolRecord *arraySymbol = lookupSymbolNode(alias->nodes[1], alias->lineNum);
+            SymbolRecord *indexSymbol = lookupSymbolNode(alias->nodes[2], alias->lineNum);
+
+            char multiplier = (char) calcVarSize(structSymbol);
+            ICG_MultiplyWithConst(indexSymbol, multiplier & 0x7f);
+            ICG_MoveAccToIndex('Y');
+
+            // Make sure instruction generator knows the use, so we don't have to keep reloading
+            ICG_Tag('Y', structSymbol);
+        } break;
+
+        case PT_INIT:
+            // nothing to load
+            break;
+        default:
+            ErrorMessageWithList("-Invalid alias:", structSymbol->alias);
+            ErrorMessageWithList("-Need to valid alias for expression", expr);
+            break;
+    }
+    return aliasType;
 }
 
-SymbolRecord *GC_GetAliasBase(const List *expr, SymbolRecord *structSymbol) {
+SymbolRecord *GC_GetAliasBase(const List *expr, SymbolRecord *structSymbol, enum ParseToken aliasType) {
     List *alias = structSymbol->alias;
-    if (isToken(alias->nodes[0], PT_LOOKUP)) {
-        return lookupSymbolNode(alias->nodes[1], alias->lineNum);
-    } else {
-        return NULL;
+    switch (aliasType) {
+        case PT_LOOKUP:
+        case PT_INIT:
+            return lookupSymbolNode(alias->nodes[1], alias->lineNum);
+        default:
+            return NULL;
     }
 }
 
@@ -328,9 +344,17 @@ void GC_LoadPropertyRef(const List *expr, enum SymbolType destType) {
         ICG_LoadIndirect(structSymbol, 0);
 
     } else if (IS_ALIAS(structSymbol)) {
-        GC_LoadAlias(expr, structSymbol);
-        SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSymbol);
-        ICG_LoadIndexedWithOffset(baseSymbol, propertySymbol->location);
+        enum ParseToken aliasType = GC_LoadAlias(expr, structSymbol);
+        SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSymbol, aliasType);
+        if (baseSymbol != NULL) {
+            if (aliasType == PT_LOOKUP) {
+                ICG_LoadIndexedWithOffset(baseSymbol, propertySymbol->location);
+            } else {
+                ICG_LoadPropertyVar(baseSymbol, propertySymbol);
+            }
+        } else {
+            ErrorMessage("Cannot load property via alias", structSymbol->name, expr->lineNum);
+        }
     } else {
         ICG_LoadPropertyVar(structSymbol, propertySymbol);
     }
@@ -383,9 +407,13 @@ void GC_OpWithPropertyRef(enum MnemonicCode mne, const List *expr, enum SymbolTy
         SymbolRecord *propSym = findSymbol(getStructSymbolSet(structSym), expr->nodes[2].value.str);
 
         if (IS_ALIAS(structSym)) {
-            GC_LoadAlias(expr, structSym);
-            SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSym);
-            ICG_OpPropertyVarIndexed(mne, baseSymbol, propSym);
+            enum ParseToken aliasType = GC_LoadAlias(expr, structSym);
+            SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSym, aliasType);
+            if (aliasType == PT_LOOKUP) {
+                ICG_OpPropertyVarIndexed(mne, baseSymbol, propSym);
+            } else {
+                ICG_OpPropertyVar(mne, baseSymbol, propSym);
+            }
         } else {
             ICG_OpPropertyVar(mne, structSym, propSym);
         }
@@ -444,9 +472,13 @@ void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, en
 
             ICG_PreOp(preOp);
 
-            GC_LoadAlias(propertyRef, structSymbol);
-            SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSymbol);
-            ICG_OpIndexedWithOffset(mne, baseSymbol, propertySymbol->location);
+            enum ParseToken aliasType = GC_LoadAlias(propertyRef, structSymbol);
+            SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSymbol, aliasType);
+            if (aliasType == PT_LOOKUP) {
+                ICG_OpIndexedWithOffset(mne, baseSymbol, propertySymbol->location);
+            } else {
+                ICG_OpPropertyVar(mne, baseSymbol, propertySymbol);
+            }
         } else {
             ICG_PreOp(preOp);
             GC_OpWithPropertyRef(mne, arg2.value.list, destType);
@@ -780,9 +812,13 @@ void GC_StoreToStructProperty(const List *expr) {
         if (propertySym != NULL) {
             if (IS_ALIAS(structSym)) {
 
-                GC_LoadAlias(expr, structSym);
-                SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSym);
-                ICG_StoreIndexedWithOffset(baseSymbol, propertySym->location);
+                enum ParseToken aliasType = GC_LoadAlias(expr, structSym);
+                SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSym, aliasType);
+                if (aliasType == PT_LOOKUP) {
+                    ICG_StoreIndexedWithOffset(baseSymbol, propertySym->location);
+                } else if (aliasType == PT_INIT) {
+                    ICG_StoreVarOffset(baseSymbol, propertySym->location, getBaseVarSize(propertySym));
+                }
 
             } else {
 
@@ -1321,7 +1357,12 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
     List *initList = varDef->nodes[4].value.list;
 
     if (IS_ALIAS(varSymRec)) {        // We're aliasing something, we need to link the definition to the symbol record
-        List *alias = (List *)(initList->nodes[1].value.list);
+        List *alias;
+        if (initList->nodes[1].type == N_LIST) {
+            alias = (List *) (initList->nodes[1].value.list);
+        } else {
+            alias = initList;
+        }
         varSymRec->alias = alias;
 
         if (!TypeCheck_Alias(alias, destType)) {

@@ -35,6 +35,11 @@ bool TypeCheck_Alias(const List *expr, enum SymbolType destType) {
         if (!arraySymbol) return false;
 
         return TypeCheck_Primitive(expr->nodes[2], destType, expr->lineNum);
+    } else if (isToken(opNode, PT_INIT)) {
+
+        // we have a simple variable alias
+        return TypeCheck_Primitive(expr->nodes[1], destType, expr->lineNum);
+
     } else {
         return false;
     }
