@@ -345,6 +345,20 @@ void ICG_LoadConst(int constValue, int size) {
     lastUseForAReg.constValue = constValue;
 }
 
+//-------------------------------------------------------------------
+//  Consolidate any accesses to Param variables here
+
+void ICG_OpWithParamVar(enum MnemonicCode mne, const SymbolRecord *varRec, const char *varName) {
+    IL_AddComment(
+            IL_AddInstrN(TSX, ADDR_NONE, 0),
+            "prepare to read param var");
+    IL_AddComment(
+            IL_AddInstrN(mne, ADDR_ABX, varRec->location),
+            (char *)varName);
+}
+
+//-------------------------------------------------------------------
+
 void ICG_LoadVar(const SymbolRecord *varRec) {
     //if ((lastUseForAReg.loadedWith == LW_VAR) && (lastUseForAReg.varSym == varRec)) return;
 
@@ -355,12 +369,7 @@ void ICG_LoadVar(const SymbolRecord *varRec) {
             IL_AddInstrS(LDX, ADDR_IMM, varName, NULL, PARAM_HI);
         }
     } else if (IS_PARAM_VAR(varRec)) {
-        IL_AddComment(
-                IL_AddInstrN(TSX, ADDR_NONE, 0),
-                "prepare to read param var");
-        IL_AddComment(
-                IL_AddInstrN(LDA, ADDR_ABX, 0x100 + (varRec->location)),
-                (char *)varName);
+        ICG_OpWithParamVar(LDA, varRec, varName);
     } else {
         IL_AddInstrS(LDA, ADDR_ZP, varName, NULL, PARAM_NORMAL);
         if ((getBaseVarSize(varRec) == 2) || isStructDefined(varRec)) {
@@ -392,10 +401,7 @@ void ICG_LoadIndexVar(const SymbolRecord *varSym, int size) {
             lastUseForAReg = REG_USED_FOR_NOTHING;
         } else {
             if (IS_PARAM_VAR(varSym)) {
-                IL_AddComment( IL_AddInstrB(TSX), "prepare to read param var");
-                IL_AddComment(
-                        IL_AddInstrN(LDY, ADDR_ABX, 0x100 + (varSym->location)),
-                        (char *)varName);
+                ICG_OpWithParamVar(LDY, varSym, varName);
             } else {
                 IL_AddComment(
                         IL_AddInstrS(LDY, ADDR_ZP, varName, NULL, PARAM_NORMAL), "load array index");
@@ -619,12 +625,7 @@ void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym, int dataSi
     if (isConst(varSym)) {
         IL_AddInstrS(mne, ADDR_IMM, varName, NULL, PARAM_NORMAL);
     } else if (IS_PARAM_VAR(varSym)) {
-        IL_AddComment(
-                IL_AddInstrN(TSX, ADDR_NONE, 0),
-                "prepare to read param var");
-        IL_AddComment(
-                IL_AddInstrN(mne, ADDR_ABX, 0x100 + (varSym->location)),
-                (char *)varName);
+        ICG_OpWithParamVar(mne, varSym, varName);
     } else {
         IL_AddInstrS(mne, ADDR_ZP, varName, NULL, PARAM_NORMAL);
 
@@ -797,7 +798,7 @@ void ICG_AddToInt(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);
     IL_AddInstrN(CLC, ADDR_NONE, 0);
     if (IS_PARAM_VAR(varSym)) {
-        IL_AddInstrS(ADC, ADDR_ABS, varName, "$100", PARAM_ADD);
+        ICG_OpWithParamVar(ADC, varSym, varName);
     } else {
         IL_AddInstrS(ADC, ADDR_ZP, varName, NULL, PARAM_NORMAL);
     }

@@ -427,7 +427,7 @@ void assignParamStackPos(SymbolList *funcParamList) {
     funcParamList->cntStackVars = numStackParams;
 
     // now assign stack locations
-    int curStackPos = 2 + numStackParams;   // +2 to skip return address bytes on stack
+    int curStackPos = 0x100 + numStackParams + 2;   // +2 to skip return address bytes on stack
 
     for_range (paramIdx, 0, funcParamList->count) {
         SymbolRecord *curParam = funcParamList->list[paramIdx];
@@ -489,7 +489,7 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
 
         // go thru parameter list and process entry as a variable
         for_range ( paramIndex, 1, paramList->count) {
-            GS_Variable(paramList->nodes[paramIndex].value.list, localVarTbl, MF_PARAM);
+            GS_Variable(paramList->nodes[paramIndex].value.list, localVarTbl, MF_PARAM | MF_LOCAL);
         }
     }
 
