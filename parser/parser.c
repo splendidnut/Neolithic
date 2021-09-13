@@ -1137,7 +1137,7 @@ ListNode parse_stmt() {
                 // handle var list/initialization
                 node = parse_variable();
             } else if (token->tokenStr[0] == '#') {
-                node = parse_compilerDirective();
+                node = parse_compilerDirective(SCOPE_CODEBLOCK);
             } else if (token->tokenType != TT_SEMICOLON) {
                 // handle an expression/assignment statement
                 node = parse_expr_assignment();
@@ -1236,7 +1236,7 @@ ListNode parse_program(char *sourceCode) {
                         getToken();
                     }
                 } else if (tokenStr[0] == '#') {
-                    node = parse_compilerDirective();
+                    node = parse_compilerDirective(SCOPE_PROGRAM);
                 } else {
                     printError("Warning: bad token: %s %d\n", tokenStr, tokenStr[0]);
                     getToken();

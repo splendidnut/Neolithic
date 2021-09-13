@@ -11,6 +11,8 @@ typedef struct {
     enum Machines machine;
 } PreProcessInfo;
 
-extern PreProcessInfo * preprocess(char *inFileStr);
+extern PreProcessInfo * initPreprocessor();
+extern void addIncludeFile(PreProcessInfo *preProcessInfo, char *fileName);
+extern void preprocess(PreProcessInfo *preProcessInfo, char *inFileStr);
 
 #endif //MODULE_PREPROCESS_H

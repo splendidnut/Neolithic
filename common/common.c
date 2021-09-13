@@ -54,19 +54,51 @@ int strToInt(const char *str) {
     return resultInt;
 }
 
-char *getUnquotedString(const char *srcString) {
-    unsigned int len = strlen(srcString) - 2;
-    char *newStr = allocMem(len+1);
-    strncpy(newStr, srcString+1, len);
-    newStr[len] = '\0';
-    return newStr;
-}
-
 char * getStructRefComment(const char *prefixComment, const char *structName, const char *propName) {
     char *propRefStr = allocMem(40);
     sprintf(propRefStr, "%s: %s.%s", prefixComment, structName, propName);
     return propRefStr;
 }
+
+
+/**
+ * Copies a portion from the input string into a new, memory-allocated string)
+ * @param inStr - input string
+ * @param idxBegin - beginning index of portion to copy (offset into input string)
+ * @param idxEnd - end index of portion to copy.  If equal to idxBegin, copy to end of string
+ * @return new allocated string filled with "extracted" string
+ */
+char * newSubstring(const char* inStr, int idxBegin, int idxEnd) {
+    int len = strlen(inStr);
+    int newStrLen = (idxEnd == idxBegin) ? (len - idxBegin) : (idxEnd - idxBegin);
+
+    char *resultStr = malloc(newStrLen+1);
+    memcpy(resultStr, inStr + idxBegin, newStrLen);
+    resultStr[newStrLen] = '\0';
+    return resultStr;
+}
+
+/**
+ * Get substring located inside double quotes
+ * @param srcString
+ * @return string within quotes, OR empty string if quotes not found
+ */
+char *getUnquotedString(const char *srcString) {
+    int b=0,e;
+
+    // find start index
+    const char *s = srcString;
+    while ((s[b] != 0) && (s[b++] != '\"'));
+    if (s[b] == 0) return "";
+
+    // find end index
+    e=b;
+    do {e++;} while ((s[e] != 0) && (s[e] != '\"'));
+    if (s[e] == 0) return "";
+
+    return newSubstring(s,b,e);
+}
+
 
 /**
  * Generate a filename with the given extension, starting from a filename

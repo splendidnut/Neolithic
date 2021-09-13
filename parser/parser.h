@@ -8,6 +8,11 @@
 #include "data/syntax_tree.h"
 #include "tokenize.h"
 
+enum ParserScope {
+    SCOPE_PROGRAM,
+    SCOPE_CODEBLOCK,
+};
+
 extern int parserErrorCount;
 
 extern bool acceptToken(TokenType tokenType);

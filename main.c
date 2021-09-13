@@ -27,6 +27,7 @@ const char *verStr = "0.2(alpha)";
 //  Global Variables
 
 CompilerOptions compilerOptions;
+PreProcessInfo *preProcessInfo;
 SymbolTable * mainSymbolTable;
 char *projectName;
 char *projectDir;
@@ -157,7 +158,7 @@ ListNode parse(char *curFileName, char *sourceCode) {
 }
 
 
-void loadAndParseAllDependencies(PreProcessInfo *preProcessInfo) {
+void loadAndParseAllDependencies() {
     char *srcFileName, *srcFileData;
     for_range(curFileNum, 0, preProcessInfo->numFiles) {
         srcFileName = preProcessInfo->includedFiles[curFileNum];
@@ -179,11 +180,11 @@ void loadAndParseAllDependencies(PreProcessInfo *preProcessInfo) {
 }
 
 
-void generateCodeForDependencies(PreProcessInfo *preProcessInfo) {
+void generateCodeForDependencies() {
     for_range(curFileIdx, 0, preProcessInfo->numFiles) {
         char *curFileName = preProcessInfo->includedFiles[curFileIdx];
         ListNode progNode = SourceFileList_lookupAST(curFileName);
-        generate_code(curFileName, progNode, mainSymbolTable);
+        generate_code(curFileName, progNode);
     }
 }
 
@@ -200,7 +201,8 @@ int mainCompiler() {
     printf("Initializing symbol table\n");
     mainSymbolTable = initSymbolTable("main", NULL);
 
-    PreProcessInfo *preProcessInfo = preprocess(mainFileData);
+    preprocess(preProcessInfo, mainFileData);
+
     if (preProcessInfo->machine == Machine_Unknown) {
         printf("Unknown machine specified, cannot continue!\n");
         return -1;
@@ -209,7 +211,7 @@ int mainCompiler() {
     bool hasDependencies = (preProcessInfo->numFiles > 0);
     if (hasDependencies) {
         // Build and output AST, then process and analyze symbols
-        loadAndParseAllDependencies(preProcessInfo);
+        loadAndParseAllDependencies();
     }
 
     reportMem();
@@ -242,11 +244,11 @@ int mainCompiler() {
 
     IL_Init(getMachineStartAddr(preProcessInfo->machine));
     OB_Init();
-
+    initCodeGenerator(mainSymbolTable);
 
     //   Now do full compile on any dependencies
     if (hasDependencies) {
-        generateCodeForDependencies(preProcessInfo);
+        generateCodeForDependencies();
     }
 
     //------------------------------------------
@@ -254,7 +256,7 @@ int mainCompiler() {
 
     printf("Compiling main program %s\n", inFileName);
     ListNode progNode = SourceFileList_lookupAST(inFileName);
-    generate_code(inFileName, progNode, mainSymbolTable);
+    generate_code(inFileName, progNode);
 
     if (GC_ErrorCount == 0) {
         //OPT_RunOptimizer();
@@ -352,6 +354,9 @@ void setDefaultCompilerParameters() {
  *   -t (target)
  *   -u
  *   -v (view) (variables) (verbose)
+ *   -va (view allocations)
+ *   -vc (view call tree)
+ *   -vl (view layout of memory)
  *   -w (warnings)
  *   -x
  *   -y
@@ -378,6 +383,9 @@ void parseCommandLineParameters(int argc, char *argv[]) {
                 printf("Show function map: ON\n");
                 compilerOptions.showCallTree = true;
                 break;
+            case 'i':
+                addIncludeFile(preProcessInfo, newSubstring(cmdParam, 2, 2));
+                break;
             case 'l':
                 printf("Show output block layout: ON\n");
                 compilerOptions.showOutputBlockList = true;
@@ -387,8 +395,16 @@ void parseCommandLineParameters(int argc, char *argv[]) {
                 printf("Show memory usage: ON\n");
                 break;
             case 'v':
-                printf("Show variable allocation info: ON\n");
-                compilerOptions.showVarAllocations = true;
+                if (cmdParam[2] != 0) switch (cmdParam[2]) {
+                    case 'a': compilerOptions.showVarAllocations = true; break;
+                    case 'c': compilerOptions.showCallTree = true; break;
+                    case 'l': compilerOptions.showOutputBlockList = true; break;
+                    default:
+                        printf("Unknown view option\n");
+                        break;
+                } else {
+                    printf("View parameter not specified\n");
+                }
                 break;
             default:
                 printf("Arg %d: %s\n", c, cmdParam);
@@ -405,6 +421,10 @@ int main(int argc, char *argv[]) {
         printf("Usage:\tneolithic (infile)\n");
         return -1;
     }
+
+    // Initialize the preprocessor so that the command line parameter parser has access to it.
+    preProcessInfo = initPreprocessor();
+
     // TODO: split directory from file name, if any
     projectDir = "";
     projectName = argv[1];

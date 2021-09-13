@@ -391,8 +391,15 @@ void ICG_LoadIndexVar(const SymbolRecord *varSym, int size) {
 
             lastUseForAReg = REG_USED_FOR_NOTHING;
         } else {
-            IL_AddComment(
-                    IL_AddInstrS(LDY, ADDR_ZP, varName, NULL, PARAM_NORMAL), "load array index");
+            if (IS_PARAM_VAR(varSym)) {
+                IL_AddComment( IL_AddInstrB(TSX), "prepare to read param var");
+                IL_AddComment(
+                        IL_AddInstrN(LDY, ADDR_ABX, 0x100 + (varSym->location)),
+                        (char *)varName);
+            } else {
+                IL_AddComment(
+                        IL_AddInstrS(LDY, ADDR_ZP, varName, NULL, PARAM_NORMAL), "load array index");
+            }
         }
         lastUseForYReg.loadedWith = LW_VAR;
         lastUseForYReg.varSym = varSym;

@@ -27,7 +27,7 @@
 //  Variables used in code generation
 
 static bool reverseData;
-
+enum CompilerDirectiveTokens lastDirective;
 
 //--------------------------------------------------------
 //--- Forward References
@@ -1410,6 +1410,7 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
 
     // NOTE: loose casting op!
     enum CompilerDirectiveTokens directive = code->nodes[1].value.num;
+    lastDirective = directive;
 
     switch (directive) {
         case SHOW_CYCLES:
@@ -1579,6 +1580,11 @@ void GC_Variable(const List *varDef) {
     int hasInitializer = (varDef->count >= 4) && (varDef->nodes[4].type == N_LIST);
 
     bool isNotAlias = !IS_ALIAS(varSymRec);
+
+    if (lastDirective == USE_QUICK_INDEX_TABLE) {
+        ICG_Mul_AddLookupTable(7);
+        lastDirective = 0;
+    }
 
     if (hasInitializer && isArray(varSymRec) && isNotAlias) {
         if (!isConst(varSymRec)) {
@@ -1768,10 +1774,14 @@ void GC_ProcessProgram(ListNode node) {
     }
 }
 
-void generate_code(char *name, ListNode node, SymbolTable *symbolTable) {
+void initCodeGenerator(SymbolTable *symbolTable) {
+    mainSymbolTable = symbolTable;
+    ICG_Mul_InitLookupTables(symbolTable);
+}
+
+void generate_code(char *name, ListNode node) {
     printf("\nGenerating Code for %s\n", name);
 
-    mainSymbolTable = symbolTable;
     curFuncSymbolTable = NULL;
     reverseData = false;
 

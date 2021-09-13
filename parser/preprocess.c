@@ -15,6 +15,23 @@
 
 static char *curProg;   // current program
 
+
+PreProcessInfo * initPreprocessor() {
+    PreProcessInfo *preProcessInfo = allocMem(sizeof(PreProcessInfo));
+    preProcessInfo->numFiles = 0;
+    preProcessInfo->machine = 0;
+    return preProcessInfo;
+}
+
+void addIncludeFile(PreProcessInfo *preProcessInfo, char *fileName) {
+    if (preProcessInfo->numFiles < 12) {
+        preProcessInfo->includedFiles[preProcessInfo->numFiles++] = fileName;
+        printf("Including: %s\n", fileName);
+    } else {
+        printf("Warning: Too many included files\n");
+    }
+}
+
 /**
  *  Read another line from the current program
  */
@@ -76,12 +93,7 @@ void PP_Directive(char *curLine, PreProcessInfo *preProcessInfo) {
     }
 }
 
-
-PreProcessInfo * preprocess(char *inFileStr) {
-    PreProcessInfo *preProcessInfo = allocMem(sizeof(PreProcessInfo));
-    preProcessInfo->numFiles = 0;
-    preProcessInfo->machine = 0;
-
+void preprocess(PreProcessInfo *preProcessInfo, char *inFileStr) {
     printf("Pre-processing...\n");
 
     /* find inFileStr length */
@@ -107,6 +119,4 @@ PreProcessInfo * preprocess(char *inFileStr) {
         PP_nextLine();
     }
     free(lineBuffer);
-
-    return preProcessInfo;
 }

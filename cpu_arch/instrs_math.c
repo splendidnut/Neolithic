@@ -2,9 +2,12 @@
 // Created by admin on 5/11/2021.
 //
 
+#include <string.h>
+#include <output/output_block.h>
 #include "instrs_math.h"
 #include "instrs.h"
 
+SymbolTable *mul_globalSymbolTable;
 typedef enum MnemonicCode MultiplierSteps[5];
 
 const MultiplierSteps multiplierSteps[16] = {
@@ -35,6 +38,69 @@ void ICG_Mul_loadVariable(const SymbolRecord *varRec, int addrMulVar, bool isPar
         IL_AddInstrS(LDA, CALC_ADDR_MODE(addrMulVar), varName, "", PARAM_NORMAL);
     }
 }
+
+
+/**
+ * Handle multiplication lookup tables
+ */
+
+bool valueLookupTableExists[64];
+
+void ICG_Mul_InitLookupTables(SymbolTable *globalSymbolTable) {
+    for_range(i,0,63) {
+        valueLookupTableExists[i] = false;
+    }
+    mul_globalSymbolTable = globalSymbolTable;
+}
+
+/**
+ * Add a multiplication lookup table
+ */
+void ICG_Mul_AddLookupTable(char lookupValue) {
+
+    int count = (256 / lookupValue) + 1;
+    List *lookupTableList = createList(count+1);
+    addNode(lookupTableList, createParseToken(PT_INIT));
+
+    //------------------------------
+    // generate the lookup table
+
+    for_range(index, 0, count) {
+        int value = index * lookupValue;
+        addNode(lookupTableList, createIntNode(value));
+    }
+    valueLookupTableExists[lookupValue] = true;
+
+    //--------------------------------------------
+    // Now add the symbol and data to the output
+
+    char *lookupTableName = allocMem(8);
+    strcpy(lookupTableName, "QL_");
+    strcat(lookupTableName, intToStr(lookupValue));
+    printf("Adding lookup table named: %s\n", lookupTableName);
+
+    SymbolRecord *lookupTableRec = addSymbol(mul_globalSymbolTable, lookupTableName, SK_CONST, ST_CHAR, 0);
+    OutputBlock *staticData = OB_AddData(lookupTableRec, lookupTableName, lookupTableList);
+    setSymbolLocation(lookupTableRec, ICG_MarkStaticArrayData(staticData->blockSize), SS_ROM);
+}
+
+bool hasValueLookupTable(char lookupValue) {
+    return valueLookupTableExists[lookupValue];
+}
+
+void ICG_MultiplyWithConstTable(const SymbolRecord *varRec, const char multiplier) {
+    ICG_LoadIndexVar(varRec, 1);
+
+    char lookupTableName[8];
+    strcpy(lookupTableName, "QL_");
+    strcat(lookupTableName, intToStr(multiplier));
+
+    SymbolRecord *lookupTable = findSymbol(mul_globalSymbolTable, lookupTableName);
+    if (lookupTable != NULL) {
+        ICG_LoadIndexed(lookupTable);
+    }
+}
+
 
 /*
  * https://atariage.com/forums/topic/71120-6502-killer-hacks/?do=findComment&comment=896028
@@ -170,7 +236,9 @@ void ICG_StepMultiplyWithConst(const SymbolRecord *varRec, const char multiplier
 void ICG_MultiplyWithConst(const SymbolRecord *varRec, const char multiplier) {
     IL_AddCommentToCode("Start of Multiplication");
 
-    if (multiplier < 17) {
+    if (hasValueLookupTable(multiplier)) {
+        ICG_MultiplyWithConstTable(varRec, multiplier);
+    } else if (multiplier < 17) {
         ICG_StepMultiplyWithConst(varRec, multiplier);
     } else {
         // do multiply using a generic routine

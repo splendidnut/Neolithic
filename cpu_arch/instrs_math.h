@@ -7,6 +7,8 @@
 
 #include <data/instr_list.h>
 
+extern void ICG_Mul_InitLookupTables(SymbolTable *globalSymbolTable);
+extern void ICG_Mul_AddLookupTable(char lookupValue);
 extern void ICG_MultiplyWithVar(const SymbolRecord *varRec, const SymbolRecord *varRec2);
 extern void ICG_MultiplyWithConst(const SymbolRecord *varRec, const char multiplier);
 
