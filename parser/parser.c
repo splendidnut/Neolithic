@@ -1100,7 +1100,11 @@ ListNode parse_stmt_return() {
     List *retStmt = createList(2);
     acceptToken(TT_RETURN);
     addNode(retStmt, createParseToken(PT_RETURN));
-    addNode(retStmt, parse_expr());
+    if (peekToken()->tokenType != TT_SEMICOLON) {
+        addNode(retStmt, parse_expr());
+    } else {
+        addNode(retStmt, createEmptyNode());
+    }
     return createListNode(retStmt);
 }
 
