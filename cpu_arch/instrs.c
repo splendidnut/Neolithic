@@ -495,7 +495,7 @@ void ICG_LoadRegConst(const char destReg, int ofs) {
 void ICG_LoadFromStack(int ofs) {
     IL_AddInstrN(TSX, ADDR_NONE, 0);
     IL_AddComment(
-        IL_AddInstrN(LDA, ADDR_ABX, 0x100 + ofs),
+        IL_AddInstrN(LDA, ADDR_ABX, ofs),
         "load param from stack");
 }
 
