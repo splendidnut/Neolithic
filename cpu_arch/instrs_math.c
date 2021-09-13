@@ -79,7 +79,7 @@ void ICG_Mul_AddLookupTable(char lookupValue) {
     strcat(lookupTableName, intToStr(lookupValue));
     printf("Adding lookup table named: %s\n", lookupTableName);
 
-    SymbolRecord *lookupTableRec = addSymbol(mul_globalSymbolTable, lookupTableName, SK_CONST, ST_CHAR, 0);
+    SymbolRecord *lookupTableRec = addSymbol(mul_globalSymbolTable, lookupTableName, SK_CONST, ST_CHAR, MF_ARRAY);
     OutputBlock *staticData = OB_AddData(lookupTableRec, lookupTableName, lookupTableList);
     setSymbolLocation(lookupTableRec, ICG_MarkStaticArrayData(staticData->blockSize), SS_ROM);
 }
