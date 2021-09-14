@@ -14,7 +14,6 @@
 #include "cpu_arch/instrs.h"
 #include "cpu_arch/instrs_math.h"
 #include "eval_expr.h"
-#include "output/write_output.h"
 #include "output/output_block.h"
 #include "common/tree_walker.h"
 #include "gen_common.h"
@@ -574,40 +573,36 @@ void GC_ShiftRight(const List *expr, enum SymbolType destType) {
 }
 
 
-void GC_IncStmt(const List *stmt, enum SymbolType destType) {
+bool GC_SimpleModifyOp(enum MnemonicCode mne, const List *stmt, enum SymbolType destType) {
     if (stmt->nodes[1].type == N_LIST) {
         List *expr = stmt->nodes[1].value.list;
         switch (expr->nodes[0].value.parseToken) {
             case PT_LOOKUP:
-                GC_OpWithArrayElement(INC, expr);
+                GC_OpWithArrayElement(mne, expr);
                 break;
             case PT_PROPERTY_REF:
-                GC_OpWithPropertyRef(INC, expr, destType);
+                GC_OpWithPropertyRef(mne, expr, destType);
                 break;
             default:
-                ErrorMessageWithList("Invalid increment statement", stmt);
+                return false;
         }
     } else if (stmt->nodes[1].type == N_STR) {
-        GC_Inc(stmt, destType);
+        GC_SimpleOP(stmt, mne, destType);
+    }
+    return true;
+}
+
+void GC_IncStmt(const List *stmt, enum SymbolType destType) {
+    bool success = GC_SimpleModifyOp(INC, stmt, destType);
+    if (!success) {
+        ErrorMessageWithList("Invalid increment statement", stmt);
     }
 }
 
 void GC_DecStmt(const List *stmt, enum SymbolType destType) {
-    if (stmt->nodes[1].type == N_LIST) {
-        int ofs;
-        List *expr = stmt->nodes[1].value.list;
-        switch (expr->nodes[0].value.parseToken) {
-            case PT_LOOKUP:
-                GC_OpWithArrayElement(DEC, expr);
-                break;
-            case PT_PROPERTY_REF:
-                GC_OpWithPropertyRef(DEC, expr, destType);
-                break;
-            default:
-                ErrorMessageWithList("Invalid decrement statement", stmt);
-        }
-    } else if (stmt->nodes[1].type == N_STR) {
-        GC_Dec(stmt, destType);
+    bool success = GC_SimpleModifyOp(DEC, stmt, destType);
+    if (!success) {
+        ErrorMessageWithList("Invalid decrement statement", stmt);
     }
 }
 
