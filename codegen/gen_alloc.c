@@ -39,7 +39,6 @@ void initStackFrames() {
     }
 }
 
-
 // Need to collect list of functions in order of depth
 //  starting with the deepest
 //
@@ -68,11 +67,11 @@ void collectFunctionsInOrder(const SymbolTable *symbolTable) {
     SymbolRecord *curSymbol = symbolTable->firstSymbol;
     while (curSymbol != NULL) {
         if (isFunction(curSymbol)) {        // Only need function symbols
-            SymbolTable *funcSymTbl = curSymbol->funcExt->localSymbolSet;
+            SymbolTable *funcSymTbl = GET_LOCAL_SYMBOL_TABLE(curSymbol);
 
             // Only need functions with local variables -- TODO: this might be a bad assumption
             if (funcSymTbl != NULL) {
-                int depth = curSymbol->funcExt->funcDepth;
+                int depth = GET_FUNCTION_DEPTH(curSymbol);
                 depthSymbolList[cntDepthSymbols].depth = depth;
                 depthSymbolList[cntDepthSymbols].symbol = curSymbol;
                 cntDepthSymbols++;
@@ -210,7 +209,7 @@ int allocateLocalVarStorage(const SymbolTable *symbolTable, int curMemloc) {
 void allocateLocalVars() {
     for_range (idx, 0, cntDepthSymbols) {
         int depth = depthSymbolList[idx].depth;
-        SymbolTable *funcSymTbl = depthSymbolList[idx].symbol->funcExt->localSymbolSet;
+        SymbolTable *funcSymTbl = GET_LOCAL_SYMBOL_TABLE(depthSymbolList[idx].symbol);
         allocateLocalVarStorage(funcSymTbl, stackLocs[depth]);
     }
 }
@@ -232,8 +231,8 @@ void calcLocalVarAllocs() {
     int lastStackSize = 0;
     for_range (idx, 0, cntDepthSymbols) {
         SymbolRecord *curSymbol = depthSymbolList[idx].symbol;
-        SymbolTable *funcSymTbl = curSymbol->funcExt->localSymbolSet;
-        int depth = curSymbol->funcExt->funcDepth;
+        SymbolTable *funcSymTbl = GET_LOCAL_SYMBOL_TABLE(curSymbol);
+        int depth = GET_FUNCTION_DEPTH(curSymbol);
 
         if (depth < lastDepth) {
             lastDepth = depth;
@@ -252,7 +251,6 @@ void calcLocalVarAllocs() {
 
         // calculate local memory needed by function
         int localMemNeeded = calcStorageNeeded(funcSymTbl);
-        curSymbol->funcExt->localVarMemUsed = localMemNeeded;
 
         // keep track of each stack size
         if (funcsCalled == 0) {

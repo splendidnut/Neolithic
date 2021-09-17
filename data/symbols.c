@@ -7,9 +7,6 @@
 //   hack job done when adding new features and some past attempts at
 //   reorganizing the code.
 //
-//   TODO:
-//      Cleanup!  Need to potentially rework/separate the Symbol flags into
-//      there separate functions.
 //
 
 #include <stdlib.h>
@@ -168,8 +165,8 @@ void setStructSize(SymbolRecord *symbol, int unionSize) {
 }
 
 void markFunctionUsed(SymbolRecord *funcSymbol) {
-    if (funcSymbol && funcSymbol->funcExt) {
-        funcSymbol->funcExt->cntUses++;
+    if (isFunction(funcSymbol)) {
+        funcSymbol->cntUses++;
     }
 }
 
@@ -200,24 +197,10 @@ int getBaseVarSize(const SymbolRecord *varSymRec) {
 }
 
 int getCodeSize(const SymbolRecord *funcSymRec) {
-    if (funcSymRec->funcExt == NULL) return 0;
-
     bool isFunc = isFunction(funcSymRec);
-    bool isCodeUsed = (funcSymRec->funcExt->cntUses > 0);
-    return (isFunc && isCodeUsed) ? funcSymRec->funcExt->instrBlock->codeSize : 0;
+    bool isCodeUsed = IS_FUNC_USED(funcSymRec);
+    return (isFunc && isCodeUsed) ? funcSymRec->instrBlock->codeSize : 0;
 }
-
-void addSymbolExt(SymbolRecord *funcSym, SymbolTable *paramTbl, SymbolTable *localSymTbl) {
-    if (funcSym == NULL) return;
-
-    SymbolExt *funcExt = allocMem(sizeof(SymbolExt));
-    memset(funcExt, 0, sizeof(SymbolExt));
-
-    funcExt->paramSymbolSet = paramTbl;
-    funcExt->localSymbolSet = localSymTbl;
-    funcSym->funcExt = funcExt;
-}
-
 
 SymbolRecord * findSymbol(SymbolTable *symbolTable, const char* name) {
     if (name[0] == '\0') return NULL;
@@ -277,7 +260,7 @@ SymbolList *getParamSymbols(SymbolTable *symTblWithParams) {
  */
 bool isSimpleConst(SymbolRecord *symbol) {
     unsigned int flags = symbol->flags;
-    return (symbol->kind == SK_CONST) && !(flags & (MF_ARRAY | ST_STRUCT | SK_STRUCT));
+    return (symbol->kind == SK_CONST) && !(flags & (MF_ARRAY | ST_STRUCT));
 }
 
 bool isArrayConst(SymbolRecord *symbol) {
@@ -365,7 +348,7 @@ void printSymbol(FILE *outputFile, const SymbolRecord *curSymbol, int indentLeve
     }
 
     // print information
-    bool isFunc = isFunction(curSymbol) && (curSymbol->funcExt != NULL);
+    bool isFunc = isFunction(curSymbol);
     int baseSize = getBaseVarSize(curSymbol);
     int size = isFunc ? getCodeSize(curSymbol) : calcVarSize(curSymbol);
     fprintf(outputFile,
@@ -398,19 +381,12 @@ void printSubSymbolTable(FILE *outputFile, const SymbolTable *structSymTbl, int 
 
 
 void printSubSymbolSet(FILE *outputFile, SymbolRecord *curSymbol, int indentLevel) {
-    if (curSymbol->funcExt == NULL) return;
-
     if ((curSymbol->kind == SK_STRUCT) ||
         (curSymbol->kind == SK_UNION)) {
-        SymbolTable *structSymTbl = curSymbol->funcExt->paramSymbolSet;
+        SymbolTable *structSymTbl = GET_STRUCT_SYMBOL_TABLE(curSymbol);
         printSubSymbolTable(outputFile, structSymTbl, indentLevel + 1);
     } else if (isFunction(curSymbol)) {
-        SymbolTable *paramSymTbl = curSymbol->funcExt->paramSymbolSet;
-        if (paramSymTbl != NULL) {
-            fprintf(outputFile, "  Params:\n");
-            printSubSymbolTable(outputFile, paramSymTbl, indentLevel + 2);
-        }
-        SymbolTable *localSymTbl = curSymbol->funcExt->localSymbolSet;
+        SymbolTable *localSymTbl = GET_LOCAL_SYMBOL_TABLE(curSymbol);
         if (localSymTbl != NULL) {
             fprintf(outputFile, "  Locals:\n");
             printSubSymbolTable(outputFile, localSymTbl, indentLevel + 2);
@@ -449,16 +425,16 @@ void showSymbolTable(FILE *outputFile, SymbolTable *symbolTable) {
 }
 
 bool isStructDefined(const SymbolRecord *structSymbol) {
-    return (structSymbol && structSymbol->funcExt && structSymbol->funcExt->paramSymbolSet);
+    return (structSymbol && GET_STRUCT_SYMBOL_TABLE(structSymbol));
 }
 
-SymbolTable *getStructSymbolSet(const SymbolRecord *structSymbol) {
+/*SymbolTable *getStructSymbolSet(const SymbolRecord *structSymbol) {
     if (structSymbol->userTypeDef != NULL) {
-        return structSymbol->userTypeDef->funcExt->paramSymbolSet;
+        return GET_STRUCT_SYMBOL_TABLE(structSymbol->userTypeDef);
     } else {
         return NULL;
     }
-}
+}*/
 
 // NOTE: This is a variable name getter designed specifically to handle DASM style local labels.
 // TODO: Figure out a better way to handle this.

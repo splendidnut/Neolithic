@@ -1310,10 +1310,10 @@ void GC_FuncCall(const List *stmt, enum SymbolType destType) {
         return;
     }
 
-    SymbolList* funcParamList = getParamSymbols(funcSym->funcExt->localSymbolSet);
+    SymbolList* funcParamList = getParamSymbols(GET_LOCAL_SYMBOL_TABLE(funcSym));
 
     //------
-    int requiredParams = funcSym->funcExt->cntParams;
+    int requiredParams = (funcParamList != NULL) ? funcParamList->count : 0;
     bool hasParamList = (stmt->nodes[2].type == N_LIST);
 
     if ((requiredParams > 0) && !hasParamList) {
@@ -1668,8 +1668,7 @@ void GC_ProcessFunction(char *funcName, List *code) {
     setSymbolLocation(funcSym, funcAddr, SS_ROM);
 
     // load in local symbol table for function
-    SymbolExt* funcExt = funcSym->funcExt;
-    curFuncSymbolTable = funcExt->localSymbolSet;
+    curFuncSymbolTable = GET_LOCAL_SYMBOL_TABLE(funcSym);
 
     setEvalLocalSymbolTable(curFuncSymbolTable);
 
@@ -1682,9 +1681,9 @@ void GC_ProcessFunction(char *funcName, List *code) {
     }
 
     GC_CodeBlock(code);
-    funcExt->instrBlock = ICG_EndOfFunction(funcLabel);
+    funcSym->instrBlock = ICG_EndOfFunction(funcLabel);
 
-    OB_AddCode(funcName, funcExt->instrBlock);
+    OB_AddCode(funcName, funcSym->instrBlock);
 }
 
 void GC_Function(const List *function, int codeNodeIndex) {
@@ -1702,7 +1701,7 @@ void GC_Function(const List *function, int codeNodeIndex) {
     // only process function code, if it exists, and the function is used
     if (hasCode) {
         SymbolRecord *funcSym = findSymbol(mainSymbolTable, funcName);
-        isFuncUsed = isMainFunction(funcSym) || (funcSym->funcExt->cntUses > 0);
+        isFuncUsed = isMainFunction(funcSym) || IS_FUNC_USED(funcSym);
         if (isFuncUsed) {
             GC_ProcessFunction(funcName, codeNode.value.list);
         }

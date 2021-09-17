@@ -21,6 +21,14 @@
 
 #define HAS_SYMBOL_LOCATION(sym)  ((sym)->location >= 0)
 
+//--- macros for function symbols
+#define GET_LOCAL_SYMBOL_TABLE(funcSym) ((funcSym)->symbolTbl)
+#define GET_FUNCTION_DEPTH(funcSym)     ((funcSym)->funcDepth)
+#define IS_FUNC_USED(funcSym)           ((funcSym)->cntUses > 0)
+
+#define GET_STRUCT_SYMBOL_TABLE(structSym) ((structSym)->symbolTbl)
+#define getStructSymbolSet(sym) GET_STRUCT_SYMBOL_TABLE(sym->userTypeDef)
+
 //--------------------------------------
 //   All the flags for symbols
 
@@ -89,16 +97,20 @@ enum VarHint {
 
 
 typedef struct SymbolRecordStruct {     // 112 bytes!
+    struct SymbolRecordStruct *next;        // point to next symbol
+
     //--- definition
     char *name;
     enum SymbolKind kind;
-    unsigned int flags;                 // ModifierFlags + SymbolType
-    int numElements;                  // number of elements (if array/object)
-    int location;                       // location in memory  (has location if >= 0)
+    unsigned int flags;                     // ModifierFlags + SymbolType
+    int numElements;                        // number of elements (if array/object)
+    int location;                           // location in memory  (has location if >= 0)
+
+    struct SymbolTableStruct *symbolTbl;    // symbol table set if function or struct symbol
 
     //---- All the rest of these are SymbolKind specific
 
-    // constant value information
+    // used by SK_CONST - constant value information
     bool hasValue;
     int constValue;                     // constant value
     char *constEvalNotes;
@@ -106,12 +118,14 @@ typedef struct SymbolRecordStruct {     // 112 bytes!
     // used by SK_ALIAS
     List *alias;
 
-    // used by function params
+    // used by SK_VAR - function params
     enum VarHint hint;                  // Hint for Function Param Symbol
 
-    struct SymbolExtStruct *funcExt;
+    // used by SK_FUNC
+    int cntUses;                            // number of times function is used
+    int funcDepth;                          // track the depth of the function
+    struct InstrBlockStruct *instrBlock;
     struct SymbolRecordStruct *userTypeDef;     // user defined type
-    struct SymbolRecordStruct *next;  // point to next symbol
 } SymbolRecord;
 
 
@@ -128,28 +142,6 @@ typedef struct SymbolTableStruct {
 
     struct SymbolTableStruct *parentTable;
 } SymbolTable;
-
-/**
- * Extension structure for Symbols
- *   - stores size of generated code (for functions)
- *   - stores parameter symbol table (Functions / Structures)
- *   - stores local symbol table (for functions)
- */
-typedef struct SymbolExtStruct {
-    int cntUses;        // number of times function is used
-    int funcDepth;
-    int cntParams;
-    int localVarMemUsed;   // local variable memory required
-    /*
-    bool isInlined;
-    struct ListStruct *inlinedCode; // source of function code (for use with inlining)
-    struct InstrStruct *instrList;  // compiled function code as instruction list
-     */
-    struct InstrBlockStruct *instrBlock;
-
-    struct SymbolTableStruct *paramSymbolSet;
-    struct SymbolTableStruct *localSymbolSet;
-} SymbolExt;
 
 /**
  * Structure to hold a small symbol list (used mainly for function parameters)
@@ -198,12 +190,10 @@ extern bool isMainFunction(const SymbolRecord *symbol);
 //------
 
 extern enum SymbolType getType(const SymbolRecord *symbol);
-extern void addSymbolExt(SymbolRecord *funcSym, SymbolTable *paramTbl, SymbolTable *localSymTbl);
 extern void showSymbolTable(FILE *outputFile, SymbolTable *symbolTable);
 extern void killSymbolTable(SymbolTable *symbolTable);
 
 extern bool isStructDefined(const SymbolRecord *structSymbol);
-extern SymbolTable *getStructSymbolSet(const SymbolRecord *structSymbol);
 extern const char *getVarName(const SymbolRecord *varSym);
 
 

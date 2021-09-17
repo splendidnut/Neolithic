@@ -179,7 +179,7 @@ void WriteBIN_FunctionBlock(const OutputBlock *block) {
     InstrBlock *instrBlock = block->codeBlock;
     if (instrBlock == NULL) return;
 
-    funcSymbolTable = instrBlock->funcSym->funcExt->localSymbolSet;
+    funcSymbolTable = GET_LOCAL_SYMBOL_TABLE(instrBlock->funcSym);
 
     WriteBIN_PreprocessLabels(instrBlock, writeAddr);
 

@@ -65,10 +65,10 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
         if (userTypeSymbol != NULL) {
             if (isStruct(userTypeSymbol)) {
                 symbolType = ST_STRUCT;
-                childTable = userTypeSymbol->funcExt->paramSymbolSet;
+                childTable = GET_STRUCT_SYMBOL_TABLE(userTypeSymbol);
             } else if (isUnion(userTypeSymbol)) {
                 symbolType = ST_STRUCT;
-                childTable = userTypeSymbol->funcExt->paramSymbolSet;
+                childTable = GET_STRUCT_SYMBOL_TABLE(userTypeSymbol);
             }
         } else {
             ErrorMessage("Unknown user-defined type", baseType, varDef->lineNum);
@@ -156,9 +156,7 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
     }
 
     // if variable uses a struct/union, add child table
-    if (childTable != NULL) {
-        addSymbolExt(varSymRec, childTable, NULL);
-    }
+    varSymRec->symbolTbl = childTable;
 
     // if there's a memory hint, use it
     if ((varDef->count > 5) && (varDef->nodes[5].type == N_INT)) {
@@ -256,7 +254,7 @@ int GS_UnionWithName(List *varList, SymbolTable *symbolTable, char* unionName, i
 
     int unionSize = GS_ProcessUnionList(unionSymTbl, varList, ofs);
     setStructSize(unionSym, unionSize);
-    addSymbolExt(unionSym, unionSymTbl, NULL);
+    unionSym->symbolTbl = unionSymTbl;
     return unionSize;
 }
 
@@ -352,7 +350,7 @@ void GS_Structure(List *structDef, SymbolTable *symbolTable) {
                 }
             }
         }
-        addSymbolExt(structSym, structSymTbl, NULL);
+        structSym->symbolTbl = structSymTbl;
     }
 
     setStructSize(structSym, memOfs);
@@ -440,7 +438,7 @@ void assignParamStackPos(SymbolList *funcParamList) {
 
 
 void GS_FuncParamAlloc(const SymbolRecord *funcSym) {
-    SymbolList *funcParamList = getParamSymbols(funcSym->funcExt->localSymbolSet);
+    SymbolList *funcParamList = getParamSymbols(GET_LOCAL_SYMBOL_TABLE(funcSym));
 
     //  If there are hints, use them first...
     enum RegParams availParams = getAvailableParams(funcParamList);
@@ -520,8 +518,7 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
 
     // ---------------------------
     //  Save all the hard work
-    addSymbolExt(funcSym, paramListTbl, localVarTbl);
-    funcSym->funcExt->cntParams = paramCnt;
+    funcSym->symbolTbl = localVarTbl;
 
     // If we have parameters, make sure to do the allocations
     if (paramCnt > 0) GS_FuncParamAlloc(funcSym);

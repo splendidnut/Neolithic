@@ -282,8 +282,7 @@ void WO_PrintSymbolTable(SymbolTable *workingSymbolTable, char *symTableName) {
 
 
 void WriteDASM_FuncSymTables(SymbolRecord *funcSym) {// add the symbol (local/param) tables to the output code
-    SymbolExt* funcExt = funcSym->funcExt;
-    SymbolTable *funcSymbols = funcExt->localSymbolSet;
+    SymbolTable *funcSymbols = GET_LOCAL_SYMBOL_TABLE(funcSym);
     if (funcSymbols != NULL) {
         WO_PrintSymbolTable(funcSymbols, "Local");
     }
@@ -391,7 +390,7 @@ void WriteDASM_StaticArrayData(const OutputBlock *block) {
 
 void WriteDASM_StaticStructData(const OutputBlock *block) {
     SymbolRecord *structSym = block->dataSym->userTypeDef;
-    SymbolTable *structSymTbl = structSym->funcExt->paramSymbolSet;
+    SymbolTable *structSymTbl = GET_STRUCT_SYMBOL_TABLE(structSym);
 
     WriteDASM_WriteBlockHeader(block, true);
 

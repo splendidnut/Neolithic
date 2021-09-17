@@ -297,7 +297,6 @@ enum Machines targetMachine;
 
 void reportMemoryUsage() {
     printf("\n\nsizeof SymbolRecord = %d\n", sizeof(SymbolRecord));
-    printf("sizeof SymbolExtStruct = %d\n", sizeof(struct SymbolExtStruct));
     printf("sizeof LabelStruct = %d\n", sizeof(struct LabelStruct));
     printf("sizeof ListStruct = %d\n", sizeof(struct ListStruct));
     printf("sizeof ListNode = %d\n", sizeof(ListNode));
