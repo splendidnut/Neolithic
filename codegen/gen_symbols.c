@@ -63,10 +63,7 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
         }
 
         if (userTypeSymbol != NULL) {
-            if (isStruct(userTypeSymbol)) {
-                symbolType = ST_STRUCT;
-                childTable = GET_STRUCT_SYMBOL_TABLE(userTypeSymbol);
-            } else if (isUnion(userTypeSymbol)) {
+            if (isStruct(userTypeSymbol) || isUnion(userTypeSymbol)) {
                 symbolType = ST_STRUCT;
                 childTable = GET_STRUCT_SYMBOL_TABLE(userTypeSymbol);
             }
@@ -235,8 +232,8 @@ int GS_ProcessUnionList(SymbolTable *symbolTable, const List *varList, int ofs) 
             GS_Structure(varDef, symbolTable);
         } else {
             SymbolRecord *symRec = GS_Variable(varDef, symbolTable, 0);
-            printf("Adding union variable: %s @%d\n", symRec->name, ofs);
             if (symRec != NULL) {
+                printf("Adding union variable: %s @%d\n", symRec->name, ofs);
                 int varSize = calcVarSize(symRec);
                 setSymbolLocation(symRec, ofs, 0);
                 if (varSize > maxElementSize) maxElementSize = varSize;
@@ -275,9 +272,7 @@ int GS_Union(List *unionDef, SymbolTable *symbolTable, int ofs) {
 }
 
 void addSymbolForEnumType(SymbolTable *symbolTable, char *enumTypeName) {
-
-    // create the new variable for enumType symbol
-    SymbolRecord *varSymRec = addSymbol(symbolTable, enumTypeName, SK_ENUM, ST_CHAR, 0);
+    addSymbol(symbolTable, enumTypeName, SK_ENUM, ST_CHAR, 0);
 }
 
 void addSymbolForEnumValue(SymbolTable *symbolTable, char *enumName, int enumValue) {
@@ -364,55 +359,12 @@ void GS_Structure(List *structDef, SymbolTable *symbolTable) {
 //=====================================================================================
 // --  Handle Function Parameter passing
 //
-//-- TODO:  So now, with the hint system, how do we solve the parameter passing debacle?
-//
-//  Usual parameters: P1 -> A,  P2 -> X,  P3 -> Y,  P4+ -> Push on Stack
-//
 
-enum RegParams { PARAM_A = 0x1, PARAM_X = 0x2, PARAM_Y = 0x4 };     // All available registers.
-
-enum RegParams getAvailableParams(SymbolList *funcParamList) {
-    enum RegParams availParams = PARAM_A | PARAM_X | PARAM_Y;           // start off with all available
-
-    for_range(paramIdx, 0, funcParamList->count) {
-        SymbolRecord *curParam = funcParamList->list[paramIdx];
-        switch (curParam->hint) {
-            case VH_A_REG: availParams &= ~PARAM_A; break;
-            case VH_X_REG: availParams &= ~PARAM_X; break;
-            case VH_Y_REG: availParams &= ~PARAM_Y; break;
-            default: break;
-        }
-    }
-    return availParams;
-}
-
-void assignRemainingHints(const SymbolTable *funcParams, enum RegParams *availParams) {
-    SymbolRecord *curParam = funcParams->firstSymbol;
-    while (curParam != NULL) {
-        if (curParam->hint == VH_NONE) {
-            if ((*availParams) & PARAM_A) {
-                curParam->hint = VH_A_REG;
-                (*availParams) &= PARAM_A ^ 0xFF;
-            } else if ((*availParams) & PARAM_X) {
-                curParam->hint = VH_X_REG;
-                (*availParams) &= PARAM_X  ^ 0xFF;
-            } else if ((*availParams) & PARAM_Y) {
-                curParam->hint = VH_Y_REG;
-                (*availParams) &= PARAM_Y  ^ 0xFF;
-            } else {
-                printf("ERROR: Out of hints");
-            }
-        }
-        curParam = curParam->next;
-    }
-}
-
-
-void assignParamStackPos(SymbolList *funcParamList) {
+void GS_FuncParamAlloc(const SymbolRecord *funcSym) {
+    SymbolList *funcParamList = getParamSymbols(GET_LOCAL_SYMBOL_TABLE(funcSym));
 
     // first count stack params
     int numStackParams = 0;
-
     for_range (paramIdx, 0, funcParamList->count) {
         SymbolRecord *curParam = funcParamList->list[paramIdx];
         if (curParam->hint == VH_NONE) {
@@ -436,20 +388,6 @@ void assignParamStackPos(SymbolList *funcParamList) {
     }
 }
 
-
-void GS_FuncParamAlloc(const SymbolRecord *funcSym) {
-    SymbolList *funcParamList = getParamSymbols(GET_LOCAL_SYMBOL_TABLE(funcSym));
-
-    //  If there are hints, use them first...
-    enum RegParams availParams = getAvailableParams(funcParamList);
-
-    // next assign any missing hints (HACK)
-    //assignRemainingHints(funcParams, &availParams);
-
-    // next assign stack spots
-    assignParamStackPos(funcParamList);
-}
-
 /**
  * Process both function definitions and implementations
  *
@@ -459,7 +397,6 @@ void GS_FuncParamAlloc(const SymbolRecord *funcSym) {
  */
 void GS_Function(List *funcDef, SymbolTable *symbolTable) {
     SymbolRecord *funcSym;
-    SymbolTable *paramListTbl = NULL;
     SymbolTable *localVarTbl = NULL;
     char *funcName = funcDef->nodes[1].value.str;
 
@@ -559,8 +496,6 @@ void GS_Program(List *list, SymbolTable *workingSymTbl) {
 // Walk thru the program node provided to add all symbols to the symbol table
 
 void generate_symbols(ListNode node, SymbolTable *symbolTable) {
-    printf("Finding all symbols\n");
-
     initEvaluator(symbolTable);
 
     if (node.type == N_LIST) {

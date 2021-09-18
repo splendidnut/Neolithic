@@ -1,5 +1,5 @@
 /*
- *   Neolithic Compiler v0.2 - Simple C Cross-compiler for the 6502
+ *   Neolithic Compiler v0.3 - Simple C Cross-compiler for the 6502
  *
 **/
 
@@ -21,7 +21,7 @@
 #include "cpu_arch/instrs.h"
 #include "output/write_output.h"
 
-const char *verStr = "0.2(alpha)";
+const char *verStr = "0.3(alpha)";
 
 //-------------------------------------------
 //  Global Variables
@@ -32,6 +32,8 @@ SymbolTable * mainSymbolTable;
 char *projectName;
 char *projectDir;
 char *inFileName;
+bool showMemoryUsage;
+enum Machines targetMachine;
 
 //------------------------------------------
 //  Cache all the source files
@@ -78,11 +80,11 @@ char* readSourceFile(const char* fileName) {
     char fileToLoad[100];
     sprintf(fileToLoad, "%s%s", projectDir, fileName);
 
-    printf("Loading file %-20s  ", fileToLoad);
+    if (compilerOptions.showGeneralInfo) printf("Loading file %-20s  ", fileToLoad);
     FILE *inFile = fopen(fileToLoad, "r");
 
     if (!inFile) {
-        printf("Unable to open\n");
+        printf("Unable to open %s\n", fileName);
         return NULL;
     }
 
@@ -90,7 +92,7 @@ char* readSourceFile(const char* fileName) {
     long fsize = ftell(inFile);
     fseek(inFile, 0, SEEK_SET);  /* same as rewind(f); */
 
-    printf("%ld bytes\n", fsize);
+    if (compilerOptions.showGeneralInfo) printf("%ld bytes\n", fsize);
 
     char *fileData = allocMem(fsize + 1);
 
@@ -151,7 +153,7 @@ void writeSymbolTable(const char *name) {
 ListNode parse(char *curFileName, char *sourceCode) {
     ListNode progNode = SourceFileList_lookupAST(curFileName);
     if (progNode.type == N_EMPTY) {
-        progNode = parse_program(sourceCode);
+        progNode = parse_program(sourceCode, curFileName);
         SourceFileList_add(curFileName, sourceCode, progNode);
     }
     return progNode;
@@ -162,8 +164,6 @@ void loadAndParseAllDependencies() {
     char *srcFileName, *srcFileData;
     for_range(curFileNum, 0, preProcessInfo->numFiles) {
         srcFileName = preProcessInfo->includedFiles[curFileNum];
-        printf("Loading and parsing %s\n", srcFileName);
-
         srcFileData = readSourceFile(srcFileName);
         if (srcFileData == NULL) {
             printf("ERROR: Missing dependency %s\n", srcFileName);
@@ -196,25 +196,27 @@ int mainCompiler() {
     }
 
     SourceFileList_init();
-
-    printf("\n");
-    printf("Initializing symbol table\n");
     mainSymbolTable = initSymbolTable("main", NULL);
-
     preprocess(preProcessInfo, mainFileData);
 
-    if (preProcessInfo->machine == Machine_Unknown) {
+    //---------------------------------------------------
+    // check to make sure we have a machine configured
+
+    if (preProcessInfo->machine > Machine_Unknown) {
+        targetMachine = preProcessInfo->machine;
+    } else if (targetMachine == Machine_Unknown) {
         printf("Unknown machine specified, cannot continue!\n");
         return -1;
     }
+
+    //------------------------------------------------------
+    // Start processing dependencies
 
     bool hasDependencies = (preProcessInfo->numFiles > 0);
     if (hasDependencies) {
         // Build and output AST, then process and analyze symbols
         loadAndParseAllDependencies();
     }
-
-    reportMem();
 
     if (GC_ErrorCount > 0) return -1;
 
@@ -227,22 +229,21 @@ int mainCompiler() {
     //--------------------------------------------------------
     //--- Now compile!
 
-    reportMem();
-
     generate_symbols(mainProgNode, mainSymbolTable);
     if (GC_ErrorCount > 0) return -1;               // abort if any issues when processing symbols
+    if (compilerOptions.showGeneralInfo) printf("Symbol Table generation Complete\n");
 
     generate_callTree(mainProgNode, mainSymbolTable);
     generate_var_allocations(mainSymbolTable);
 
-    printf("Analysis of %s Complete\n\n", inFileName);
+    if (compilerOptions.showGeneralInfo) printf("Analysis of %s Complete\n", inFileName);
 
     //-----------------------------------------------------------
     // Configure output for specific machine
     // TODO: This code is still specific to Atari 2600... need to figure out a way to eliminate that constraint.
     // only need to initial instruction list and output block modules once
 
-    IL_Init(getMachineStartAddr(preProcessInfo->machine));
+    IL_Init(getMachineStartAddr(targetMachine));
     OB_Init();
     initCodeGenerator(mainSymbolTable);
 
@@ -254,7 +255,7 @@ int mainCompiler() {
     //------------------------------------------
     //----- Compile main file
 
-    printf("Compiling main program %s\n", inFileName);
+    if (compilerOptions.showGeneralInfo) printf("Compiling main program %s\n", inFileName);
     ListNode progNode = SourceFileList_lookupAST(inFileName);
     generate_code(inFileName, progNode);
 
@@ -279,10 +280,11 @@ int mainCompiler() {
     writeSymbolTable(inFileName);
 
     //----- Cleanup!
+    if (compilerOptions.showGeneralInfo) printf("Cleaning up\n");
+
     free(preProcessInfo);
     free(mainFileData);
 
-    printf("Cleaning up\n");
     SourceFileList_cleanup();
     killSymbolTable(mainSymbolTable);
 
@@ -292,8 +294,6 @@ int mainCompiler() {
 
 //------------------------------------------------------------------------------------------
 
-bool showMemoryUsage;
-enum Machines targetMachine;
 
 void reportMemoryUsage() {
     printf("\n\nsizeof SymbolRecord = %d\n", sizeof(SymbolRecord));
@@ -313,6 +313,8 @@ void reportMemoryUsage() {
 
 void setDefaultCompilerParameters() {
     targetMachine = Atari2600;
+
+    compilerOptions.showGeneralInfo = true;
 
     showMemoryUsage = false;
     compilerOptions.entryPointFuncName = "main";
@@ -334,16 +336,11 @@ void setDefaultCompilerParameters() {
  *   -a (analyze) (assembly)
  *   -b (build) (binary)
  *   -c (config)
- *   -d (debug)
- *   -e (entry-point) (error)
  *   -f (function map)
  *   -g (generate)  (a=assembly, b=binary)
- *   -h (HELP)
- *   -i (info) (include)
  *   -j
  *   -k
  *   -l (layout)
- *   -m (machine) (module) (memory)
  *   -n
  *   -o (optimize) (output)
  *   -p (project)
@@ -352,10 +349,6 @@ void setDefaultCompilerParameters() {
  *   -s (show) (set)
  *   -t (target)
  *   -u
- *   -v (view) (variables) (verbose)
- *   -va (view allocations)
- *   -vc (view call tree)
- *   -vl (view layout of memory)
  *   -w (warnings)
  *   -x
  *   -y
@@ -364,6 +357,30 @@ void setDefaultCompilerParameters() {
  * @param argc
  * @param argv
  */
+
+const char *help[] = {
+        "Command Line Options",
+        "  -d  Show debugging information for the compiler itself ",
+        "         (Memory usage)",
+        "  -e  Change name of Entry point",
+        "  -f  Show function call tree",
+        "  -h  Show help for Command Line options",
+        "  -i  Include file",
+        "  -l  Show output block layout",
+        "  -m  Select machine target",
+        "  -v  View details about:",
+        "        -va  Show variable allocations",
+        "        -vc  Show call tree",
+        "        -vl  Show output block layout"
+};
+
+void showCmdParamHelp() {
+    printf("\n");
+    for_range(lineNum, 0, sizeof(help) / sizeof(char *)) {
+        printf("%s\n", help[lineNum]);
+    }
+    printf("\n");
+}
 
 void parseCommandLineParameters(int argc, char *argv[]) {
     // argv[0] = full path to executable? (path + name)  TODO: might just be portion of command line used to call exe
@@ -375,24 +392,52 @@ void parseCommandLineParameters(int argc, char *argv[]) {
         char *cmdParam = argv[c];
 
         if ((cmdParam[0] == '-') && (cmdParam[1] != 0)) switch(cmdParam[1]) {
+            // Debug options for the compiler itself
+            case 'd':
+                showMemoryUsage = true;
+                printf("Show memory usage: ON\n");
+                break;
+
             case 'e':
                 printf("Change entry point name to: %s\n", (cmdParam + 2));
                 break;
+
             case 'f':
                 printf("Show function map: ON\n");
                 compilerOptions.showCallTree = true;
                 break;
+
+            case 'h':
+                showCmdParamHelp();
+                break;
+
             case 'i':
                 addIncludeFile(preProcessInfo, newSubstring(cmdParam, 2, 2));
                 break;
+
             case 'l':
                 printf("Show output block layout: ON\n");
                 compilerOptions.showOutputBlockList = true;
                 break;
-            case 'm':
-                showMemoryUsage = true;
-                printf("Show memory usage: ON\n");
+
+            case 'm': {
+                char *machineName = newSubstring(cmdParam, 2, 2);
+                printf("Machine lookup: %s\n", machineName);
+                enum Machines machine = lookupMachineName(machineName);
+                if (machine > 0) {
+                    printf("Found!\n");
+                    targetMachine = machine;
+                }
+            } break;
+
+            case 'q':
+                compilerOptions.showGeneralInfo = false;
+                compilerOptions.showOutputBlockList = false;
+                compilerOptions.showCallTree = false;
+                compilerOptions.showVarAllocations = false;
+                compilerOptions.reportFunctionProcessing = false;
                 break;
+
             case 'v':
                 if (cmdParam[2] != 0) switch (cmdParam[2]) {
                     case 'a': compilerOptions.showVarAllocations = true; break;
@@ -414,10 +459,11 @@ void parseCommandLineParameters(int argc, char *argv[]) {
 //------------------------------------------------------
 
 int main(int argc, char *argv[]) {
-    printf("Neolithic Compiler v%s - Simplified C Cross-compiler for the 6502\n", verStr);
+    printf("\nNeolithic Compiler v%s - Simplified C Cross-compiler for the 6502\n", verStr);
 
     if (argc < 2) {
-        printf("Usage:\tneolithic (infile)\n");
+        printf("Usage:\tneolithic (infile) (options)\n");
+        showCmdParamHelp();
         return -1;
     }
 

@@ -94,8 +94,6 @@ void PP_Directive(char *curLine, PreProcessInfo *preProcessInfo) {
 }
 
 void preprocess(PreProcessInfo *preProcessInfo, char *inFileStr) {
-    printf("Pre-processing...\n");
-
     /* find inFileStr length */
     int inFileLen = 0;
     while (inFileStr[inFileLen] != '\0') inFileLen++;

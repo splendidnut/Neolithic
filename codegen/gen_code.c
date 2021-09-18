@@ -1774,7 +1774,7 @@ void initCodeGenerator(SymbolTable *symbolTable) {
 }
 
 void generate_code(char *name, ListNode node) {
-    printf("\nGenerating Code for %s\n", name);
+    if (compilerOptions.showGeneralInfo) printf("Generating Code for %s\n", name);
 
     curFuncSymbolTable = NULL;
     reverseData = false;

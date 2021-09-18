@@ -1198,8 +1198,8 @@ ListNode parse_codeBlock() {
     }
 }
 
-ListNode parse_program(char *sourceCode) {
-    printf("Parsing...\n");
+ListNode parse_program(char *sourceCode, const char *srcName) {
+    if (compilerOptions.showGeneralInfo) printf("Parsing %s...\n", srcName);
     parserErrorCount = 0;
 
     initTokenizer(sourceCode);

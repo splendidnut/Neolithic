@@ -93,7 +93,6 @@ void GCT_Program(List *list) {
 void generate_callTree(ListNode node, SymbolTable *symbolTable) {
     if (node.type != N_LIST) return;
 
-    printf("Generating Call Tree...\n");
     mainSymTable = symbolTable;
 
     List *program = node.value.list;

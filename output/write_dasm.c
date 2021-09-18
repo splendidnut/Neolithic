@@ -243,7 +243,7 @@ void WO_PrintSymbolTable(SymbolTable *workingSymbolTable, char *symTableName) {
                 fprintf(outputFile, ".%-20s = $%02X\n",
                         curSymbol->name,
                         curSymbol->location);
-            } else if (loc > 0 && loc < 256) {              // Zeropage are definitely variables...
+            } else if ((loc >= 0 && loc < 256) && (!isFunction(curSymbol))) {              // Zeropage are definitely variables...
                 fprintf(outputFile, "%-20s = $%02X\n",
                         curSymbol->name,
                         curSymbol->location);

@@ -29,7 +29,7 @@ extern ListNode parse_expr(void);
 extern ListNode parse_primary_expr(bool isLValue, bool isExprAllowed, int allowNestedExpr);
 extern ListNode parse_variable(void);
 extern ListNode parse_stmt_block(void);
-extern ListNode parse_program(char *sourceCode);
+extern ListNode parse_program(char *sourceCode, const char *srcName);
 
 
 #endif

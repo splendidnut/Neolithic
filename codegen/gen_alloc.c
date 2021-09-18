@@ -193,7 +193,9 @@ int allocateLocalVarStorage(const SymbolTable *symbolTable, int curMemloc) {
 
             }
             if (compilerOptions.showVarAllocations) {
-                if (curStorage != SS_STACK) {
+                if (curSymbol->hint > VH_NONE) {
+                    printf("\t%-20s passed in register %c\n", curSymbol->name, getDestRegFromHint(curSymbol->hint));
+                } else if (curStorage != SS_STACK) {
                     printf("\t%-20s allocated at %4X\n", curSymbol->name, startLoc);
                 } else {
                     printf("\t%-20s allocated on stack\n", curSymbol->name);
@@ -280,7 +282,6 @@ void generate_var_allocations(SymbolTable *symbolTable) {
     collectFunctionsInOrder(symbolTable);
 
     // allocate global variables
-    printf("Allocating memory for variables\n");
     allocateVarStorage(symbolTable);
 
     // now process all function local variables

@@ -28,6 +28,7 @@ typedef struct {
 
 typedef struct {
     char *entryPointFuncName;
+    bool showGeneralInfo;
     bool showCallTree;
     bool showVarAllocations;
     bool showOutputBlockList;
