@@ -31,12 +31,12 @@ const MultiplierSteps multiplierSteps[16] = {
 
 void ICG_Mul_loadVariable(const SymbolRecord *varRec, int addrMulVar, bool isParamVar) {
     const char *varName = getVarName(varRec);
+    enum AddrModes addrMode = CALC_ADDR_MODE(addrMulVar);
     if (isParamVar) {
         IL_AddInstrB(TSX);
-        IL_AddInstrS(LDA, ADDR_ABX, varName, "$100", PARAM_ADD);
-    } else {
-        IL_AddInstrS(LDA, CALC_ADDR_MODE(addrMulVar), varName, "", PARAM_NORMAL);
+        addrMode = ADDR_ABX;
     }
+    IL_AddInstrS(LDA, addrMode, varName, "", PARAM_NORMAL);
 }
 
 
@@ -202,6 +202,7 @@ void ICG_StepMultiplyWithConst(const SymbolRecord *varRec, const char multiplier
     bool isParamVar =  (IS_PARAM_VAR(varRec));
     int addrMulVar = varRec->location;
     const char *varName = getVarName(varRec);
+    enum AddrModes addrMode = isParamVar ? ADDR_ABX : CALC_ADDR_MODE(addrMulVar);
 
     ICG_Mul_loadVariable(varRec, addrMulVar, isParamVar);
     IL_AddInstrN(CLC, ADDR_NONE, 0);
@@ -211,11 +212,7 @@ void ICG_StepMultiplyWithConst(const SymbolRecord *varRec, const char multiplier
             case ADC:
             case SBC:
                 IL_AddInstrB(instrMne == SBC ? SEC : CLC);
-                if (isParamVar) {
-                    IL_AddInstrS(instrMne, ADDR_ABX, varName, "$100", PARAM_ADD);
-                } else {
-                    IL_AddInstrS(instrMne, CALC_ADDR_MODE(addrMulVar), varName, "", PARAM_NORMAL);
-                }
+                IL_AddInstrS(instrMne, addrMode, varName, "", PARAM_NORMAL);
                 break;
             case ASL:
                 IL_AddInstrB(ASL);
@@ -224,11 +221,7 @@ void ICG_StepMultiplyWithConst(const SymbolRecord *varRec, const char multiplier
                 break;
         }
     }
-    if (isParamVar) {
-        IL_AddInstrS(STA, ADDR_ABX, varName, "$100", PARAM_ADD);
-    } else {
-        IL_AddInstrS(STA, CALC_ADDR_MODE(addrMulVar), varName, "", PARAM_NORMAL);
-    }
+    IL_AddInstrS(STA, addrMode, varName, "", PARAM_NORMAL);
 }
 
 
