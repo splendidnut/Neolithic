@@ -60,6 +60,7 @@ extern void ICG_LoadIndexed(const SymbolRecord *varSym);
 extern void ICG_LoadIndexedWithOffset(const SymbolRecord *varSym, int ofs);
 extern void ICG_LoadPropertyVar(const SymbolRecord *structSym, const SymbolRecord *propertySym);
 extern void ICG_LoadRegConst(const char destReg, int ofs);
+extern void ICG_LoadRegVar(const SymbolRecord *varSym, char destReg);
 extern void ICG_LoadFromStack(int ofs);
 extern void ICG_LoadPointerAddr(const SymbolRecord *varSym);
 

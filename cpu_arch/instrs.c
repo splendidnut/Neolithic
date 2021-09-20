@@ -492,6 +492,23 @@ void ICG_LoadRegConst(const char destReg, int ofs) {
     }
 }
 
+void ICG_LoadRegVar(const SymbolRecord *varSym, char destReg) {
+    const char *varName = getVarName(varSym);
+    enum AddrModes addrMode = (varSym->location < 0x100 ? ADDR_ZP : ADDR_ABS);
+    enum MnemonicCode mne;
+    switch (destReg) {
+        case 'A': mne = LDA; break;
+        case 'X': mne = LDX; break;
+        case 'Y': mne = LDY; break;
+        default:break;
+    }
+    if (isConst(varSym)) {
+        IL_AddInstrS(mne, ADDR_IMM, varName, "", PARAM_NORMAL);
+    } else {
+        IL_AddInstrS(mne, addrMode, varName, "", PARAM_NORMAL);
+    }
+}
+
 void ICG_LoadFromStack(int ofs) {
     IL_AddInstrN(TSX, ADDR_NONE, 0);
     IL_AddComment(

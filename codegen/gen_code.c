@@ -1315,10 +1315,11 @@ void GC_DoWhile(const List *stmt, enum SymbolType destType) {
  * @param lineNum
  */
 
-void GC_LoadFuncArg(const SymbolRecord *curParam, ListNode *argNode,
+void GC_LoadFuncArg(const SymbolRecord *curParam, ListNode argNode,
                     int lineNum) {
+    SymbolRecord *varSym;
     if ((curParam->hint == VH_NONE) && (!IS_STACK_VAR(curParam))) {
-        ErrorMessageWithNode("Unable to load parameter: ", (*argNode), lineNum);
+        ErrorMessageWithNode("Unable to load parameter: ", argNode, lineNum);
         return;
     }
 
@@ -1326,32 +1327,42 @@ void GC_LoadFuncArg(const SymbolRecord *curParam, ListNode *argNode,
     IL_SetLineComment("loading param");
 
     // handle loading constants
-    if ((*argNode).type == N_INT) {
-        if (destReg == 'S') {
-            GC_HandleLoad((*argNode), ST_NONE, lineNum);
-            ICG_PushAcc();
-        } else {
-            ICG_LoadRegConst(destReg, (*argNode).value.num);
-        }
-    } else {
+    switch (argNode.type) {
+        case N_INT:
+            if (destReg == 'S') {
+                GC_HandleLoad(argNode, ST_NONE, lineNum);
+                ICG_PushAcc();
+            } else {
+                ICG_LoadRegConst(destReg, argNode.value.num);
+            }
+            break;
+        case N_STR:
+            varSym = findSymbol(mainSymbolTable, argNode.value.str);
 
-        // first check to see if user is passing a struct variable.
-        //   If so, we need to do something special to pass the pointer of the struct (16-bit value)
-        //   TODO: fix this when 16-bit support is figured out
-        if ((*argNode).type == N_STR) {
-            SymbolRecord *varSym = findSymbol(mainSymbolTable, (*argNode).value.str);
+            // first check to see if user is passing a struct variable.
+            //   If so, we need to do something special to pass the pointer of the struct (16-bit value)
+            //   TODO: fix this when 16-bit support is figured out
             if (varSym && isStructDefined(varSym)) {
                 IL_AddCommentToCode("Handle struct/pointer being passed");
                 ICG_LoadPointerAddr(varSym);
-                return;
+            } else if (destReg == 'S') {
+                GC_HandleLoad(argNode, ST_NONE, lineNum);
+                ICG_PushAcc();
+            } else {
+                ICG_LoadRegVar(varSym, destReg);
             }
-        }
-        GC_HandleLoad((*argNode), ST_NONE, lineNum);
-        switch (destReg) {
-            case 'X': ICG_MoveAccToIndex('X'); break;
-            case 'Y': ICG_MoveAccToIndex('Y'); break;
-            case 'S': ICG_PushAcc(); break;
-        }
+            break;
+        case N_LIST:
+            GC_HandleLoad(argNode, ST_NONE, lineNum);
+            switch (destReg) {
+                case 'X': ICG_MoveAccToIndex('X'); break;
+                case 'Y': ICG_MoveAccToIndex('Y'); break;
+                case 'S': ICG_PushAcc(); break;
+                default:break;
+            }
+            break;
+        default:
+            ErrorMessageWithNode("Unsupported parameter passing",argNode, lineNum);
     }
 }
 
@@ -1384,7 +1395,7 @@ void GC_FuncCall(const List *stmt, enum SymbolType destType) {
             requiresCleanup = true;
 
             for_range(argIndex, 0, funcParamList->count) {
-                GC_LoadFuncArg(funcParamList->list[argIndex], &(args->nodes[argIndex]), stmt->lineNum);
+                GC_LoadFuncArg(funcParamList->list[argIndex], args->nodes[argIndex], stmt->lineNum);
             }
         } else {
             ErrorMessageWithList("Incorrect number of parameters in function call", stmt);
