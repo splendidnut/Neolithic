@@ -237,22 +237,26 @@ void WO_PrintSymbolTable(SymbolTable *workingSymbolTable, char *symTableName) {
         while (curSymbol != NULL) {
             int loc = curSymbol->location;
 
-            if (IS_LOCAL(curSymbol)
-                && !isSimpleConst(curSymbol)
-                && (!IS_ALIAS(curSymbol))) {                       // locale function vars
-                fprintf(outputFile, ".%-20s = $%02X\n",
-                        curSymbol->name,
-                        curSymbol->location);
-            } else if ((loc >= 0 && loc < 256) && (!isFunction(curSymbol))) {              // Zeropage are definitely variables...
-                fprintf(outputFile, "%-20s = $%02X\n",
-                        curSymbol->name,
-                        curSymbol->location);
-            } else if (HAS_SYMBOL_LOCATION(curSymbol) && !isFunction(curSymbol)
-                       && !isSimpleConst(curSymbol) && !isArrayConst(curSymbol)) {
-                fprintf(outputFile, "%-20s = $%04X  ;-- flags: %04X \n",
-                        curSymbol->name,
-                        curSymbol->location,
-                        curSymbol->flags);
+            // make sure location is valid
+            if (loc >= 0) {
+                if (IS_LOCAL(curSymbol)
+                    && !isSimpleConst(curSymbol)
+                    && (!IS_ALIAS(curSymbol))) {                       // locale function vars
+                    fprintf(outputFile, ".%-20s = $%02X\n",
+                            curSymbol->name,
+                            curSymbol->location);
+                } else if ((loc < 256) &&
+                           (!isFunction(curSymbol))) {              // Zeropage are definitely variables...
+                    fprintf(outputFile, "%-20s = $%02X\n",
+                            curSymbol->name,
+                            curSymbol->location);
+                } else if (HAS_SYMBOL_LOCATION(curSymbol) && !isFunction(curSymbol)
+                           && !isSimpleConst(curSymbol) && !isArrayConst(curSymbol)) {
+                    fprintf(outputFile, "%-20s = $%04X  ;-- flags: %04X \n",
+                            curSymbol->name,
+                            curSymbol->location,
+                            curSymbol->flags);
+                }
             }
 
             curSymbol = curSymbol->next;
@@ -389,6 +393,7 @@ void WriteDASM_StaticArrayData(const OutputBlock *block) {
 }
 
 void WriteDASM_StaticStructData(const OutputBlock *block) {
+    SymbolRecord *baseSymbol = block->dataSym;
     SymbolRecord *structSym = block->dataSym->userTypeDef;
     SymbolTable *structSymTbl = GET_STRUCT_SYMBOL_TABLE(structSym);
 

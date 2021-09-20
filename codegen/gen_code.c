@@ -110,9 +110,10 @@ void GC_StoreInVar(const ListNode symbolNode, enum SymbolType destType, int line
 //--- Handle Arrays
 //---------------------------------------------------------------------
 
-void GC_LoadFromArray(const SymbolRecord *srcSym) {
-    if (isPointer(srcSym)) {
-        ICG_LoadIndirect(srcSym, 0);
+void GC_LoadFromArray(const SymbolRecord *srcSym, enum SymbolType destType) {
+    if ((isPointer(srcSym) && !isArray(srcSym))) {
+        int destSize = (destType == ST_INT) ? 2 : 1;
+        ICG_LoadIndirect(srcSym, destSize);
     } else {
         ICG_LoadIndexed(srcSym);
     }
@@ -160,7 +161,7 @@ void GC_HandleArrayLookup(const List *expr, enum SymbolType destType) {
             SymbolRecord *arrayIndexSymbol = lookupSymbolNode(indexNode, expr->lineNum);
             if (arrayIndexSymbol != NULL) {
                 ICG_LoadIndexVar(arrayIndexSymbol, destSize);
-                GC_LoadFromArray(arraySymbol);
+                GC_LoadFromArray(arraySymbol, destType);
             }
         } break;
         case N_INT:
@@ -483,10 +484,21 @@ void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, en
             GC_OpWithPropertyRef(mne, arg2.value.list, destType);
         }
     } else if (arg2.type == N_LIST) {
-        ICG_PushAcc();
-        GC_Expression(arg2.value.list, destType);
-        ICG_PreOp(preOp);
-        ICG_OpWithStack(mne);
+
+        // first check to see if expression can be completely evaluated
+        EvalResult evalResult = evaluate_expression(arg2.value.list);
+
+        if (evalResult.hasResult) {
+            bool isWord = ((destType == ST_INT) || (destType == ST_PTR));
+            int dataSize = isWord ? 2 : 1;
+            ICG_PreOp(preOp);
+            ICG_OpWithConst(mne, evalResult.value, dataSize);
+        } else {
+            ICG_PushAcc();
+            GC_Expression(arg2.value.list, destType);
+            ICG_PreOp(preOp);
+            ICG_OpWithStack(mne);
+        }
     }
 }
 
@@ -1032,6 +1044,49 @@ void GC_HandleSubCondExpr(const ListNode ifExprNode, enum SymbolType destType, L
     }
 }
 
+//===============================================================================
+//==== Expression Type Matching / Type upgrading
+
+enum SymbolType getSrcType(const ListNode argNode, int lineNum) {
+    enum SymbolType srcType = ST_CHAR;
+    SymbolRecord *varSym;
+    int value;
+    switch (argNode.type) {
+        case N_INT:
+            value = argNode.value.num;
+            if ((value > 256) || (value < -128)) srcType = ST_INT;
+            if (value < 0) srcType = srcType | ST_SIGNED;
+            break;
+
+        case N_STR:
+            varSym = lookupSymbolNode(argNode, lineNum);
+            if (varSym) srcType = getType(varSym);
+            break;
+
+        default:break;
+    }
+    return srcType;
+}
+
+enum SymbolType getExprType(const ListNode arg1, const ListNode arg2, int lineNum) {
+    enum SymbolType arg1Type = getSrcType(arg1, lineNum);
+    enum SymbolType arg2Type = getSrcType(arg2, lineNum);
+
+    if (arg1Type == arg2Type) return arg1Type;
+
+    bool isSigned = false;
+    if ((arg1Type >= ST_SIGNED) || (arg2Type >= ST_SIGNED)) {
+        arg1Type &= ST_MASK;
+        arg2Type &= ST_MASK;
+        isSigned = true;
+    }
+
+    enum SymbolType exprType = ST_CHAR;
+    if (arg1Type >= arg2Type) exprType = arg1Type;
+    if (arg1Type < arg2Type) exprType = arg2Type;
+    return isSigned ? (exprType | ST_SIGNED) : exprType;
+}
+
 /**
  * Handle a conditional expression (typically part of if, while, etc...)
  * @param ifExprNode
@@ -1073,7 +1128,7 @@ void GC_HandleCondExpr(const ListNode ifExprNode, enum SymbolType destType, Labe
     } else if (isComparisonToken(opNode.value.parseToken)) {
         // handle as normal comparison
         bool isCmpToZeroR = (arg2.type == N_INT && arg2.value.num == 0);
-        bool isSignedCmp = false;
+        bool isSignedCmp = (getExprType(arg1, arg2, expr->lineNum) & ST_SIGNED);
 
         // load first argument, and compare to second
         GC_HandleLoad(arg1, ST_NONE, expr->lineNum);

@@ -6,6 +6,7 @@
 #include "write_output.h"
 
 //#define DEBUG_WRITE_BIN
+//#define DEBUG_WRITE_BIN_OPCODE
 
 static FILE *outputFile;
 static SymbolTable *mainSymbolTable;
@@ -75,10 +76,6 @@ void WriteBIN_EndOfBlock(const OutputBlock *block) {
  * @return
  */
 int getParamStringValue(const char *param, int paramPos) {
-#ifdef DEBUG_WRITE_BIN
-    printf("\tparam #%d: %s\n", paramPos, param);
-#endif
-
     // attempt to lookup the param in the symbol tables
     SymbolRecord *paramSym = NULL;
     // TODO:  Fix this goofy-ness
@@ -106,9 +103,6 @@ int getParamStringValue(const char *param, int paramPos) {
     // attempt to process as label
     Label *codeLabel = findLabel(param);
     if (codeLabel != NULL) {
-#ifdef DEBUG_WRITE_BIN
-        printf("Using label\n");
-#endif
         return codeLabel->location;
     }
 
@@ -195,7 +189,7 @@ void WriteBIN_FunctionBlock(const OutputBlock *block) {
             binData[writeAddr++] = (curOutInstr->mne != MNE_DATA) ? opcodeEntry.opcode : curOutInstr->offset;
 
             //DEBUG
-#ifdef DEBUG_WRITE_BIN
+#ifdef DEBUG_WRITE_BIN_OPCODE
             printf("%04X: Outputting %2X  (%02X, %s)\n",
                    writeAddr, opcodeEntry.opcode, curOutInstr->mne, addressMode.name);
 #endif
@@ -239,8 +233,52 @@ void WriteBIN_StaticArrayData(const OutputBlock *block) {
     }
 }
 
+/**
+ * Write out the data to a single structure record
+ *
+ * @param structSymTbl  - structure of the data
+ * @param writeAddr     - where in the output stream to write the data
+ * @param dataList      -
+ */
+void WriteBIN_WriteStructRecordData(SymbolTable *structSymTbl, int writeAddr, const List *dataList) {
+    int symIndex = 1;
+    SymbolRecord *structVar = structSymTbl->firstSymbol;
+    while (structVar != NULL) {
+        int varSize = getBaseVarSize(structVar);
+        char *dataTypeStr = (varSize > 1) ? "word" : "byte";
+
+        int value = dataList->nodes[symIndex].value.num;
+
+        if ((varSize == 1) && (value & 0xff00)) {
+            printf("ERROR: The value %d exceeds the size of %s (type: %s)\n", value, structVar->name, dataTypeStr);
+        }
+
+        binData[writeAddr++] = value & 0xff;
+        if (varSize == 2) {
+            binData[writeAddr++] = (value >> 8) & 0xff;
+        }
+        symIndex++;
+
+        structVar = structVar->next;
+    }
+}
+
 void WriteBIN_StaticStructData(const OutputBlock *block) {
 #ifdef DEBUG_WRITE_BIN
     printf("Writing %s struct data to %4X\n", block->blockName, block->blockAddr);
 #endif
+    SymbolRecord *structSym = block->dataSym->userTypeDef;
+    SymbolTable *structSymTbl = GET_STRUCT_SYMBOL_TABLE(structSym);
+
+    int writeAddr = block->blockAddr;
+    List *dataList = block->dataList;
+    if (isArray(block->dataSym)) {
+        int structSize = calcVarSize(structSym);
+        for_range(index, 1, block->dataList->count) {
+            WriteBIN_WriteStructRecordData(structSymTbl, writeAddr, dataList->nodes[index].value.list);
+            writeAddr += structSize;
+        }
+    } else {
+        WriteBIN_WriteStructRecordData(structSymTbl, writeAddr, dataList);
+    }
 }
