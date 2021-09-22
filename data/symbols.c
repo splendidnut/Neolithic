@@ -164,13 +164,19 @@ void setStructSize(SymbolRecord *symbol, int unionSize) {
     symbol->numElements = unionSize;
 }
 
+unsigned char getStructVarSize(const SymbolRecord *symbol) {
+    return calcVarSize(symbol->userTypeDef);
+}
+
 void markFunctionUsed(SymbolRecord *funcSymbol) {
     if (isFunction(funcSymbol)) {
         funcSymbol->cntUses++;
     }
 }
 
-
+/**
+ * Calculate the total size of the provided variable (memory space taken in bytes)
+ */
 int calcVarSize(const SymbolRecord *varSymRec) {// calculate allocation size
     int varSize = 1;
 
@@ -191,6 +197,7 @@ int calcVarSize(const SymbolRecord *varSymRec) {// calculate allocation size
 }
 
 int getBaseVarSize(const SymbolRecord *varSymRec) {
+    if (varSymRec->userTypeDef != NULL) return getStructVarSize(varSymRec);
     bool isPointer = (varSymRec->flags & MF_POINTER);
     bool isInt = ((varSymRec->flags & ST_MASK) == ST_INT);
     return (isPointer || isInt) ? 2 : 1;

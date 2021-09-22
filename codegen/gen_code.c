@@ -1643,7 +1643,12 @@ void GC_Variable(const List *varDef) {
     bool isNotAlias = !IS_ALIAS(varSymRec);
 
     if (lastDirective == USE_QUICK_INDEX_TABLE) {
-        ICG_Mul_AddLookupTable(7);
+        unsigned char multiplier = getBaseVarSize(varSymRec);
+
+        // only generate a multiplication lookup table if the multiplier is greater than 2 (not a primitive var)
+        if (multiplier > 2) {
+            ICG_Mul_AddLookupTable(multiplier);
+        }
         lastDirective = 0;
     }
 

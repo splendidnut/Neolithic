@@ -166,6 +166,7 @@ extern SymbolRecord * addSymbol(SymbolTable *, char *name, enum SymbolKind kind,
 extern void setSymbolLocation(SymbolRecord *symbolRecord, int location, enum ModifierFlags storageType);
 extern void setSymbolArraySize(SymbolRecord *symbol, int arraySize);
 extern void setStructSize(SymbolRecord *symbol, int unionSize);
+extern unsigned char getStructVarSize(const SymbolRecord *symbol);
 extern void markFunctionUsed(SymbolRecord *funcSymbol);
 extern int calcVarSize(const SymbolRecord *varSymRec);
 extern int getBaseVarSize(const SymbolRecord *varSymRec);
