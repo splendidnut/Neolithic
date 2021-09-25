@@ -1409,6 +1409,92 @@ void GC_FuncCall(const List *stmt, enum SymbolType destType) {
     }
 }
 
+
+//===========================================================================================
+//  -- Handle variables and initializers
+//
+//  TODO: Cleanup the 'alias' specific code a bit.  'Alias' is still a work-in-progress feature.
+//
+
+//#define DEBUG_ALIAS
+
+void Debug_AliasEval(const List *varDef, EvalResult *evalResult) {
+#ifdef DEBUG_ALIAS
+    // DEBUG INFO
+    printf("Evaluated alias initializer ");
+    showNode(stdout, varDef->nodes[4], 1);
+    if (evalResult != NULL) {
+        printf("; resulted in %d", (*evalResult).value);
+    }
+    printf("\n");
+#endif
+}
+
+
+List* getInitializer(const ListNode initDefNode) {
+    List *initDef = initDefNode.value.list;
+    if (initDef->nodes[0].value.parseToken == PT_INIT) {
+        ListNode valueNode = initDef->nodes[1];
+        if (valueNode.type == N_LIST) {
+            return valueNode.value.list;
+        }
+    }
+    return NULL;
+}
+
+void convertAliasToVariable(SymbolRecord *varSymRec, int loc) {
+    setSymbolLocation(varSymRec, loc, ((loc < 256) ? SS_ZEROPAGE : SS_ABSOLUTE));
+    varSymRec->kind = SK_VAR;
+}
+
+void GC_LocalVarAliasInitializer(const List *varDef, SymbolRecord *varSymRec, List *initList, enum SymbolType destType) {
+    // We're aliasing something, we need to link the definition to the symbol record
+    List *alias;
+
+    List *aliasInitExpr = getInitializer(varDef->nodes[4]);
+    if (aliasInitExpr != NULL) {
+        alias = aliasInitExpr;
+
+        EvalResult aliasResult = evalAsAddrLookup(alias);
+        if (aliasResult.hasResult) {
+            // if we can evaluate the alias... then the alias can become a local variable.
+            // change symbol location and kind
+            convertAliasToVariable(varSymRec, aliasResult.value);
+            Debug_AliasEval(varDef, &aliasResult);
+            return;
+        }
+    } else {
+        // simple alias (only a name alias)
+        alias = initList;
+    }
+
+    varSymRec->alias = alias;
+
+    if (!TypeCheck_Alias(alias, destType)) {
+        ErrorMessageWithList("Error processing alias", alias);
+    } else {
+        Debug_AliasEval(varDef, NULL);
+    }
+}
+
+
+void GC_HandleGlobalAliasInitializer(const List *varDef, SymbolRecord *varSymRec) {
+    // handle global alias - since it's global, it must be const
+    List *aliasExpr = getInitializer(varDef->nodes[4]);
+    EvalResult evalResult = evalAsAddrLookup(aliasExpr);
+    if (evalResult.hasResult) {
+
+        // change symbol location and kind
+        convertAliasToVariable(varSymRec, evalResult.value);
+        Debug_AliasEval(varDef, &evalResult);
+
+    } else {
+        ErrorMessageWithList("Error evaluating const alias", aliasExpr);
+        varSymRec->alias = NULL;
+        varSymRec->kind = 0;
+    }
+}
+
 void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
     SymbolRecord *varSymRec = lookupSymbolNode(varDef->nodes[1], varDef->lineNum);
     if (varSymRec == NULL) return;
@@ -1418,28 +1504,11 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
 
     List *initList = varDef->nodes[4].value.list;
 
-    if (IS_ALIAS(varSymRec)) {        // We're aliasing something, we need to link the definition to the symbol record
-        List *alias;
-        if (initList->nodes[1].type == N_LIST) {
-            alias = (List *) (initList->nodes[1].value.list);
-        } else {
-            alias = initList;
-        }
-        varSymRec->alias = alias;
+    if (IS_ALIAS(varSymRec)) {
+        GC_LocalVarAliasInitializer(varDef, varSymRec, initList, destType);
 
-        if (!TypeCheck_Alias(alias, destType)) {
-            ErrorMessageWithList("Error processing alias", alias);
-            return;
-        }
     } else if (!isConst(varSymRec)) {
         // WE have an initializer for a variable, handle it!
-
-        // TODO: Not sure if this check is even required
-        if (initList->nodes[0].value.parseToken != PT_INIT) {
-            ErrorMessageWithNode("Parser error", varDef->nodes[4], varDef->lineNum);
-            return;
-        }
-
         ListNode valueNode = initList->nodes[1];
         switch (valueNode.type) {
             case N_INT:
@@ -1629,6 +1698,31 @@ ListNode Preprocess_InitData(const List *varDef, ListNode nestedNode) {
     return processedNode;
 }
 
+
+List *GC_ProcessInitializerList(const List *varDef, List *initValueList) {
+    if (initValueList->hasNestedList &&
+            isToken(initValueList->nodes[0], PT_LIST)) {
+        // need to loop over lists
+        for_range (nestedCnt, 1, initValueList->count) {
+            ListNode processedNode = Preprocess_InitData(varDef, initValueList->nodes[nestedCnt]);
+            if (processedNode.type != N_EMPTY) {
+                initValueList->nodes[nestedCnt] = processedNode;
+            }
+        }
+    } else {
+        // need to evaluate each list value first
+        Preprocess_InitListData(varDef, initValueList);
+    }
+
+    if (reverseData) {
+        reverseList(initValueList);
+    }
+
+    // need to do this because the pointer has changed at this point...
+    List *valueList = varDef->nodes[4].value.list->nodes[1].value.list;
+    return valueList;
+}
+
 /**
  * Generate Code for global variables that have initializers.
  * @param varDef
@@ -1640,8 +1734,9 @@ void GC_Variable(const List *varDef) {
     // does this variable definition have a list of initial values?
     int hasInitializer = (varDef->count >= 4) && (varDef->nodes[4].type == N_LIST);
 
-    bool isNotAlias = !IS_ALIAS(varSymRec);
+    bool isAlias = IS_ALIAS(varSymRec);
 
+    //---  Handle index generation via #directive
     if (lastDirective == USE_QUICK_INDEX_TABLE) {
         unsigned char multiplier = getBaseVarSize(varSymRec);
 
@@ -1652,48 +1747,32 @@ void GC_Variable(const List *varDef) {
         lastDirective = 0;
     }
 
-    if (hasInitializer && isArray(varSymRec) && isNotAlias) {
+    if (!hasInitializer) return;
+
+    if (isArray(varSymRec) && !isAlias) {
         if (!isConst(varSymRec)) {
             ErrorMessageWithList("Non-const array cannot be initialized with data", varDef);
             return;
         }
 
-        List *initList = varDef->nodes[4].value.list;
-        if (initList->nodes[0].value.parseToken == PT_INIT) {
-            ListNode valueNode = initList->nodes[1];
-            if (valueNode.type == N_LIST) {
-                List *initValueList = valueNode.value.list;
+        List *initValueList = getInitializer(varDef->nodes[4]);
+        if (initValueList == NULL) return;
 
-                if (initValueList->hasNestedList &&
-                        isToken(initValueList->nodes[0], PT_LIST)) {
-                    // need to loop over lists
-                    for (int nestedCnt = 1; nestedCnt < initValueList->count; nestedCnt++) {
-                        ListNode processedNode = Preprocess_InitData(varDef, initValueList->nodes[nestedCnt]);
-                        if (processedNode.type != N_EMPTY) {
-                            initValueList->nodes[nestedCnt] = processedNode;
-                        }
-                    }
-                } else {
-                    // need to evaluate each list value first
-                    Preprocess_InitListData(varDef, initValueList);
-                }
+        List *valueNode = GC_ProcessInitializerList(varDef, initValueList);
 
-                if (reverseData) {
-                    reverseList(initValueList);
-                }
+        OutputBlock *staticData = OB_AddData(varSymRec, varName, valueNode);
 
-                OutputBlock *staticData = OB_AddData(varSymRec, varName, valueNode.value.list);
+        // Mark where in memory the variable is located...
+        //   TODO:  Doesn't seem this is the best place to do this if we want the blocks
+        //            to be magically movable
 
-                // Mark where in memory the variable is located...
-                //   TODO:  Doesn't seem this is the best place to do this if we want the blocks
-                //            to be magically movable
+        //printf("Size of %s is %d\n", varSymRec->name, staticData->blockSize);
+        setSymbolLocation(varSymRec, ICG_MarkStaticArrayData(staticData->blockSize), SS_ROM);
 
-                //printf("Size of %s is %d\n", varSymRec->name, staticData->blockSize);
-                setSymbolLocation(varSymRec, ICG_MarkStaticArrayData(staticData->blockSize), SS_ROM);
+        reverseData = false;
 
-                reverseData = false;
-            }
-        }
+    } else if (isAlias) {
+        GC_HandleGlobalAliasInitializer(varDef, varSymRec);
     }
 }
 

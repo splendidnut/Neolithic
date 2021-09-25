@@ -119,7 +119,7 @@ EvalResult evaluate_expression(const List *expr) {
                     case PT_BIT_AND:  result.value = leftResult.value & rightResult.value; break;
                     case PT_BIT_OR:   result.value = leftResult.value | rightResult.value; break;
                     case PT_BIT_EOR:  result.value = leftResult.value ^ rightResult.value; break;
-                    case PT_LOOKUP: result.value = leftResult.value + rightResult.value; break;
+                    case PT_LOOKUP:   result.value = leftResult.value + rightResult.value; break;
                     default:
                         result.hasResult = false;
                 }
@@ -148,6 +148,30 @@ EvalResult evaluate_expression(const List *expr) {
         printf("After op %s, result is: %d\n", getParseTokenName(opToken), result.value);
     }*/
 
+    return result;
+}
+
+/**
+ * evalAsAddrLookup - Evaluate an expression as if it were an address lookup
+ *
+ * Used for 'alias' support.
+ */
+EvalResult evalAsAddrLookup(const List *expr) {
+    EvalResult result, leftResult, rightResult;
+
+    result.hasResult = false;
+    if (expr->count < 2) return result;
+
+    leftResult = eval_addr_of(expr->nodes[1]);
+    rightResult = eval_node(expr->nodes[2]);
+
+    SymbolRecord *varSym = getEvalSymbolRecord(expr->nodes[1].value.str);
+    if ((varSym == NULL) || (!leftResult.hasResult) || (!rightResult.hasResult)) return result;
+
+    // we have enough data to completely evaluate the expression
+    int multiplier = getBaseVarSize(varSym);
+    result.hasResult = true;
+    result.value = leftResult.value + (rightResult.value * multiplier);
     return result;
 }
 
