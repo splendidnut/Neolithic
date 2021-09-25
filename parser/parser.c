@@ -308,6 +308,8 @@ ListNode parse_expr_postfix(bool isLValue, int allowNestedExpr) {
     char tokenChar;
 
     lnode = parse_primary_expr(isLValue, true, allowNestedExpr);
+    if (lnode.type == N_INT) return lnode;                          // Numeric values cannot have postfix ops applied
+
     while (inCharset(peekToken(), "[(.")) {
         tokenChar = getToken()->tokenStr[0];
 

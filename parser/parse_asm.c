@@ -124,10 +124,16 @@ ListNode parse_asm_instr(enum MnemonicCode instrCode) {
             acceptToken(TT_LESS_THAN);
             forceZp = true;             // TODO: this should force zeropage mode (currently unnecessary since that's the default)
         default: {
-            paramNode = parse_expr();
+            // branches typically just use labels... to use expressions, they need to be wrapped in parenthesis
             if (isBranch(instrCode)) {
+                if (peekToken()->tokenStr[0] == '(') {
+                    paramNode = parse_expr();
+                } else {
+                    paramNode = parse_identifier();
+                }
                 addrMode = ADDR_REL;
             } else {
+                paramNode = parse_expr();
                 addrMode = getDirectAddrMode(forceZp, forceAbs);
             }
         }
