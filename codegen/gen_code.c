@@ -966,6 +966,50 @@ void GC_Return(const List *stmt, enum SymbolType destType) {
 }
 
 
+//===============================================================================
+//==== Expression Type Matching / Type upgrading
+
+enum SymbolType getSrcType(const ListNode argNode, int lineNum) {
+    enum SymbolType srcType = ST_CHAR;
+    SymbolRecord *varSym;
+    int value;
+    switch (argNode.type) {
+        case N_INT:
+            value = argNode.value.num;
+            if ((value > 256) || (value < -128)) srcType = ST_INT;
+            if (value < 0) srcType = srcType | ST_SIGNED;
+            break;
+
+        case N_STR:
+            varSym = lookupSymbolNode(argNode, lineNum);
+            if (varSym) srcType = getType(varSym);
+            break;
+
+        default:break;
+    }
+    return srcType;
+}
+
+enum SymbolType getExprType(const ListNode arg1, const ListNode arg2, int lineNum) {
+    enum SymbolType arg1Type = getSrcType(arg1, lineNum);
+    enum SymbolType arg2Type = getSrcType(arg2, lineNum);
+
+    if (arg1Type == arg2Type) return arg1Type;
+
+    bool isSigned = false;
+    if ((arg1Type >= ST_SIGNED) || (arg2Type >= ST_SIGNED)) {
+        arg1Type &= ST_MASK;
+        arg2Type &= ST_MASK;
+        isSigned = true;
+    }
+
+    enum SymbolType exprType = ST_CHAR;
+    if (arg1Type >= arg2Type) exprType = arg1Type;
+    if (arg1Type < arg2Type) exprType = arg2Type;
+    return isSigned ? (exprType | ST_SIGNED) : exprType;
+}
+
+
 /* ------------------------------------------------------------------ */
 /*
  *   Conditional expression and comparison statement handling
@@ -1044,47 +1088,18 @@ void GC_HandleSubCondExpr(const ListNode ifExprNode, enum SymbolType destType, L
     }
 }
 
-//===============================================================================
-//==== Expression Type Matching / Type upgrading
 
-enum SymbolType getSrcType(const ListNode argNode, int lineNum) {
-    enum SymbolType srcType = ST_CHAR;
-    SymbolRecord *varSym;
-    int value;
-    switch (argNode.type) {
-        case N_INT:
-            value = argNode.value.num;
-            if ((value > 256) || (value < -128)) srcType = ST_INT;
-            if (value < 0) srcType = srcType | ST_SIGNED;
-            break;
+void GC_HandleBasicCompareOp(ListNode opNode, ListNode arg1, ListNode arg2, const Label *skipLabel,
+                        const List *expr) {
+    bool isCmpToZeroR = (arg2.type == N_INT && arg2.value.num == 0);
+    bool isSignedCmp = (getExprType(arg1, arg2, expr->lineNum) & ST_SIGNED);
 
-        case N_STR:
-            varSym = lookupSymbolNode(argNode, lineNum);
-            if (varSym) srcType = getType(varSym);
-            break;
-
-        default:break;
+    // load first argument, and compare to second
+    GC_HandleLoad(arg1, ST_NONE, expr->lineNum);
+    if (!isCmpToZeroR) {
+        GC_Compare(arg2, expr->lineNum);
     }
-    return srcType;
-}
-
-enum SymbolType getExprType(const ListNode arg1, const ListNode arg2, int lineNum) {
-    enum SymbolType arg1Type = getSrcType(arg1, lineNum);
-    enum SymbolType arg2Type = getSrcType(arg2, lineNum);
-
-    if (arg1Type == arg2Type) return arg1Type;
-
-    bool isSigned = false;
-    if ((arg1Type >= ST_SIGNED) || (arg2Type >= ST_SIGNED)) {
-        arg1Type &= ST_MASK;
-        arg2Type &= ST_MASK;
-        isSigned = true;
-    }
-
-    enum SymbolType exprType = ST_CHAR;
-    if (arg1Type >= arg2Type) exprType = arg1Type;
-    if (arg1Type < arg2Type) exprType = arg2Type;
-    return isSigned ? (exprType | ST_SIGNED) : exprType;
+    GC_HandleBranchOp(opNode, skipLabel, isCmpToZeroR, isSignedCmp);
 }
 
 /**
@@ -1126,16 +1141,7 @@ void GC_HandleCondExpr(const ListNode ifExprNode, enum SymbolType destType, Labe
         GC_HandleSubCondExpr(arg1, ST_NONE, skipLabel);
         GC_HandleSubCondExpr(arg2, ST_NONE, skipLabel);
     } else if (isComparisonToken(opNode.value.parseToken)) {
-        // handle as normal comparison
-        bool isCmpToZeroR = (arg2.type == N_INT && arg2.value.num == 0);
-        bool isSignedCmp = (getExprType(arg1, arg2, expr->lineNum) & ST_SIGNED);
-
-        // load first argument, and compare to second
-        GC_HandleLoad(arg1, ST_NONE, expr->lineNum);
-        if (!isCmpToZeroR) {
-            GC_Compare(arg2, expr->lineNum);
-        }
-        GC_HandleBranchOp(opNode, skipLabel, isCmpToZeroR, isSignedCmp);
+        GC_HandleBasicCompareOp(opNode, arg1, arg2, skipLabel, expr);
     } else {
         //----- if no comparison operators are used, eval expr, skip code if 0
         GC_Expression(expr, destType);
