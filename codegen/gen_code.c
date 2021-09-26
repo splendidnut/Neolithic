@@ -428,6 +428,10 @@ bool isSimplePropertyRef(ListNode arg2) {
                && (arg2.value.list->hasNestedList == false);
 }
 
+bool isSimpleArg(ListNode arg1) {
+    return ((arg1.type == N_INT) || (arg1.type == N_STR)) || isSimplePropertyRef(arg1);
+}
+
 void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, enum MnemonicCode preOp) {
     int destSize = (destType == ST_INT || destType == ST_PTR) ? 2 : 1;
 
@@ -437,9 +441,7 @@ void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, en
     // if second arg is a list and first is not,
     //   swap order of arguments if order of args for the given operation doesn't matter
     bool isInterchangeableOp = ((mne == AND) || (mne == ORA) || (mne == EOR));
-    if (isInterchangeableOp
-         && (arg2.type == N_LIST)
-         && ((arg1.type == N_INT) || (arg1.type == N_STR))) {
+    if (isInterchangeableOp && (arg2.type == N_LIST) && isSimpleArg(arg1)) {
         ListNode temp = arg1;
         arg1 = arg2;
         arg2 = temp;
