@@ -1255,7 +1255,7 @@ void GC_For(const List *stmt, enum SymbolType destType) {
     if (incStmtNode.type == N_LIST) {
         GC_Statement(incStmtNode.value.list);
     } else {
-        ErrorMessageWithList("Invalid for loop next statment", stmt);
+        ErrorMessageWithList("Invalid for loop next statement", stmt);
     }
 
     // end of for loop
