@@ -369,7 +369,18 @@ void ICG_LoadVar(const SymbolRecord *varRec) {
             IL_AddInstrS(LDX, ADDR_IMM, varName, NULL, PARAM_HI);
         }
     } else if (IS_PARAM_VAR(varRec)) {
-        ICG_OpWithParamVar(LDA, varRec, varName);
+        switch (varRec->hint) {
+            case VH_A_REG:      // already loaded?  TODO: check to see if var sym matches
+                break;
+            case VH_X_REG:
+                IL_AddInstrB(TXA);
+                break;
+            case VH_Y_REG:
+                IL_AddInstrB(TYA);
+                break;
+            default:
+                ICG_OpWithParamVar(LDA, varRec, varName);
+        }
     } else {
         IL_AddInstrS(LDA, ADDR_ZP, varName, NULL, PARAM_NORMAL);
         if ((getBaseVarSize(varRec) == 2) || isStructDefined(varRec)) {

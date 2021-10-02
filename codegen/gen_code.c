@@ -1345,7 +1345,7 @@ void GC_LoadFuncArg(const SymbolRecord *curParam, ListNode argNode,
             }
             break;
         case N_STR:
-            varSym = findSymbol(mainSymbolTable, argNode.value.str);
+            varSym = lookupSymbolNode(argNode, lineNum); //findSymbol(mainSymbolTable, argNode.value.str);
 
             // first check to see if user is passing a struct variable.
             //   If so, we need to do something special to pass the pointer of the struct (16-bit value)
