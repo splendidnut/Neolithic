@@ -210,9 +210,13 @@ int allocateLocalVarStorage(const SymbolTable *symbolTable, int curMemloc) {
 // Walk thru functions and assign memory locations to local vars
 void allocateLocalVars() {
     for_range (idx, 0, cntDepthSymbols) {
-        int depth = depthSymbolList[idx].depth;
-        SymbolTable *funcSymTbl = GET_LOCAL_SYMBOL_TABLE(depthSymbolList[idx].symbol);
-        allocateLocalVarStorage(funcSymTbl, stackLocs[depth]);
+        DepthSymbolRecord curFuncSymbol = depthSymbolList[idx];
+        if ((curFuncSymbol.symbol->funcDepth > 0) || isMainFunction(curFuncSymbol.symbol)) {
+            SymbolTable *funcSymTbl = GET_LOCAL_SYMBOL_TABLE(curFuncSymbol.symbol);
+            allocateLocalVarStorage(funcSymTbl, stackLocs[curFuncSymbol.depth]);
+        } else if (compilerOptions.showVarAllocations) {
+            printf("\nNo variables necessary for %s - function is unused\n", curFuncSymbol.symbol->name);
+        }
     }
 }
 
