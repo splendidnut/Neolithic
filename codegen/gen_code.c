@@ -3,8 +3,6 @@
 //
 // Created by admin on 3/28/2020.
 //
-//  TODO:
-//      Cleanup code for accessing line number information
 //
 
 #include <stdio.h>
@@ -830,10 +828,7 @@ void GC_StoreToStructProperty(const List *expr) {
                 }
 
             } else {
-
-                int ofs = propertySym->location;
-                int destSize = getBaseVarSize(propertySym);
-                ICG_StoreVarOffset(structSym, ofs, destSize);
+                ICG_StoreVarOffset(structSym, propertySym->location, getBaseVarSize(propertySym));
             }
         }
     }
@@ -1751,6 +1746,8 @@ void GC_Variable(const List *varDef) {
         // only generate a multiplication lookup table if the multiplier is greater than 2 (not a primitive var)
         if (multiplier > 2) {
             ICG_Mul_AddLookupTable(multiplier);
+        } else {
+            printf("Warning: Cannot generate quick index table for %s\n", varName);
         }
         lastDirective = 0;
     }
