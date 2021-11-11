@@ -229,6 +229,7 @@ ListNode parse_primary_expr(bool isLValue, bool isExprAllowed, int allowNestedEx
                 printError("Improper start of statement: \"%s\"... must be an identifier\n", tokenStr);
             }
             break;
+
         case TT_TRUE:
         case TT_FALSE:
         case TT_IDENTIFIER:
@@ -242,10 +243,14 @@ ListNode parse_primary_expr(bool isLValue, bool isExprAllowed, int allowNestedEx
                 node = createStrNode(identifier);
             }
             break;
+
         case TT_STRING:
             //node = createListNode(createStrConst());
-            printError("found string const: %s\n", tokenStr);
+            //printError("found string const: %s\n", tokenStr);
+            printf("String literal: %s\n", tokenStr);
+            node = createStrLiteralNode(getUnquotedString(tokenStr));
             break;
+
         case TT_AMPERSAND:
             if (!isLValue) {
                 List *list = createList(2);
@@ -256,6 +261,8 @@ ListNode parse_primary_expr(bool isLValue, bool isExprAllowed, int allowNestedEx
                 printError("Cannot use '&' on left side of assignment expression: %s\n", tokenStr);
             }
             break;
+
+            //----- NOTE: TT_OPEN_BRACE falls thru to TT_OPEN_PAREN
         case TT_OPEN_BRACE:
             if (isLValue) break;
         case TT_OPEN_PAREN:
@@ -271,6 +278,10 @@ ListNode parse_primary_expr(bool isLValue, bool isExprAllowed, int allowNestedEx
                 printError("Expression not allowed here");
             }
             break;
+
+        case TT_SIZEOF: node = createParseToken(PT_SIZEOF); break;
+        case TT_TYPEOF: node = createParseToken(PT_TYPEOF); break;
+
         default:
             printError("Primitive not found....found token '%s' instead\n", tokenStr);
             node = createEmptyNode();
@@ -294,6 +305,15 @@ ListNode parse_arguments() {
     }
 }
 
+ListNode parse_expr_size_type(ListNode opNode) {
+    List *specExpr = createList(2);
+    addNode(specExpr, opNode);
+    acceptToken(TT_OPEN_PAREN);
+    addNode(specExpr, parse_identifier());
+    acceptToken(TT_CLOSE_PAREN);
+    return createListNode(specExpr);
+}
+
 //--------------------------------------------------------------------
 //   Parse postfix expressions:
 //       primitive
@@ -301,6 +321,7 @@ ListNode parse_arguments() {
 //       postfixExpr ( argumentList )   -- function call
 //       postfixExpr . identifier       -- reference object property
 //       postfixExpr ++ / --
+//       sizeof/typeof ( var/type identifer )
 
 ListNode parse_expr_postfix(bool isLValue, int allowNestedExpr) {
     ListNode lnode, rnode, opNode;
@@ -309,6 +330,10 @@ ListNode parse_expr_postfix(bool isLValue, int allowNestedExpr) {
 
     lnode = parse_primary_expr(isLValue, true, allowNestedExpr);
     if (lnode.type == N_INT) return lnode;                          // Numeric values cannot have postfix ops applied
+
+    // if lnode is token... then it's probably sizeof/typeof,
+    //   so call a function to process that and return the result
+    if (lnode.type == N_TOKEN) return parse_expr_size_type(lnode);
 
     while (inCharset(peekToken(), "[(.")) {
         tokenChar = getToken()->tokenStr[0];

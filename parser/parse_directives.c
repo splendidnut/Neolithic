@@ -19,7 +19,8 @@ const char* CompilerDirectiveNames[NUM_COMPILER_DIRECTIVES] = {
         "hide_cycles",
         "page_align",
         "invert",
-        "use_quick_index_table"
+        "use_quick_index_table",
+        "echo"
 };
 
 enum CompilerDirectiveTokens lookupDirectiveToken(char *tokenName) {
@@ -55,6 +56,16 @@ ListNode buildIfDirective(enum CompilerDirectiveTokens token) {
     return createListNode(dirList);
 }
 
+ListNode buildEchoDirective(enum CompilerDirectiveTokens token) {
+    List *echoList = createList(20);
+    addNode(echoList, createParseToken(PT_DIRECTIVE));
+    addNode(echoList, createIntNode(token));
+    do {
+        addNode(echoList, parse_expr());
+    } while (acceptOptionalToken(TT_COMMA));
+    return createListNode(echoList);
+}
+
 ListNode parse_compilerDirective(enum ParserScope parserScope) {
     ListNode node;
     getToken(); // EAT '#'
@@ -70,6 +81,9 @@ ListNode parse_compilerDirective(enum ParserScope parserScope) {
             case IFDEF:
             case IFNDEF:
                 node = buildIfDirective(directiveToken);
+                break;
+            case ECHO:
+                node = buildEchoDirective(directiveToken);
                 break;
 
                 // Preprocessor Cases:  These directives have already been processed, so skip them

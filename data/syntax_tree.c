@@ -42,6 +42,13 @@ ListNode createStrNode(const char *str) {
     return result;
 }
 
+ListNode createStrLiteralNode(const char *str) {
+    ListNode result;
+    result.value.str = (char *)str;
+    result.type = N_STR_LITERAL;
+    return result;
+}
+
 ListNode createListNode(List *list) {
     ListNode result;
     result.value.list = list;
@@ -203,6 +210,9 @@ void showNode(FILE *outputFile, ListNode node, int indentLevel) {
             break;
         case N_STR:
             fprintf(outputFile, "'%s'", node.value.str);
+            break;
+        case N_STR_LITERAL:
+            fprintf(outputFile, "\"%s\"", node.value.str);
             break;
         case N_CHAR:
             fprintf(outputFile, "'%c'", node.value.ch);

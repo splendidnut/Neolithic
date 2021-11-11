@@ -7,8 +7,6 @@
 
 #include <stdbool.h>
 
-#define NUM_PARSE_TOKENS 69
-
 enum ParseToken {
     PT_EMPTY,
     PT_CODE,            // code block
@@ -79,8 +77,16 @@ enum ParseToken {
     // mark a list of data values
     PT_LIST,
 
+    // introspective ops
+    PT_SIZEOF,
+    PT_TYPEOF,
+
     // make compiler directive
-    PT_DIRECTIVE
+    PT_DIRECTIVE,
+
+
+    // MARK END OF LIST
+    NUM_PARSE_TOKENS
 };
 
 extern const char *getParseTokenName(enum ParseToken pt);

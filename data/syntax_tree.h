@@ -13,7 +13,7 @@
 #include "parser/tokens.h"
 #include "cpu_arch/asm_code.h"
 
-enum NodeType { N_EMPTY, N_INT, N_CHAR, N_STR, N_LIST, N_TOKEN, N_MNE, N_ADDR_MODE, N_SYMBOL };
+enum NodeType { N_EMPTY, N_INT, N_CHAR, N_STR, N_LIST, N_TOKEN, N_MNE, N_ADDR_MODE, N_SYMBOL, N_STR_LITERAL };
 
 struct ListStruct;
 
@@ -48,6 +48,7 @@ extern ListNode createEmptyNode();
 extern ListNode createIntNode(int num);
 extern ListNode createCharNode(char ch);
 extern ListNode createStrNode(const char *str);
+extern ListNode createStrLiteralNode(const char *str);
 extern ListNode createListNode(List *list);
 extern ListNode createParseToken(enum ParseToken parseToken);
 extern ListNode createMnemonicNode(enum MnemonicCode mne);

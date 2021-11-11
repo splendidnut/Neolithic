@@ -22,6 +22,7 @@ enum CompilerDirectiveTokens {
     PAGE_ALIGN,
     INVERT,
     USE_QUICK_INDEX_TABLE,
+    ECHO,
 
     //---- size of list
     NUM_COMPILER_DIRECTIVES

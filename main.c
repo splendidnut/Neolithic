@@ -1,6 +1,13 @@
 /*
  *   Neolithic Compiler v0.3 - Simple C Cross-compiler for the 6502
  *
+ *
+ *   TODO:  Fix compile steps to allow included files to be preprocessed.
+ *              This requires separating out loadAndParse into separate pieces,
+ *              so that the files can all be loaded and preprocessed (allow recursion
+ *              into deeper includes).  Then after all that is done, they can be parsed.
+ *
+ *              Finally, everything can be compiled.
 **/
 
 #include <stdbool.h>
@@ -155,6 +162,9 @@ ListNode parse(char *curFileName, char *sourceCode) {
     if (progNode.type == N_EMPTY) {
         progNode = parse_program(sourceCode, curFileName);
         SourceFileList_add(curFileName, sourceCode, progNode);
+    } else {
+        printf("File has already been loaded and parsed: %s\n", curFileName);
+        return createEmptyNode();
     }
     return progNode;
 }
@@ -170,12 +180,13 @@ void loadAndParseAllDependencies() {
             exit(-1);
         }
         ListNode progNode = parse(srcFileName, srcFileData);
+        if (progNode.type != N_EMPTY) {
+            writeParseTree(progNode, srcFileName);
 
-        writeParseTree(progNode, srcFileName);
+            if (parserErrorCount != 0) break;
 
-        if (parserErrorCount != 0) break;
-
-        generate_symbols(progNode, mainSymbolTable);
+            generate_symbols(progNode, mainSymbolTable);
+        }
     }
 }
 
@@ -185,6 +196,14 @@ void generateCodeForDependencies() {
         char *curFileName = preProcessInfo->includedFiles[curFileIdx];
         ListNode progNode = SourceFileList_lookupAST(curFileName);
         generate_code(curFileName, progNode);
+    }
+}
+
+void check_for_entry_point() {
+    if (!findSymbol(mainSymbolTable, "main")) {
+        char *entryPointName = "main()";
+        printf("Warning:  Missing entry point function:  %s not found.\n", entryPointName);
+        GC_ErrorCount++;
     }
 }
 
@@ -258,6 +277,8 @@ int mainCompiler() {
     if (compilerOptions.showGeneralInfo) printf("Compiling main program %s\n", inFileName);
     ListNode progNode = SourceFileList_lookupAST(inFileName);
     generate_code(inFileName, progNode);
+
+    check_for_entry_point();
 
     if (GC_ErrorCount == 0) {
         //OPT_RunOptimizer();

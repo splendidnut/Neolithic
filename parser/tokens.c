@@ -88,6 +88,9 @@ const char* ParseTokenNames[NUM_PARSE_TOKENS] = {
 
         "list",
 
+        "sizeof",
+        "typeof",
+
         "directive"
 };
 

@@ -811,26 +811,23 @@ void GC_StoreToStructProperty(const List *expr) {
     char *propName = expr->nodes[2].value.str;
 
     SymbolRecord *structSym = lookupSymbolNode(structNameNode, expr->lineNum);
-    if (structSym == NULL) return;
+    if (structSym == NULL || !isStructDefined(structSym)) return;
 
-    if (isStructDefined(structSym)) {
-        SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propName);
+    SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propName);
+    if (propertySym == NULL) return;
 
-        if (propertySym != NULL) {
-            if (IS_ALIAS(structSym)) {
+    if (IS_ALIAS(structSym)) {
 
-                enum ParseToken aliasType = GC_LoadAlias(expr, structSym);
-                SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSym, aliasType);
-                if (aliasType == PT_LOOKUP) {
-                    ICG_StoreIndexedWithOffset(baseSymbol, propertySym->location);
-                } else if (aliasType == PT_INIT) {
-                    ICG_StoreVarOffset(baseSymbol, propertySym->location, getBaseVarSize(propertySym));
-                }
-
-            } else {
-                ICG_StoreVarOffset(structSym, propertySym->location, getBaseVarSize(propertySym));
-            }
+        enum ParseToken aliasType = GC_LoadAlias(expr, structSym);
+        SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSym, aliasType);
+        if (aliasType == PT_LOOKUP) {
+            ICG_StoreIndexedWithOffset(baseSymbol, propertySym->location);
+        } else if (aliasType == PT_INIT) {
+            ICG_StoreVarOffset(baseSymbol, propertySym->location, getBaseVarSize(propertySym));
         }
+
+    } else {
+        ICG_StoreVarOffset(structSym, propertySym->location, getBaseVarSize(propertySym));
     }
 }
 
@@ -895,6 +892,8 @@ enum SymbolType getAsgnDestType(const List *stmt, ListNode storeNode, enum Symbo
                     destVar = propertySym;
                     if (propertySym == NULL) {
                         ErrorMessageWithList("Property not found", storeExpr);
+                    } else if (IS_ALIAS(structVar)) {
+                        GC_LoadAlias(storeExpr, structVar);
                     }
                 }
             } else {
@@ -1539,6 +1538,41 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
 //-------------------------------------------------------------------
 
 
+/**
+ * GC_HandleEcho
+ *    - Evaluate provided list of parameters and print the results
+ *      into the compiler output (NO CODE IS GENERATED).
+ * @param echoDirStmt
+ */
+void GC_HandleEcho(const List *echoDirStmt) {
+    printf("::ECHO:: ");
+    for_range(paramIdx, 2, echoDirStmt->count) {
+        ListNode echoNode = echoDirStmt->nodes[paramIdx];
+        switch (echoNode.type) {
+
+            case N_LIST: {
+                List *expr = echoNode.value.list;
+                EvalResult evalResult = evaluate_expression(expr);
+                if (evalResult.hasResult) {
+                    printf("%d ", evalResult.value);
+                } else {
+                    printf("ERR ");
+                }
+            } break;
+
+            case N_STR_LITERAL:
+                printf("%s ", echoNode.value.str);
+                break;
+
+            default:
+                ErrorMessageWithNode("Unsupported expr in #echo", echoNode, echoDirStmt->lineNum);
+                break;
+        }
+    }
+    printf("\n");
+}
+
+
 void GC_HandleDirective(const List *code, enum SymbolType destType) {
 
     // NOTE: loose casting op!
@@ -1560,6 +1594,9 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
             break;
         case INVERT:
             reverseData = true;
+            break;
+        case ECHO:
+            GC_HandleEcho(code);
             break;
         default:
             break;

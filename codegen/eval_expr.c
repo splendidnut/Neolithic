@@ -101,6 +101,14 @@ EvalResult evaluate_expression(const List *expr) {
 
     if (opToken == PT_ADDR_OF) {
         leftResult = eval_addr_of(expr->nodes[1]);
+    } else if (opToken == PT_SIZEOF) {
+        char *varName = expr->nodes[1].value.str;
+        SymbolRecord *varSym = getEvalSymbolRecord(varName);
+        if (varSym != NULL) {
+            leftResult.value = calcVarSize(varSym);
+            leftResult.hasResult = true;
+            return leftResult;
+        }
     } else {
         leftResult = eval_node(expr->nodes[1]);
     }
