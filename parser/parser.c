@@ -245,9 +245,7 @@ ListNode parse_primary_expr(bool isLValue, bool isExprAllowed, int allowNestedEx
             break;
 
         case TT_STRING:
-            //node = createListNode(createStrConst());
-            //printError("found string const: %s\n", tokenStr);
-            printf("String literal: %s\n", tokenStr);
+            // handle string literals
             node = createStrLiteralNode(getUnquotedString(tokenStr));
             break;
 

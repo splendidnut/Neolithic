@@ -1560,8 +1560,21 @@ void GC_HandleEcho(const List *echoDirStmt) {
                 }
             } break;
 
+            case N_STR: {
+                EvalResult evalResult = evaluate_node(echoNode);
+                if (evalResult.hasResult) {
+                    printf("%d ", evalResult.value);
+                } else {
+                    printf("ERR ");
+                }
+            } break;
+
             case N_STR_LITERAL:
                 printf("%s ", echoNode.value.str);
+                break;
+
+            case N_INT:
+                printf("%d ", echoNode.value.num);
                 break;
 
             default:

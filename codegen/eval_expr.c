@@ -90,6 +90,10 @@ EvalResult eval_addr_of(ListNode node) {
     return result;
 }
 
+EvalResult evaluate_node(const ListNode node) {
+    return eval_node(node);
+}
+
 EvalResult evaluate_expression(const List *expr) {
     EvalResult result, leftResult, rightResult;
 

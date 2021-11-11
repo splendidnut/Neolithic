@@ -17,6 +17,7 @@ typedef struct {
 extern void initEvaluator(SymbolTable *symbolTable);
 extern void setEvalLocalSymbolTable(SymbolTable *symbolTable);
 extern void setEvalExpressionMode(bool forASM);
+extern EvalResult evaluate_node(const ListNode node);
 extern EvalResult evaluate_expression(const List *expr);
 extern EvalResult evalAsAddrLookup(const List *expr);
 extern char* get_expression(const List *expr);

@@ -68,7 +68,7 @@ ListNode buildEchoDirective(enum CompilerDirectiveTokens token) {
 
 ListNode parse_compilerDirective(enum ParserScope parserScope) {
     ListNode node;
-    getToken(); // EAT '#'
+    acceptToken(TT_HASH);   // EAT '#'
 
     TokenObject *token = getToken();
     enum CompilerDirectiveTokens directiveToken = lookupDirectiveToken(token->tokenStr);
@@ -91,6 +91,9 @@ ListNode parse_compilerDirective(enum ParserScope parserScope) {
             case INCLUDE:
                 // TODO: determine if we want to do something special with includes
                 node = createEmptyNode();
+
+                // tell tokenizer to skip rest of line (since these directives don't get processed here)
+                tokenizer_nextLine();
                 break;
 
                 // Default Case:  Just a simple directive, no parameters and no need to ignore
@@ -101,8 +104,5 @@ ListNode parse_compilerDirective(enum ParserScope parserScope) {
         printf("Missing support for #%s\n", token->tokenStr);
         node = createEmptyNode();
     }
-
-    // tell tokenizer to skip rest of line
-    tokenizer_nextLine();
     return node;
 }
