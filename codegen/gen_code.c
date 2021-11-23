@@ -1648,11 +1648,9 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
 
     switch (directive) {
         case SHOW_CYCLES:
-            printf("Cycle counts on\n");
             IL_ShowCycles();
             break;
         case HIDE_CYCLES:
-            printf("Cycle counts off\n");
             IL_HideCycles();
             break;
         case PAGE_ALIGN:
