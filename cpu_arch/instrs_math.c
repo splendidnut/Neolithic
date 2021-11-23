@@ -1,4 +1,18 @@
 //
+//  Math routines
+//
+//  Handle more complicated math on the 6502.  i.e.  Multiplication
+//
+//  NOTE:
+//      Lookup table code is mainly geared toward table/array of structs lookups.
+//      So, it only supports multipliers upto 63.
+//
+//  TODO:  Cleanup variable handling code.
+//          Currently doesn't handle variables in all cases properly (zp vs abs)
+//          Also, these routines have some redundant code in them.
+//
+//  TODO:  Use label generator instead of numeric offsets in branches
+//
 // Created by admin on 5/11/2021.
 //
 
@@ -7,9 +21,20 @@
 #include "instrs_math.h"
 #include "instrs.h"
 
-SymbolTable *mul_globalSymbolTable;
-typedef enum MnemonicCode MultiplierSteps[5];
+//------------------------------
+//  Internal variables
 
+//-- symbol table currently in scope for looking up symbol records for these routines
+SymbolTable *mul_globalSymbolTable;
+
+
+// For multiply ops, 0x80 + 0x81 are temp zeropage locations used for an accumulator
+const int ACC_MUL_ADDR = 0x80;
+
+//---------------------------------------------------------------------------
+//--- Table used to generate small quick macro code for multiply operations
+
+typedef enum MnemonicCode MultiplierSteps[5];
 const MultiplierSteps multiplierSteps[16] = {
     {NOP, NOP, NOP, NOP, NOP}, //1  - limit 255
     {ASL, NOP, NOP, NOP, NOP}, //2  - limit 128
@@ -28,16 +53,6 @@ const MultiplierSteps multiplierSteps[16] = {
     {ASL, ASL, ASL, ASL, SBC}, //15 - limit 17-
     {ASL, ASL, ASL, ASL, NOP}, //16 - limit 16
 };
-
-void ICG_Mul_loadVariable(const SymbolRecord *varRec, int addrMulVar, bool isParamVar) {
-    const char *varName = getVarName(varRec);
-    enum AddrModes addrMode = CALC_ADDR_MODE(addrMulVar);
-    if (isParamVar) {
-        IL_AddInstrB(TSX);
-        addrMode = ADDR_ABX;
-    }
-    IL_AddInstrS(LDA, addrMode, varName, "", PARAM_NORMAL);
-}
 
 
 /**
@@ -58,6 +73,7 @@ void ICG_Mul_InitLookupTables(SymbolTable *globalSymbolTable) {
  */
 void ICG_Mul_AddLookupTable(char lookupValue) {
 
+    //--- create a list big enough to contain the lookup table
     int count = (256 / lookupValue) + 1;
     List *lookupTableList = createList(count+1);
     addNode(lookupTableList, createParseToken(PT_INIT));
@@ -102,6 +118,21 @@ void ICG_MultiplyWithConstTable(const SymbolRecord *varRec, const char multiplie
 }
 
 
+/**
+ * Load variable to use in multiplication into Accumulator
+ *
+ * @param varRec
+ */
+void ICG_LoadVarForMultiply(const SymbolRecord *varRec) {
+    const char *varName = getVarName(varRec);
+    enum AddrModes addrMode = CALC_ADDR_MODE(varRec->location);
+    if (IS_PARAM_VAR(varRec)) {
+        IL_AddInstrB(TSX);
+        addrMode = ADDR_ABX;
+    }
+    IL_AddInstrS(LDA, addrMode, varName, "", PARAM_NORMAL);
+}
+
 /*
  * https://atariage.com/forums/topic/71120-6502-killer-hacks/?do=findComment&comment=896028
  *
@@ -124,17 +155,9 @@ nope:
  inc mul2
 
  */
-void ICG_GenericMultiplyWithConst(const SymbolRecord *varRec, const char multiplier) {
-    int addrMulVar = varRec->location;
-    bool isParamVar =  (IS_PARAM_VAR(varRec));
-
-    printSingleSymbol(stdout, varRec);
-
-    int tempOfs = 0x80;
-
+void ICG_GenericMultiplyWithConst(const char multiplier) {
     // need to load variable into temp var
-    ICG_Mul_loadVariable(varRec, addrMulVar, isParamVar);
-    IL_AddInstrN(STA, ADDR_ZP, tempOfs);
+    IL_AddInstrN(STA, ADDR_ZP, ACC_MUL_ADDR);
 
     //------------------------------------------------------------------------
     //  NOTE: using relative numbers instead of labels for simplification purposes
@@ -143,7 +166,7 @@ void ICG_GenericMultiplyWithConst(const SymbolRecord *varRec, const char multipl
     IL_AddInstrN(LDX, ADDR_IMM, 8);             // 8-bits requires 8 loops
     //-- loop start
     IL_AddInstrB(LSR);
-    IL_AddInstrN(ROR, ADDR_ZP, tempOfs);
+    IL_AddInstrN(ROR, ADDR_ZP, ACC_MUL_ADDR);
     IL_AddInstrN(BCC, ADDR_REL, +4);
     IL_AddInstrN(ADC, ADDR_IMM, multiplier-1);      // using -1 to do an add without carry
     //-- skipped over add
@@ -153,21 +176,22 @@ void ICG_GenericMultiplyWithConst(const SymbolRecord *varRec, const char multipl
         "Branch back to start of multiply loop");
 
     //-----------------------------------------------------------------------
-    IL_AddInstrB(TAX);                      // move high order byte into X
-    IL_AddInstrN(LDA, ADDR_ZP, tempOfs);
+    IL_AddComment(
+        IL_AddInstrB(TAX),                      // move high order byte into X
+        "Move high order byte into X");
+    IL_AddInstrN(LDA, ADDR_ZP, ACC_MUL_ADDR);
 }
 
-void ICG_MultiplyWithVar(const SymbolRecord *varRec, const SymbolRecord *varRec2) {
-    int addrMulVar = varRec->location;
-    bool isParamVar =  (IS_PARAM_VAR(varRec));
-
-    printSingleSymbol(stdout, varRec);
-
-    int tempOfs = 0x80;
-
+/**
+ * Generate code for Multiplying two variables together
+ *
+ * @param varRec
+ * @param varRec2
+ */
+void ICG_MultiplyVarWithVar(const SymbolRecord *varRec, const SymbolRecord *varRec2) {
     // need to load variable into temp var
-    ICG_Mul_loadVariable(varRec, addrMulVar, isParamVar);
-    IL_AddInstrN(STA, ADDR_ZP, tempOfs);
+    ICG_LoadVarForMultiply(varRec);
+    IL_AddInstrN(STA, ADDR_ZP, ACC_MUL_ADDR);
 
     //------------------------------------------------------------------------
     //  NOTE: using relative numbers instead of labels for simplification purposes
@@ -176,10 +200,10 @@ void ICG_MultiplyWithVar(const SymbolRecord *varRec, const SymbolRecord *varRec2
     IL_AddInstrN(LDX, ADDR_IMM, 8);             // 8-bits requires 8 loops
     //-- loop start
     IL_AddInstrB(LSR);
-    IL_AddInstrN(ROR, ADDR_ZP, tempOfs);
+    IL_AddInstrN(ROR, ADDR_ZP, ACC_MUL_ADDR);
     IL_AddInstrN(BCC, ADDR_REL, +4);
     IL_AddInstrB(CLC);
-    IL_AddInstrS(ADC, CALC_ADDR_MODE(addrMulVar), varRec2->name, "", PARAM_NORMAL);
+    IL_AddInstrS(ADC, CALC_ADDR_MODE(varRec2->location), varRec2->name, "", PARAM_NORMAL);
     //-- skipped over add
     IL_AddInstrB(DEX);
     IL_AddComment(
@@ -187,8 +211,45 @@ void ICG_MultiplyWithVar(const SymbolRecord *varRec, const SymbolRecord *varRec2
             "Branch back to start of multiply loop");
 
     //-----------------------------------------------------------------------
-    IL_AddInstrB(TAX);                      // move high order byte into X
-    IL_AddInstrN(LDA, ADDR_ZP, tempOfs);
+    IL_AddComment(
+            IL_AddInstrB(TAX),                      // move high order byte into X
+            "Move high order byte into X");
+    IL_AddInstrN(LDA, ADDR_ZP, ACC_MUL_ADDR);
+}
+
+/**
+ * Generate code for Multiplying an expression with a variable
+ *
+ * Assumes expression has been evaluated and is loaded into tempOfs
+ *
+ * @param varLoc1
+ * @param varRec2
+ */
+void ICG_MultiplyExprWithVar(const int varLoc1, const SymbolRecord *varRec2) {
+    IL_AddInstrN(STA, ADDR_ZP, ACC_MUL_ADDR);
+
+    //------------------------------------------------------------------------
+    //  NOTE: using relative numbers instead of labels for simplification purposes
+
+    IL_AddInstrN(LDA, ADDR_IMM, 0);             // clear out accumulator
+    IL_AddInstrN(LDX, ADDR_IMM, 8);             // 8-bits requires 8 loops
+    //-- loop start
+    IL_AddInstrB(LSR);
+    IL_AddInstrN(ROR, ADDR_ZP, ACC_MUL_ADDR);
+    IL_AddInstrN(BCC, ADDR_REL, +4);
+    IL_AddInstrB(CLC);
+    IL_AddInstrS(ADC, CALC_ADDR_MODE(varRec2->location), varRec2->name, "", PARAM_NORMAL);
+    //-- skipped over add
+    IL_AddInstrB(DEX);
+    IL_AddComment(
+            IL_AddInstrN(BNE, ADDR_REL, -8),            // Branch back to loop start
+            "Branch back to start of multiply loop");
+
+    //-----------------------------------------------------------------------
+    IL_AddComment(
+            IL_AddInstrB(TAX),                      // move high order byte into X
+            "Move high order byte into X");
+    IL_AddInstrN(LDA, ADDR_ZP, ACC_MUL_ADDR);
 }
 
 /**
@@ -199,12 +260,10 @@ void ICG_MultiplyWithVar(const SymbolRecord *varRec, const SymbolRecord *varRec2
 void ICG_StepMultiplyWithConst(const SymbolRecord *varRec, const char multiplier) {
     if (multiplier > 16) return;
 
-    bool isParamVar =  (IS_PARAM_VAR(varRec));
-    int addrMulVar = varRec->location;
     const char *varName = getVarName(varRec);
-    enum AddrModes addrMode = isParamVar ? ADDR_ABX : CALC_ADDR_MODE(addrMulVar);
+    enum AddrModes addrMode = IS_PARAM_VAR(varRec) ? ADDR_ABX : CALC_ADDR_MODE(varRec->location);
 
-    ICG_Mul_loadVariable(varRec, addrMulVar, isParamVar);
+
     IL_AddInstrN(CLC, ADDR_NONE, 0);
     for (int step=0; step<5; step++) {
         enum MnemonicCode instrMne = multiplierSteps[multiplier-1][step];
@@ -221,22 +280,35 @@ void ICG_StepMultiplyWithConst(const SymbolRecord *varRec, const char multiplier
                 break;
         }
     }
-    IL_AddInstrS(STA, addrMode, varName, "", PARAM_NORMAL);
+    //IL_AddInstrS(STA, addrMode, varName, "", PARAM_NORMAL);
 }
 
 
 
-void ICG_MultiplyWithConst(const SymbolRecord *varRec, const char multiplier) {
+void ICG_MultiplyVarWithConst(const SymbolRecord *varRec, const char multiplier) {
     IL_AddCommentToCode("Start of Multiplication");
 
     if (hasValueLookupTable(multiplier)) {
         ICG_MultiplyWithConstTable(varRec, multiplier);
     } else if (multiplier < 17) {
+        ICG_LoadVarForMultiply(varRec);
         ICG_StepMultiplyWithConst(varRec, multiplier);
     } else {
         // do multiply using a generic routine
-        ICG_GenericMultiplyWithConst(varRec, multiplier);
+        ICG_LoadVarForMultiply(varRec);
+        ICG_GenericMultiplyWithConst(multiplier);
     }
 
+    IL_AddCommentToCode("End of Multiplication");
+}
+
+/**
+ * Multiply currently loaded accumulator with const value
+ *
+ * @param multiplier
+ */
+void ICG_MultiplyWithConst(const char multiplier) {
+    IL_AddCommentToCode("Start of Multiplication Acc with Const");
+    ICG_GenericMultiplyWithConst(multiplier);
     IL_AddCommentToCode("End of Multiplication");
 }

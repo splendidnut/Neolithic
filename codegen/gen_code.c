@@ -50,32 +50,10 @@ SymbolRecord* getArraySymbol(const List *expr, ListNode arrayNode) {
 //-------------------------------------------------------
 //   Simple Code Generation
 
-void GC_LoadParamVar(SymbolRecord *varRec, int lineNum) {
-    switch (varRec->hint) {
-        case VH_A_REG: break;   // already in A
-        case VH_X_REG: ICG_MoveIndexToAcc('X'); break;
-        case VH_Y_REG: ICG_MoveIndexToAcc('Y'); break;
-        default: {
-            // must be a stack var
-            if (IS_STACK_VAR(varRec)) {
-                ICG_LoadFromStack(varRec->location);
-            } else {
-                ErrorMessage("Inaccessible parameter", varRec->name, lineNum);
-            }
-        }
-    }
-}
-
 
 void GC_LoadVar(ListNode loadNode, int lineNum) {
     SymbolRecord *varSymbol = lookupSymbolNode(loadNode, lineNum);
-    if (varSymbol == NULL) return;
-
-    if (IS_PARAM_VAR(varSymbol)) {
-        GC_LoadParamVar(varSymbol, lineNum);
-    } else {
-        ICG_LoadVar(varSymbol);
-    }
+    if (varSymbol != NULL) ICG_LoadVar(varSymbol);
 }
 
 void GC_LoadPrimitive(ListNode loadNode, enum SymbolType destType, int lineNum) {
@@ -290,7 +268,7 @@ enum ParseToken GC_LoadAlias(const List *expr, SymbolRecord *structSymbol) {
             SymbolRecord *indexSymbol = lookupSymbolNode(alias->nodes[2], alias->lineNum);
 
             char multiplier = (char) calcVarSize(structSymbol);
-            ICG_MultiplyWithConst(indexSymbol, multiplier & 0x7f);
+            ICG_MultiplyVarWithConst(indexSymbol, multiplier & 0x7f);
             ICG_MoveAccToIndex('Y');
 
             // Make sure instruction generator knows the use, so we don't have to keep reloading
@@ -725,18 +703,78 @@ void GC_CompareOp(const List *expr, enum SymbolType destType) {
     ICG_PreOp(TXA);
 }
 
+
+/**
+ * Generate code for a multiplication operation
+ *
+ * REMEMBER:
+ *   'Commutative property: The order of the factors does not change the product.'
+ *
+ * Cases:
+ *    NUM * NUM => should be handled in the evaluator (never should make it here)
+ *    VAR * NUM ->  Multiply With Const
+ *    VAR * VAR ->  Multiply Var with Var
+ *    EXPR * NUM -> Process Expr, then Multiply Temp Var with Const
+ *    EXPR * VAR -> Process Expr, then Multiply Temp Var with Var
+ *    EXPR * EXPR -> Process both expr, store in temps, Multiply Temp Var with Temp Var  (requires 2 temp vars)
+ *
+ * @param expr
+ * @param destType
+ */
 void GC_MultiplyOp(const List *expr, enum SymbolType destType) {
-    SymbolRecord *varSym = lookupSymbolNode(expr->nodes[1], expr->lineNum);
+    ListNode firstParam = expr->nodes[1];
+    ListNode secondParam = expr->nodes[2];
 
-    if (varSym == NULL) return;
+    //--------------------------------------------------------------
+    // swap params if first one is less important than second
 
-    if (expr->nodes[2].type == N_INT) {
-        ICG_MultiplyWithConst(varSym, expr->nodes[2].value.num);
-    } else if (expr->nodes[2].type == N_STR) {
-        SymbolRecord *varSym2 = lookupSymbolNode(expr->nodes[2], expr->lineNum);
-        ICG_MultiplyWithVar(varSym, varSym2);
-    } else {
-        ErrorMessageWithNode("Multiply op not supported", expr->nodes[2], expr->lineNum);
+    // demote numeric literal to second param
+    if (firstParam.type == N_INT && secondParam.type != N_INT) {
+        secondParam = expr->nodes[1];
+        firstParam = expr->nodes[2];
+    }
+
+    // promote expr to first position IF first position is not already an expr
+    if (firstParam.type != N_LIST && secondParam.type == N_LIST) {
+        secondParam = expr->nodes[1];
+        firstParam = expr->nodes[2];
+    }
+
+    //--------------------------------------------------------------
+    // handle case when first param is a sub-expression
+
+    SymbolRecord *varSym;
+    switch (firstParam.type) {
+
+        // handle if the first parameter is an expression... second param can be VAR or INT
+        case N_LIST:
+            GC_Expression(firstParam.value.list, destType);
+            if (secondParam.type == N_STR) {
+                varSym = lookupSymbolNode(secondParam, expr->lineNum);
+                ICG_MultiplyExprWithVar(0, varSym);        // first param (currently unused) is temp var location
+            } else if (secondParam.type == N_INT) {
+                ICG_MultiplyWithConst(secondParam.value.num);
+            }
+            break;
+
+        // handle if first parameter is a variable
+        case N_STR:
+            varSym = lookupSymbolNode(firstParam, expr->lineNum);
+            if (varSym == NULL) return;
+
+            if (secondParam.type == N_INT) {
+                ICG_MultiplyVarWithConst(varSym, secondParam.value.num);
+            } else if (secondParam.type == N_STR) {
+                SymbolRecord *varSym2 = lookupSymbolNode(secondParam, expr->lineNum);
+                ICG_MultiplyVarWithVar(varSym, varSym2);
+            } else {
+                ErrorMessageWithNode("Multiply op not supported", secondParam, expr->lineNum);
+            }
+            break;
+
+        // we should never end up here... so report an error
+        default:
+            ErrorMessageWithList("Multiply op not supported using the following:", expr);
     }
 }
 
@@ -904,13 +942,20 @@ enum SymbolType getAsgnDestType(const List *stmt, ListNode storeNode, enum Symbo
     return (destVar != NULL) ? getVarDestType(destVar) : ST_ERROR;
 }
 
-
+/**
+ * Process assignment statement
+ *
+ * @param stmt - statement to process
+ * @param destType - unused for now.  This gets overridden by a call to getAsgnDestType
+ */
 void GC_Assignment(const List *stmt, enum SymbolType destType) {
     ListNode loadNode = stmt->nodes[2];
     ListNode storeNode = stmt->nodes[1];
 
     // figure out destination type
     destType = getAsgnDestType(stmt, storeNode, destType);
+
+    //printf("DEBUG: GC_Assignment -> getAsgnDestType = %d\n", destType);
 
     // make sure we have a destination
     if (destType != ST_ERROR) {
@@ -920,7 +965,16 @@ void GC_Assignment(const List *stmt, enum SymbolType destType) {
         if (loadNode.type == N_LIST) {
             flatten_expression(loadNode.value.list, stmt);
         }
-         */
+        */
+
+        // Handle the special case where a 16-bit number is being set from a another var or a numeric literal
+        /*if ((destType == ST_INT) &&
+                ((loadNode.type == N_STR) || (loadNode.type == N_INT)) &&
+                (storeNode.type == N_STR)) {
+            //GC_HandleSet_16();
+
+            return;
+        }*/
 
         // figure out where data is coming from
         GC_HandleLoad(loadNode, destType, stmt->lineNum);
