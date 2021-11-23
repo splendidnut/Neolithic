@@ -34,6 +34,63 @@ char* getDefName(List *def) {
 
 //-----------------------------------------------------
 
+/**
+ * Process Initializer portion of variable definition statement
+ *
+ * @param varDef
+ * @param varSymRec
+ */
+void GS_processInitializer(const List *varDef, SymbolRecord *varSymRec) {
+    List* initList = varDef->nodes[4].value.list;
+    if (initList->nodes[0].value.parseToken == PT_INIT) {
+        ListNode valueNode = initList->nodes[1];
+
+        if (valueNode.type == N_INT) {
+            // simply set value
+            varSymRec->constValue = valueNode.value.num;
+            varSymRec->hasValue = true;
+        }
+
+        else if (valueNode.type == N_LIST) {
+            List *initExpr = valueNode.value.list;
+
+            if (initExpr->hasNestedList && isToken(initExpr->nodes[0], PT_LIST)) {
+                varSymRec->numElements = initExpr->count - 1;
+            } else {
+                varSymRec->numElements = initExpr->count;
+            }
+
+            /**** SPECIAL CASE: handle case of explicit address set  ****/
+            if (isToken(initExpr->nodes[0], PT_ADDR_OF)
+                && (initExpr->nodes[1].type == N_INT)) {
+
+                int value = initExpr->nodes[1].value.num;
+                setSymbolLocation(varSymRec, value, (value < 256) ? SS_ZEROPAGE : SS_ABSOLUTE);
+            } else {
+                EvalResult result = evaluate_expression(initExpr);
+                if (result.hasResult) {
+                    varSymRec->constValue = result.value;
+                    varSymRec->hasValue = true;
+                    varSymRec->constEvalNotes = get_expression(initExpr);
+                } else if(isSimpleConst(varSymRec)) {
+                    varSymRec->constValue = 0;
+                    varSymRec->constEvalNotes = "(unable to resolve)";
+
+                    ErrorMessageWithList("Unable to resolve", initExpr);
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Process Variable definition statement
+ *
+ * @param varDef - syntax tree containing variable definition statement
+ * @param symbolTable - symbol table for current scope
+ * @param modFlags - modifier flags to apply for special use cases
+ * @return symbolRecord for newly created variable symbol
+ */
 SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierFlags modFlags) {
     char *varName = varDef->nodes[1].value.str;
 
@@ -163,46 +220,7 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
 
     int hasInitializer = (varDef->count >= 4) && (varDef->nodes[4].type == N_LIST);
     if (hasInitializer && (symbolKind != SK_ALIAS)) {
-        List* initList = varDef->nodes[4].value.list;
-        if (initList->nodes[0].value.parseToken == PT_INIT) {
-            ListNode valueNode = initList->nodes[1];
-
-            if (valueNode.type == N_INT) {
-                // simply set value
-                varSymRec->constValue = valueNode.value.num;
-                varSymRec->hasValue = true;
-            }
-
-            else if (valueNode.type == N_LIST) {
-                List *initExpr = valueNode.value.list;
-
-                if (initExpr->hasNestedList && isToken(initExpr->nodes[0], PT_LIST)) {
-                    varSymRec->numElements = initExpr->count - 1;
-                } else {
-                    varSymRec->numElements = initExpr->count;
-                }
-
-                /**** SPECIAL CASE: handle case of explicit address set  ****/
-                if (isToken(initExpr->nodes[0], PT_ADDR_OF)
-                    && (initExpr->nodes[1].type == N_INT)) {
-
-                    int value = initExpr->nodes[1].value.num;
-                    setSymbolLocation(varSymRec, value, (value < 256) ? SS_ZEROPAGE : SS_ABSOLUTE);
-                } else {
-                    EvalResult result = evaluate_expression(initExpr);
-                    if (result.hasResult) {
-                        varSymRec->constValue = result.value;
-                        varSymRec->hasValue = true;
-                        varSymRec->constEvalNotes = get_expression(initExpr);
-                    } else if(isSimpleConst(varSymRec)) {
-                        varSymRec->constValue = 0;
-                        varSymRec->constEvalNotes = "(unable to resolve)";
-
-                        ErrorMessageWithList("Unable to resolve", initExpr);
-                    }
-                }
-            }
-        }
+        GS_processInitializer(varDef, varSymRec);
     }
     return varSymRec;
 }
