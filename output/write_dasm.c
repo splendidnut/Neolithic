@@ -151,17 +151,19 @@ void WriteDASM_OutputInstr(FILE *output, Instr *instr) {
     //----------------------------------------------
     //  Generate instruction line with parameters
 
-    char outStr[128], instrBuf[40], paramStrBuffer[80], instrParams[80];
-
+    char instrBuf[80];
     if (addressMode.mode != ADDR_NONE) {
-        //----------------------------------
+
         // process parameters
+        char paramStrBuffer[80];
         LoadParamStr(instr, paramStrBuffer);
         char *opExt = getOpExt(instr->mne, addressMode);
 
         // print out instruction line
+        char instrParams[80];
         sprintf(instrParams, addressMode.format, paramStrBuffer);
         sprintf(instrBuf, "%s%s  %s", instrName, opExt, instrParams);
+
     } else if (instr->mne == MNE_DATA) {
         sprintf(instrBuf, "%s $%2X", instrName, instr->offset);
     } else {
@@ -192,6 +194,7 @@ void WriteDASM_OutputInstr(FILE *output, Instr *instr) {
     //------------------------------------------------
     // Build final ASM line (with any potential comments/cycle counts)
 
+    char outStr[128];
     if (newLineComment[0] != '\0') {
         snprintf(outStr, 120, "\t%-32s\t%s", instrBuf, newLineComment);
         outStr[119] = '\0'; // snprintf doesn't properly terminate buffer when formatted string hits limit
