@@ -20,7 +20,8 @@ const char* CompilerDirectiveNames[NUM_COMPILER_DIRECTIVES] = {
         "page_align",
         "invert",
         "use_quick_index_table",
-        "echo"
+        "echo",
+        "bank"
 };
 
 enum CompilerDirectiveTokens lookupDirectiveToken(char *tokenName) {
@@ -66,6 +67,14 @@ ListNode buildEchoDirective(enum CompilerDirectiveTokens token) {
     return createListNode(echoList);
 }
 
+ListNode buildBankDirective(enum CompilerDirectiveTokens token) {
+    List *bankDirList = createList(3);
+    addNode(bankDirList, createParseToken(PT_DIRECTIVE));
+    addNode(bankDirList, createIntNode(token));
+    addNode(bankDirList, parse_expr());
+    return createListNode(bankDirList);
+}
+
 ListNode parse_compilerDirective(enum ParserScope parserScope) {
     ListNode node;
     acceptToken(TT_HASH);   // EAT '#'
@@ -84,6 +93,9 @@ ListNode parse_compilerDirective(enum ParserScope parserScope) {
                 break;
             case ECHO:
                 node = buildEchoDirective(directiveToken);
+                break;
+            case SET_BANK:
+                node = buildBankDirective(directiveToken);
                 break;
 
                 // Preprocessor Cases:  These directives have already been processed, so skip them

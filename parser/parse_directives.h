@@ -23,6 +23,7 @@ enum CompilerDirectiveTokens {
     INVERT,
     USE_QUICK_INDEX_TABLE,
     ECHO,
+    SET_BANK,
 
     //---- size of list
     NUM_COMPILER_DIRECTIVES
