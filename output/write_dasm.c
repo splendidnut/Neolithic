@@ -45,10 +45,10 @@ void WriteDASM_WriteBlockHeader(const OutputBlock *outputBlock, bool doOutputLab
     }
 }
 
-void WriteDASM_WriteCodeBlockHeader(const InstrBlock *instrBlock, const char *name) {
+void WriteDASM_WriteCodeBlockHeader(const OutputBlock *outputBlock, const char *name) {
     fprintf(outputFile, ";------------------------------------------------------\n");
-    fprintf(outputFile, ";--  %04X: %s\n", instrBlock->codeAddr, name);
-    fprintf(outputFile, ";--  %04X (bytes)\n\n", instrBlock->codeSize);
+    fprintf(outputFile, ";--  %04X: %s\n", outputBlock->blockAddr, name);
+    fprintf(outputFile, ";--  %04X (bytes)\n\n", outputBlock->blockSize);
 }
 
 void WriteDASM_WriteBlockFooter(char *name) {
@@ -341,7 +341,7 @@ char* WriteDASM_getExt() { return ".asm"; }
 
 void WriteDASM_FunctionBlock(const OutputBlock *block) {
     char *funcName = block->codeBlock->blockName;
-    WriteDASM_WriteCodeBlockHeader(block->codeBlock, funcName);
+    WriteDASM_WriteCodeBlockHeader(block, funcName);
     fprintf(outputFile, " SUBROUTINE\n");
     if (block->codeBlock->funcSym != NULL) {
         WriteDASM_FuncSymTables(block->codeBlock->funcSym);
