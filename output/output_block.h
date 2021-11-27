@@ -34,8 +34,8 @@ typedef void (*ProcessBlockFunc)(OutputBlock *);    // pointer to block processi
 extern void OB_Init();
 extern void OB_AddBlock(OutputBlock *newBlock);
 extern void OB_MoveToNextPage();
-extern OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock);
-extern OutputBlock *OB_AddData(SymbolRecord *dataSym, char *name, List *dataList);
+extern OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock, int suggestedBank);
+extern OutputBlock *OB_AddData(char *name, SymbolRecord *dataSym, List *dataList, int suggestedBank);
 extern void OB_PrintBlockList();
 extern const OutputBlock *OB_getFirstBlock();
 

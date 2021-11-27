@@ -36,7 +36,6 @@ typedef struct InstrStruct {
 } Instr;
 
 typedef struct InstrBlockStruct {
-    int codeAddr;                       // address where code starts
     int codeSize;                       // size of code
     char *blockName;
     struct SymbolRecordStruct *funcSym;              // if part of a function (for outputting local/param vars)
@@ -53,8 +52,31 @@ typedef struct InstrBlockStruct {
 //   - Set code address of block
 //   - Output the block to an Assembly file
 
+extern void printInstrListMemUsage();
+
 extern InstrBlock* IB_StartInstructionBlock(char *name);
 extern void IB_AddInstr(InstrBlock *curBlock, Instr *newInstr);
-extern void IB_SetCodeAddr(InstrBlock *block, int codeAddr);
+
+//----------------------------------------------
+//  Interface for Instruction List meta data
+
+extern void IL_ShowCycles();
+extern void IL_HideCycles();
+extern void IL_MoveToNextPage();
+
+extern void IL_Init(int startCodeAddr);
+extern void IL_Preload(const SymbolRecord *varSym);
+extern void IL_Label(Label *label);
+extern void IL_SetLineComment(const char *comment);
+extern Instr* IL_AddComment(Instr *inInstr, char *comment);
+extern void IL_AddCommentToCode(char *comment);
+extern void IL_SetLabel(Label *label);
+extern Label* IL_GetCurLabel();
+
+extern int IL_GetCodeSize(InstrBlock *instrBlock);
+
+extern Instr* IL_AddInstrS(enum MnemonicCode mne, enum AddrModes addrMode, const char *param1, const char *param2, enum ParamExt paramExt);
+extern Instr* IL_AddInstrN(enum MnemonicCode mne, enum AddrModes addrMode, int ofs);
+extern Instr* IL_AddInstrB(enum MnemonicCode mne);
 
 #endif //MODULE_INSTR_LIST_H

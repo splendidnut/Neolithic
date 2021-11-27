@@ -44,6 +44,9 @@ enum AddrModes {
     ADDR_IND = 11,
     ADDR_REL = 12,
 
+    ADDR_X = +1,
+    ADDR_Y = +2,
+
     // Incomplete Information
     ADDR_INCOMPLETE = 16,       // this bit indicates that we have incomplete information from the parser
     ADDR_UNK_M  = 16,               // addresses memory (no index), don't know if zp or abs

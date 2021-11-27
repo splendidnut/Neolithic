@@ -48,7 +48,13 @@ void OB_AddBlock(OutputBlock *newBlock) {
     blockCount++;
 }
 
-OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock) {
+/**
+ * Add a function / code block to the Output Block list
+ * @param name
+ * @param codeBlock - InstrBlock
+ * @return
+ */
+OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock, int suggestedBank) {
     OutputBlock *newBlock = allocMem(sizeof(struct SOutputBlock));
     newBlock->nextBlock = NULL;
     newBlock->blockName = name;
@@ -57,7 +63,7 @@ OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock) {
     curAddr += codeBlock->codeSize;
     newBlock->blockType = BT_CODE;
     newBlock->codeBlock = codeBlock;
-    newBlock->bankNum = 0;
+    newBlock->bankNum = suggestedBank;
 
     OB_AddBlock(newBlock);
     return newBlock;
@@ -68,7 +74,7 @@ void OB_MoveToNextPage() {
     curAddr = (curAddr + 256) & 0xff00;
 }
 
-OutputBlock *OB_AddData(SymbolRecord *dataSym, char *name, List *dataList) {
+OutputBlock *OB_AddData(char *name, SymbolRecord *dataSym, List *dataList, int suggestedBank) {
     bool isInt = getBaseVarSize(dataSym) > 1;
     OutputBlock *newBlock = allocMem(sizeof(struct SOutputBlock));
     newBlock->nextBlock = NULL;
@@ -78,7 +84,7 @@ OutputBlock *OB_AddData(SymbolRecord *dataSym, char *name, List *dataList) {
     newBlock->blockType = BT_DATA;
     newBlock->dataSym = dataSym;
     newBlock->dataList = dataList;
-    newBlock->bankNum = 0;
+    newBlock->bankNum = suggestedBank;
 
     // TODO: Remove hack!
 

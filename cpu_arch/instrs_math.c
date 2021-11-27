@@ -95,8 +95,9 @@ void ICG_Mul_AddLookupTable(char lookupValue) {
     strcat(lookupTableName, intToStr(lookupValue));
     printf("Adding lookup table named: %s\n", lookupTableName);
 
+    // create symbol, add to OutputBlock, set symbol location
     SymbolRecord *lookupTableRec = addSymbol(mul_globalSymbolTable, lookupTableName, SK_CONST, ST_CHAR, MF_ARRAY);
-    OutputBlock *staticData = OB_AddData(lookupTableRec, lookupTableName, lookupTableList);
+    OutputBlock *staticData = OB_AddData(lookupTableName, lookupTableRec, lookupTableList, 0);
     setSymbolLocation(lookupTableRec, ICG_MarkStaticArrayData(staticData->blockSize), SS_ROM);
 }
 
@@ -125,7 +126,7 @@ void ICG_MultiplyWithConstTable(const SymbolRecord *varRec, const char multiplie
  */
 void ICG_LoadVarForMultiply(const SymbolRecord *varRec) {
     const char *varName = getVarName(varRec);
-    enum AddrModes addrMode = CALC_ADDR_MODE(varRec->location);
+    enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(varRec);
     if (IS_PARAM_VAR(varRec)) {
         IL_AddInstrB(TSX);
         addrMode = ADDR_ABX;
@@ -203,7 +204,7 @@ void ICG_MultiplyVarWithVar(const SymbolRecord *varRec, const SymbolRecord *varR
     IL_AddInstrN(ROR, ADDR_ZP, ACC_MUL_ADDR);
     IL_AddInstrN(BCC, ADDR_REL, +4);
     IL_AddInstrB(CLC);
-    IL_AddInstrS(ADC, CALC_ADDR_MODE(varRec2->location), varRec2->name, "", PARAM_NORMAL);
+    IL_AddInstrS(ADC, CALC_SYMBOL_ADDR_MODE(varRec2), varRec2->name, "", PARAM_NORMAL);
     //-- skipped over add
     IL_AddInstrB(DEX);
     IL_AddComment(
@@ -238,7 +239,7 @@ void ICG_MultiplyExprWithVar(const int varLoc1, const SymbolRecord *varRec2) {
     IL_AddInstrN(ROR, ADDR_ZP, ACC_MUL_ADDR);
     IL_AddInstrN(BCC, ADDR_REL, +4);
     IL_AddInstrB(CLC);
-    IL_AddInstrS(ADC, CALC_ADDR_MODE(varRec2->location), varRec2->name, "", PARAM_NORMAL);
+    IL_AddInstrS(ADC, CALC_SYMBOL_ADDR_MODE(varRec2), varRec2->name, "", PARAM_NORMAL);
     //-- skipped over add
     IL_AddInstrB(DEX);
     IL_AddComment(
@@ -261,7 +262,7 @@ void ICG_StepMultiplyWithConst(const SymbolRecord *varRec, const char multiplier
     if (multiplier > 16) return;
 
     const char *varName = getVarName(varRec);
-    enum AddrModes addrMode = IS_PARAM_VAR(varRec) ? ADDR_ABX : CALC_ADDR_MODE(varRec->location);
+    enum AddrModes addrMode = IS_PARAM_VAR(varRec) ? ADDR_ABX : CALC_SYMBOL_ADDR_MODE(varRec);
 
 
     IL_AddInstrN(CLC, ADDR_NONE, 0);

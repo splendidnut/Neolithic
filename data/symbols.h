@@ -28,6 +28,7 @@
 
 #define GET_STRUCT_SYMBOL_TABLE(structSym) ((structSym)->symbolTbl)
 #define getStructSymbolSet(sym) GET_STRUCT_SYMBOL_TABLE(sym->userTypeDef)
+#define GET_PROPERTY_OFFSET(propertySymbol) (propertySymbol->location)
 
 //--------------------------------------
 //   All the flags for symbols

@@ -7,14 +7,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 #include "common/common.h"
 #include "instrs.h"
 
 //#define DEBUG_INSTRS
 
-static char* curLineComment;
 
 //--------------------------------------------------------
 // Variables and Constants for Register-Use tracking
@@ -25,145 +23,12 @@ LastRegisterUse lastUseForAReg;
 LastRegisterUse lastUseForXReg;
 LastRegisterUse lastUseForYReg;
 
-//---------------------------------------------
-//  Instruction List Memory allocator
 
-static unsigned int instrMemoryUsed = 0;
-static unsigned int instrMaxMemoryUsed = 0;
-static unsigned int instrListCount = 0;
-static unsigned int instrLargestChunk = 0;
 
-void *INSTR_allocMem(unsigned int size) {
-    if (size > instrLargestChunk) instrLargestChunk = size;
-    instrMemoryUsed += size;
-    if (instrMemoryUsed > instrMaxMemoryUsed) instrMaxMemoryUsed = instrMemoryUsed;
-    instrListCount++;
-    return malloc(size);
-}
+//------------------------------------------------------------------------------
+//--- Initialization of Instruction List / Instruction Code Generator
 
-void INSTR_freeMem(List *mem) {
-    instrMemoryUsed -= (sizeof (List) + (mem->size * sizeof(ListNode)));
-    free(mem);
-}
-
-void printInstrListMemUsage() {
-    printf("\nInstruction List objects: %d", instrListCount);
-    printf("\nInstruction List largest object: %d bytes", instrLargestChunk);
-    printf("\nInstruction List memory usage: %d  (max: %d)\n", instrMemoryUsed, instrMaxMemoryUsed);
-}
-
-//---------------------------------------------------
-//   Instruction List handling
-
-static int codeSize;
 static int codeAddr;
-
-InstrBlock *curBlock;
-Label *curLabel;
-bool showCycles = false;
-
-Instr* startNewInstruction(enum MnemonicCode mne, enum AddrModes addrMode) {
-    Instr *newInstr = INSTR_allocMem(sizeof(struct InstrStruct));
-    newInstr->mne = mne;
-    newInstr->addrMode = addrMode;
-    newInstr->showCycles = showCycles;
-    return newInstr;
-}
-
-/**
- * Add a new instruction to the instruction list.
- * @param mne - mnemonic of the instruction
- * @param addrMode - address mode
- * @param paramName - parameter name (if needed)
- * @return pointer to new instruction node
- */
-Instr* IL_AddInstrS(enum MnemonicCode mne, enum AddrModes addrMode, const char *param1, const char *param2, enum ParamExt paramExt) {
-    assert(param1 != NULL);
-    Instr *newInstr = startNewInstruction(mne, addrMode);
-    newInstr->paramName = param1;
-    newInstr->param2 = param2;
-    newInstr->paramExt = paramExt;
-
-    // handle label and comment first
-    newInstr->label = curLabel;
-    newInstr->lineComment = curLineComment;
-    curLabel = NULL;
-    curLineComment = NULL;
-
-    IB_AddInstr(curBlock, newInstr);
-    return newInstr;
-}
-
-Instr* IL_AddInstrN(enum MnemonicCode mne, enum AddrModes addrMode, int ofs) {
-    Instr *newInstr = startNewInstruction(mne, addrMode);
-    newInstr->offset = ofs;
-    newInstr->paramName = NULL;
-    newInstr->paramExt = PARAM_NORMAL;
-    newInstr->param2 = NULL;
-
-    // handle label and comment first
-    newInstr->label = curLabel;
-    newInstr->lineComment = curLineComment;
-    curLabel = NULL;
-    curLineComment = NULL;
-
-    IB_AddInstr(curBlock, newInstr);
-    return newInstr;
-}
-
-Instr* IL_AddInstrB(enum MnemonicCode mne) {
-    Instr *newInstr = startNewInstruction(mne, ADDR_NONE);
-
-    // handle label and comment first
-    newInstr->label = curLabel;
-    newInstr->lineComment = curLineComment;
-    curLabel = NULL;
-    curLineComment = NULL;
-
-    IB_AddInstr(curBlock, newInstr);
-    return newInstr;
-}
-
-
-Instr* IL_AddLabel(Instr *inInstr, Label *label) {
-    inInstr->label = label;
-    return inInstr;
-}
-
-Instr* IL_AddComment(Instr *inInstr, char *comment) {
-    inInstr->lineComment = comment;
-    return inInstr;
-}
-
-void IL_AddCommentToCode(char *comment) {
-    IL_AddComment(IL_AddInstrB(MNE_NONE), comment);
-}
-
-int IL_GetCodeSize(InstrBlock *instrBlock) {
-    Instr *curInstr = instrBlock->firstInstr;
-    int size = 0;
-    while (curInstr != NULL) {
-        int instrSize = getInstrSize(curInstr->mne, curInstr->addrMode);
-        //printf("%d\n", instrSize);
-        size += instrSize;
-        curInstr = curInstr->nextInstr;
-    }
-    return size;
-}
-
-void IL_ShowCycles() {
-    showCycles = true;
-}
-
-void IL_HideCycles() {
-    showCycles = false;
-}
-
-void IL_MoveToNextPage() {
-    codeAddr = (codeAddr + 256) & 0xff00;
-}
-
-//================================================================================
 
 void IL_Init(int startCodeAddr) {
     codeAddr = startCodeAddr;
@@ -172,8 +37,87 @@ void IL_Init(int startCodeAddr) {
     lastUseForXReg = REG_USED_FOR_NOTHING;
     lastUseForYReg = REG_USED_FOR_NOTHING;
 
-    curLineComment = NULL;
+    IL_SetLineComment(NULL);
 }
+
+void IL_MoveToNextPage() {
+    codeAddr = (codeAddr + 256) & 0xff00;
+}
+
+//-----------------------------------------------------------------------------
+//---  System Init Code
+
+// Atari 2600:
+//      Need to reset the stack (Atari 2600 specific)
+// TODO: move into machine specific module.
+
+void ICG_SystemInitCode() {
+    IL_AddInstrB(CLD);
+    IL_AddComment(
+            IL_AddInstrN(LDX, ADDR_IMM, 0xFF), "Initialize the Stack");
+    IL_AddInstrB(TXS);
+}
+
+
+
+//-----------------------------------------------------------------------------
+//  Function support
+
+InstrBlock* curBlock;
+int ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym) {
+    curBlock = IB_StartInstructionBlock(funcLabel->name);
+    curBlock->funcSym = funcSym;
+
+    IL_Label(funcLabel);
+
+    // reset register trackers
+    lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastUseForYReg = REG_USED_FOR_NOTHING;
+
+    // main function needs to run init code
+    if (isMainFunction(curBlock->funcSym)) {
+        ICG_SystemInitCode();
+    }
+
+    return codeAddr;
+}
+
+InstrBlock* ICG_EndOfFunction() {
+    InstrBlock *funcInstrBlock = curBlock;
+
+    // All functions except main() will need a RTS at the end.
+    //    Add the RTS if it's not already there
+    if (!isMainFunction(curBlock->funcSym) != 0) {
+        if ((curBlock->curInstr == NULL) || (curBlock->curInstr->mne != RTS)) ICG_Return();
+    }
+
+    // save code size of function (to allow arrangement)
+    int codeSize = IL_GetCodeSize(curBlock);
+    funcInstrBlock->codeSize = codeSize;
+
+    // reset current block
+    curBlock = NULL;
+    codeAddr += codeSize;
+
+    return funcInstrBlock;
+}
+
+
+//------------------------------------------------------------------------
+//   Output static array data
+
+/**
+ * Mark section of address space as Static data
+ * TODO:  Work towards removing this.
+ */
+int ICG_MarkStaticArrayData(int size) {
+    int startAddr = codeAddr;
+    codeAddr += size;
+    return startAddr;
+}
+
+//================================================================================
+
 
 void Dbg_IL_ClearOnUpdate(const char *varName, char *clearInfo) {
     sprintf(clearInfo, "Clear info: %s\t", varName);
@@ -250,6 +194,7 @@ void IL_Preload(const SymbolRecord *varSym) {
 //----  Miscellaneous supporting functions
 
 void IL_Label(Label *label) {
+    Label *curLabel = IL_GetCurLabel();
     if (curLabel != NULL && !(label->hasBeenReferenced)) {
         linkToLabel(label, curLabel);
     } else {
@@ -259,16 +204,12 @@ void IL_Label(Label *label) {
             // -- insert a dummy instruction to preserve label until we can consolidate
             IL_AddInstrN(MNE_NONE, ADDR_NONE, 0);
         }
-        curLabel = label;
+        IL_SetLabel(label);
     }
 
     // labels kill any knowledge of what's in the registers
     lastUseForAReg = REG_USED_FOR_NOTHING;
     lastUseForYReg = REG_USED_FOR_NOTHING;
-}
-
-void IL_SetLineComment(const char *comment) {
-    curLineComment = (char *)comment;
 }
 
 
@@ -306,29 +247,18 @@ bool ICG_IsCurrentTag(char regName, SymbolRecord *varSym) {
 //            ICG_LoadFromArray = Load from array
 //
 
-void ICG_LoadFromAddr(int ofs) {
-    lastUseForAReg = REG_USED_FOR_NOTHING;
-    IL_AddInstrN(LDA, CALC_ADDR_MODE(ofs), ofs);  //ofs < 0x100 ? ADDR_ZP : ADDR_ABS), ofs);
-}
-
-void ICG_LoadIntFromAddr(int ofs) {
-    lastUseForAReg = REG_USED_FOR_NOTHING;
-    enum AddrModes addrMode = CALC_ADDR_MODE(ofs);
-    IL_AddInstrN(LDA, addrMode, ofs);
-    IL_AddInstrN(LDX, addrMode, ofs+1);
-}
 
 void ICG_LoadFromArray(const SymbolRecord *arraySymbol, int index,
                        enum SymbolType destType) {
     // const index, so add to address to read from
     lastUseForAReg = REG_USED_FOR_NOTHING;
-    int ofs = arraySymbol->location;
+    enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(arraySymbol);
     if (destType == ST_PTR) {
-        ofs += (index * 2);
-        ICG_LoadIntFromAddr(ofs);
+        int ofs = (index * 2);
+        IL_AddInstrS(LDA, addrMode, arraySymbol->name, intToStr(ofs), PARAM_ADD);
+        IL_AddInstrS(LDX, addrMode, arraySymbol->name, intToStr(ofs+1), PARAM_ADD);
     } else {
-        ofs += index;
-        ICG_LoadFromAddr(ofs);
+        IL_AddInstrS(LDA, addrMode, arraySymbol->name, intToStr(index), PARAM_ADD);
     }
 }
 
@@ -352,9 +282,7 @@ void ICG_OpWithParamVar(enum MnemonicCode mne, const SymbolRecord *varRec, const
     IL_AddComment(
             IL_AddInstrN(TSX, ADDR_NONE, 0),
             "prepare to read param var");
-    IL_AddComment(
-            IL_AddInstrN(mne, ADDR_ABX, varRec->location),
-            (char *)varName);
+    IL_AddInstrS(mne, ADDR_ABX, getVarName(varRec), 0, PARAM_NORMAL);
 }
 
 //-------------------------------------------------------------------
@@ -481,7 +409,7 @@ void ICG_LoadIndexedWithOffset(const SymbolRecord *varSym, int ofs) {
 
 void ICG_LoadPropertyVar(const SymbolRecord *structSym, const SymbolRecord *propertySym) {
     const char *structName = getVarName(structSym);
-    enum AddrModes addrMode = (structSym->location < 0x100 ? ADDR_ZP : ADDR_ABS);
+    enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(structSym);
     unsigned char propertyOfs = (propertySym->location & 0xff);
 
     IL_AddComment(
@@ -505,7 +433,6 @@ void ICG_LoadRegConst(const char destReg, int ofs) {
 
 void ICG_LoadRegVar(const SymbolRecord *varSym, char destReg) {
     const char *varName = getVarName(varSym);
-    enum AddrModes addrMode = (varSym->location < 0x100 ? ADDR_ZP : ADDR_ABS);
     enum MnemonicCode mne;
     switch (destReg) {
         case 'A': mne = LDA; break;
@@ -513,26 +440,22 @@ void ICG_LoadRegVar(const SymbolRecord *varSym, char destReg) {
         case 'Y': mne = LDY; break;
         default:break;
     }
-    if (isConst(varSym)) {
-        IL_AddInstrS(mne, ADDR_IMM, varName, "", PARAM_NORMAL);
-    } else {
-        IL_AddInstrS(mne, addrMode, varName, "", PARAM_NORMAL);
-    }
-}
-
-void ICG_LoadFromStack(int ofs) {
-    IL_AddInstrN(TSX, ADDR_NONE, 0);
-    IL_AddComment(
-        IL_AddInstrN(LDA, ADDR_ABX, ofs),
-        "load param from stack");
+    enum AddrModes addrMode = isConst(varSym) ? ADDR_IMM : CALC_SYMBOL_ADDR_MODE(varSym);
+    IL_AddInstrS(mne, addrMode, varName, "", PARAM_NORMAL);
 }
 
 void ICG_LoadPointerAddr(const SymbolRecord *varSym) {
     IL_SetLineComment(varSym->name);
-    ICG_LoadConst(varSym->location & 0xff, 1);
+
+    IL_AddComment(
+        IL_AddInstrS(LDA, ADDR_IMM, getVarName(varSym), 0, PARAM_LO),
+        "ICG_LoadPointerAddr");
     ICG_PushAcc();
-    ICG_LoadConst(varSym->location >> 8, 1);
+    IL_AddInstrS(LDA, ADDR_IMM, getVarName(varSym), 0, PARAM_HI);
     ICG_PushAcc();
+
+    // mark that we have nothing loaded, since we pushed the DATA
+    lastUseForAReg.loadedWith = LW_NONE;
 }
 
 void ICG_AdjustStack(int ofs) {
@@ -546,7 +469,7 @@ void ICG_AdjustStack(int ofs) {
 //--------------------------------------------------------------
 
 void ICG_StoreToAddr(int ofs, int size) {
-    enum AddrModes addrMode = CALC_ADDR_MODE(ofs);
+    enum AddrModes addrMode = (ofs < 0x100 ? ADDR_ZP : ADDR_ABS);
     IL_AddInstrN(STA, addrMode, ofs);
     if (size == 2) {
         IL_AddInstrN(STX, addrMode, ofs + 1);
@@ -565,9 +488,8 @@ void ICG_StoreVarOffset(const SymbolRecord *varSym, int ofs, int destSize) {
             IL_AddInstrS(STA, ADDR_IY, varName, NULL, PARAM_NORMAL);
         }
     } else {
-        bool isZP = ((varSym->location + ofs) < 0x100);
-        enum AddrModes addrMode = (isZP ? ADDR_ZP : ADDR_ABS);
-        enum ParamExt paramExt = (isZP ? PARAM_LO : PARAM_NORMAL);
+        enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(varSym);
+        enum ParamExt paramExt = ((addrMode == ADDR_ZP) ? PARAM_LO : PARAM_NORMAL);
 
         if (destSize == 2) {
             IL_AddInstrS(STX, addrMode, varName, numToStr(ofs), paramExt + PARAM_ADD + PARAM_PLUS_ONE);
@@ -580,7 +502,7 @@ void ICG_StoreVarIndexed(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);
     IL_AddInstrS(STA, ADDR_ABY, varName, NULL, PARAM_NORMAL);
     if (getBaseVarSize(varSym) == 2) {
-        enum AddrModes addrMode = (varSym->location < 0x100 ? ADDR_ZPY : ADDR_ABY);
+        enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(varSym) + ADDR_Y;
         enum ParamExt paramExt = (addrMode == ADDR_ZPY ? PARAM_LO : PARAM_NORMAL);
         IL_AddInstrS(STX, addrMode, varName, "1", PARAM_ADD + paramExt);
     }
@@ -681,7 +603,7 @@ void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym, int dataSi
 
 void ICG_OpPropertyVar(enum MnemonicCode mne, const SymbolRecord *structSym, const SymbolRecord *propertySym) {
     const char *structName = getVarName(structSym);
-    enum AddrModes addrMode = (structSym->location < 0x100 ? ADDR_ZP : ADDR_ABS);
+    enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(structSym);
     unsigned char propertyOfs = (propertySym->location & 0xff);
 
     IL_AddComment(
@@ -729,10 +651,6 @@ void ICG_OpIndexedWithOffset(enum MnemonicCode mne, const SymbolRecord *varSym, 
             "op with data from array using index with offset");
 }
 
-void ICG_OpWithAddr(enum MnemonicCode mne, int addr) {
-    IL_AddInstrN(mne, CALC_ADDR_MODE(addr), addr);
-}
-
 void ICG_OpWithStack(enum MnemonicCode mne) {
     // Do Operation with Accumulator and value from stack
     IL_AddInstrN(TSX, ADDR_NONE, 0);
@@ -741,15 +659,6 @@ void ICG_OpWithStack(enum MnemonicCode mne) {
     // Remove value from stack and fix stack pointer
     IL_AddInstrN(INX, ADDR_NONE, 0);
     IL_AddInstrN(TXS, ADDR_NONE, 0);
-}
-
-void ICG_MoveIndexToAcc(const char srcReg) {
-    enum MnemonicCode mne = MNE_NONE;
-    switch (srcReg) {
-        case 'X': mne = TXA; break;
-        case 'Y': mne = TYA; break;
-    }
-    IL_AddInstrN(mne, ADDR_NONE, 0);
 }
 
 void ICG_MoveAccToIndex(const char destReg) {
@@ -769,7 +678,7 @@ void ICG_Nop() {     IL_AddInstrB(NOP); }
 //---------------------------------------------------------
 
 void ICG_IncUsingAddr(const SymbolRecord *baseSymbol, int varOfs, int size) {
-    enum AddrModes addrMode = CALC_ADDR_MODE(baseSymbol->location);
+    enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(baseSymbol);
     const char *varName = getVarName(baseSymbol);
     char *numOfsStr = numToStr(varOfs);
 
@@ -781,7 +690,7 @@ void ICG_IncUsingAddr(const SymbolRecord *baseSymbol, int varOfs, int size) {
 }
 
 void ICG_DecUsingAddr(const SymbolRecord *baseSymbol, int varOfs, int size) {
-    enum AddrModes addrMode = CALC_ADDR_MODE(baseSymbol->location);
+    enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(baseSymbol);
     const char *varName = getVarName(baseSymbol);
     char *numOfsStr = numToStr(varOfs);
 
@@ -885,82 +794,3 @@ void ICG_AsmData(int value) {
     IL_AddInstrN(MNE_DATA, ADDR_NONE, value);
 }
 
-//-----------------------------------------------------------------------------
-//---  System Init Code
-
-// Atari 2600:
-//      Need to reset the stack (Atari 2600 specific)
-// TODO: move into machine specific module.
-
-void ICG_SystemInitCode() {
-    IL_AddInstrB(CLD);
-    IL_AddComment(
-            IL_AddInstrN(LDX, ADDR_IMM, 0xFF), "Initialize the Stack");
-    IL_AddInstrB(TXS);
-}
-
-
-//-----------------------------------------------------------------------------
-//  Function support
-
-
-int ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym) {
-    curBlock = IB_StartInstructionBlock(funcLabel->name);
-    curBlock->funcSym = funcSym;
-
-    IL_Label(funcLabel);
-    IB_SetCodeAddr(curBlock, codeAddr);
-
-    // reset register trackers
-    lastUseForAReg = REG_USED_FOR_NOTHING;
-    lastUseForYReg = REG_USED_FOR_NOTHING;
-
-    // main function needs to run init code
-    if (isMainFunction(curBlock->funcSym)) {
-        ICG_SystemInitCode();
-    }
-
-    codeSize = 0;
-    return codeAddr;
-}
-
-InstrBlock* ICG_EndOfFunction() {
-    InstrBlock *funcInstrBlock = curBlock;
-
-    // All functions except main() will need a RTS at the end.
-    //    Add the RTS if it's not already there
-    if (!isMainFunction(curBlock->funcSym) != 0) {
-        if ((curBlock->curInstr == NULL) || (curBlock->curInstr->mne != RTS)) ICG_Return();
-    }
-
-    // save code size of function (to allow arrangement)
-    codeSize = IL_GetCodeSize(curBlock);
-    funcInstrBlock->codeSize = codeSize;
-
-    // reset current block
-    curBlock = NULL;
-    codeAddr += codeSize;
-
-    return funcInstrBlock;
-}
-
-
-//------------------------------------------------------------------------
-//   Output static array data
-
-int ICG_StaticArrayData(char *varName, ListNode valueNode) {
-    int startAddr = codeAddr;
-    codeAddr += valueNode.value.list->count;
-    return startAddr;
-}
-
-/**
- * Mark section of address space as Static data
- *
- * @param size
- */
-int ICG_MarkStaticArrayData(int size) {
-    int startAddr = codeAddr;
-    codeAddr += size;
-    return startAddr;
-}

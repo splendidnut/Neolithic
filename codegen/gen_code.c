@@ -25,6 +25,7 @@
 
 static bool reverseData;
 enum CompilerDirectiveTokens lastDirective;
+int curBank = 0;
 
 //--------------------------------------------------------
 //--- Forward References
@@ -311,12 +312,13 @@ void GC_LoadPropertyRef(const List *expr, enum SymbolType destType) {
     if (!propertySymbol) return;      /// EXIT if invalid structure property
 
     // Now we can get down to business!
+    int propertyOffset = GET_PROPERTY_OFFSET(propertySymbol);
 
     if (isStructDefined(structSymbol) && IS_PARAM_VAR(structSymbol)) {
 
         IL_AddCommentToCode("using GC_LoadPropertyRef -- is param");
 
-        ICG_LoadRegConst('Y', propertySymbol->location);
+        ICG_LoadRegConst('Y', propertyOffset);
         ICG_LoadIndirect(structSymbol, 0);
 
     } else if (IS_ALIAS(structSymbol)) {
@@ -324,7 +326,7 @@ void GC_LoadPropertyRef(const List *expr, enum SymbolType destType) {
         SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSymbol, aliasType);
         if (baseSymbol != NULL) {
             if (aliasType == PT_LOOKUP) {
-                ICG_LoadIndexedWithOffset(baseSymbol, propertySymbol->location);
+                ICG_LoadIndexedWithOffset(baseSymbol, propertyOffset);
             } else {
                 ICG_LoadPropertyVar(baseSymbol, propertySymbol);
             }
@@ -453,7 +455,7 @@ void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, en
             enum ParseToken aliasType = GC_LoadAlias(propertyRef, structSymbol);
             SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSymbol, aliasType);
             if (aliasType == PT_LOOKUP) {
-                ICG_OpIndexedWithOffset(mne, baseSymbol, propertySymbol->location);
+                ICG_OpIndexedWithOffset(mne, baseSymbol, GET_PROPERTY_OFFSET(propertySymbol));
             } else {
                 ICG_OpPropertyVar(mne, baseSymbol, propertySymbol);
             }
@@ -854,18 +856,20 @@ void GC_StoreToStructProperty(const List *expr) {
     SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propName);
     if (propertySym == NULL) return;
 
+    int propertyOffset = GET_PROPERTY_OFFSET(propertySym);
+
     if (IS_ALIAS(structSym)) {
 
         enum ParseToken aliasType = GC_LoadAlias(expr, structSym);
         SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSym, aliasType);
         if (aliasType == PT_LOOKUP) {
-            ICG_StoreIndexedWithOffset(baseSymbol, propertySym->location);
+            ICG_StoreIndexedWithOffset(baseSymbol, propertyOffset);
         } else if (aliasType == PT_INIT) {
-            ICG_StoreVarOffset(baseSymbol, propertySym->location, getBaseVarSize(propertySym));
+            ICG_StoreVarOffset(baseSymbol, propertyOffset, getBaseVarSize(propertySym));
         }
 
     } else {
-        ICG_StoreVarOffset(structSym, propertySym->location, getBaseVarSize(propertySym));
+        ICG_StoreVarOffset(structSym, propertyOffset, getBaseVarSize(propertySym));
     }
 }
 
@@ -1663,6 +1667,9 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
         case ECHO:
             GC_HandleEcho(code);
             break;
+        case SET_BANK:
+            curBank = code->nodes[2].value.num;
+            break;
         default:
             break;
     }
@@ -1867,7 +1874,7 @@ void GC_Variable(const List *varDef) {
 
         List *valueNode = GC_ProcessInitializerList(varDef, initValueList);
 
-        OutputBlock *staticData = OB_AddData(varSymRec, varName, valueNode);
+        OutputBlock *staticData = OB_AddData(varName, varSymRec, valueNode, curBank);
 
         // Mark where in memory the variable is located...
         //   TODO:  Doesn't seem this is the best place to do this if we want the blocks
@@ -1908,6 +1915,9 @@ void GC_CodeBlock(List *code) {
     }
 }
 
+//==================================================================================
+//------  Handle functions
+
 /*** Preload any parameters into appropriate registers */
 void GC_PreloadParams(SymbolList *params) {
     for_range(paramCnt, 0, params->count) {
@@ -1922,6 +1932,8 @@ void GC_ProcessFunction(char *funcName, List *code) {
 
     // start building function using provided label and current code address
     int funcAddr = ICG_StartOfFunction(funcLabel, funcSym);
+
+    // TODO:  This can probably be figured out later in the compile process (output layout step)
     setSymbolLocation(funcSym, funcAddr, SS_ROM);
 
     // load in local symbol table for function
@@ -1940,7 +1952,7 @@ void GC_ProcessFunction(char *funcName, List *code) {
     GC_CodeBlock(code);
     funcSym->instrBlock = ICG_EndOfFunction(funcLabel);
 
-    OB_AddCode(funcName, funcSym->instrBlock);
+    OB_AddCode(funcName, funcSym->instrBlock, curBank);
 }
 
 void GC_Function(const List *function, int codeNodeIndex) {
@@ -2033,6 +2045,7 @@ void initCodeGenerator(SymbolTable *symbolTable) {
 void generate_code(char *name, ListNode node) {
     if (compilerOptions.showGeneralInfo) printf("Generating Code for %s\n", name);
 
+    curBank = 0;
     curFuncSymbolTable = NULL;
     reverseData = false;
 

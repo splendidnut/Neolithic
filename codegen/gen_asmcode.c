@@ -33,7 +33,7 @@ char* GC_Asm_HandlePropertyRef(List *propertyRef) {
         return NULL;
     }
 
-    paramAddrMode = (structSym->location < 256) ? ADDR_ZP : ADDR_ABS;
+    paramAddrMode = CALC_SYMBOL_ADDR_MODE(structSym);
 
     //sprintf(paramStr, "%s", getVarName(structSym));
     paramStr = (char *)getVarName(structSym);
@@ -57,7 +57,7 @@ char * GC_Asm_HandleArrayLookup(List *arrayLookup) {
 
     int baseSize = getBaseVarSize(arraySym);
 
-    paramAddrMode = (arraySym->location < 256) ? ADDR_ZP : ADDR_ABS;
+    paramAddrMode = CALC_SYMBOL_ADDR_MODE(arraySym);
 
     //sprintf(paramStr, "%s", getVarName(arraySym));
     paramStr = (char *)getVarName(arraySym);
@@ -117,7 +117,7 @@ const char *GC_Asm_getParamStr(ListNode instrParamNode, List *instr) {
             } else {
                 SymbolRecord *varSym = lookupSymbolNode(instrParamNode, instr->lineNum);
                 if (varSym != NULL) {
-                    paramAddrMode = (varSym->location < 256) ? ADDR_ZP : ADDR_ABS;
+                    paramAddrMode = CALC_SYMBOL_ADDR_MODE(varSym);
                     paramStr = getVarName(varSym);
                 } else {
                     paramStr = "";
