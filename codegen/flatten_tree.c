@@ -11,7 +11,7 @@
 #include "flatten_tree.h"
 #include <data/syntax_tree.h>
 
-//#define DEBUG_EXPR_FLATTEN
+#define DEBUG_EXPR_FLATTEN
 
 //------------------------------------
 //  Module-local variables
