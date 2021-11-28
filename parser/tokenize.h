@@ -67,6 +67,7 @@ typedef enum TokenType {
     TT_IN,
     TT_INLINE,
     TT_INT,
+    TT_LOOP,
     TT_NEW,
     TT_NULL,
     TT_REGISTER,

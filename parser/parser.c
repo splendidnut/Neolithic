@@ -1021,21 +1021,24 @@ ListNode parse_stmt_for() {
     return createListNode(forStmt);
 }
 
-/*
+//-------------------------------------------
+// loop (varname, startnum, cnt) {}
 ListNode parse_stmt_loop() {
     List *loopNode = createList(5);
-    acceptToken(TT_FOR_COUNT);
+    acceptToken(TT_LOOP);
     acceptToken(TT_OPEN_PAREN);
-    addNode(loopNode, createParseToken(PT_FOR_COUNT));
-    addNode(loopNode, copyTokenStr(getToken()));
+    addNode(loopNode, createParseToken(PT_LOOP));
+
+    addNode(loopNode, createStrNode(copyTokenStr(getToken())));
     acceptToken(TT_COMMA);
     addNode(loopNode, parse_expr());
     acceptToken(TT_COMMA);
     addNode(loopNode, parse_expr());
+
     acceptToken(TT_CLOSE_PAREN);
-    addNode(forStmt, parse_codeBlock());
-    return createListNode(forStmt);
-}*/
+    addNode(loopNode, parse_codeBlock());
+    return createListNode(loopNode);
+}
 
 ListNode parse_stmt_while() {
     List *whileStmt = createList(3);
@@ -1153,6 +1156,7 @@ ListNode parse_stmt() {
     switch (getTokenSymbolType(token)) {
         case TT_BREAK:  node = parse_stmt_break(); break;
         case TT_FOR:    node = parse_stmt_for(); break;
+        case TT_LOOP:   node = parse_stmt_loop(); break;
         case TT_ASM:    node = parse_asmBlock(); break;
         case TT_DO:     node = parse_stmt_do();  break;
         case TT_WHILE:  node = parse_stmt_while(); break;

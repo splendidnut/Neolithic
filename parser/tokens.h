@@ -27,6 +27,7 @@ enum ParseToken {
     PT_DOWHILE,
     PT_WHILE,
     PT_FOR,
+    PT_LOOP,
     PT_RETURN,
     PT_BREAK,
 

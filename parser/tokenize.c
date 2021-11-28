@@ -102,6 +102,7 @@ static const TokenObject TokenSymbols[] = {
         {"in",      TT_IN,          TF_OP},
         {"inline",  TT_INLINE,      TF_MODIFIER},
         {"int",     TT_INT,         TF_TYPE},
+        {"loop",    TT_LOOP,        TF_OP},
         {"new",     TT_NEW,         TF_OP},
         {"null",    TT_NULL,        TF_OP},
         {"register",TT_REGISTER,    TF_MODIFIER},

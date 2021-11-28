@@ -1314,6 +1314,51 @@ void GC_For(const List *stmt, enum SymbolType destType) {
     IL_Label(doneWithLoop);
 }
 
+void GC_Loop(const List *stmt, enum SymbolType destType) {
+    // Use variables to document usage of each statement node
+    ListNode counterVarNode = stmt->nodes[1];
+    ListNode counterStartValueNode = stmt->nodes[2];
+    ListNode counterEndValueNode = stmt->nodes[3];
+    ListNode loopCodeNode = stmt->nodes[4];
+
+    //--- Check the loop parameters
+    SymbolRecord *cntVarSym = lookupSymbolNode(counterVarNode, stmt->lineNum);
+    if (cntVarSym == NULL) {
+        ErrorMessageWithList("Invalid variable specified for loop statement", stmt);
+        return;
+    }
+    if (counterStartValueNode.type != N_INT) {
+        ErrorMessageWithList("Invalid value specified for initializing loop counter", stmt);
+        return;
+    }
+    if (counterEndValueNode.type != N_INT) {
+        ErrorMessageWithList("Invalid value specified for initializing loop counter", stmt);
+        return;
+    }
+
+    //----------------------------------------------------
+    Label *startOfLoop = newGenericLabel(L_CODE);
+    Label *doneWithLoop = newGenericLabel(L_CODE);
+
+    //---  Initialize the loop counter
+    ICG_LoadConst(counterStartValueNode.value.num, getBaseVarSize(cntVarSym));
+    ICG_StoreVarSym(cntVarSym);
+
+    // start of loop
+    IL_Label(startOfLoop);
+    GC_CodeBlock(loopCodeNode.value.list);
+
+    // handle loop iteration
+    ICG_OpWithVar(INC, cntVarSym, getBaseVarSize(cntVarSym));
+    ICG_LoadVar(cntVarSym);
+    ICG_CompareConst(counterEndValueNode.value.num);
+    ICG_Branch(BEQ, doneWithLoop);
+
+    // end of for loop
+    ICG_Jump(startOfLoop, "Loop back");
+    IL_Label(doneWithLoop);
+}
+
 void GC_While(const List *stmt, enum SymbolType destType) {
     Label *startOfLoop = newGenericLabel(L_CODE);
     Label *doneWithLoop = newGenericLabel(L_CODE);
@@ -1693,6 +1738,7 @@ ParseFuncTbl stmtFunction[] = {
         {PT_DOWHILE,    &GC_DoWhile},
         {PT_WHILE,      &GC_While},
         {PT_FOR,        &GC_For},
+        {PT_LOOP,       &GC_Loop},
         {PT_STROBE,     &GC_Strobe},
         {PT_IF,         &GC_If},
         {PT_SWITCH,     &GC_Switch},
