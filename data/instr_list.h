@@ -47,10 +47,6 @@ typedef struct InstrBlockStruct {
 //----------------------------------------------------
 //  Public Functions
 //
-//   - Start an instruction block
-//   - Add instruction to block
-//   - Set code address of block
-//   - Output the block to an Assembly file
 
 extern void printInstrListMemUsage();
 
@@ -76,6 +72,7 @@ extern Label* IL_GetCurLabel();
 extern int IL_GetCodeSize(InstrBlock *instrBlock);
 
 extern Instr* IL_AddInstrS(enum MnemonicCode mne, enum AddrModes addrMode, const char *param1, const char *param2, enum ParamExt paramExt);
+extern Instr* IL_AddInstrP(enum MnemonicCode mne, enum AddrModes addrMode, const char *param1, enum ParamExt paramExt);
 extern Instr* IL_AddInstrN(enum MnemonicCode mne, enum AddrModes addrMode, int ofs);
 extern Instr* IL_AddInstrB(enum MnemonicCode mne);
 

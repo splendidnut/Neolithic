@@ -124,6 +124,31 @@ Instr* IL_AddInstrS(enum MnemonicCode mne, enum AddrModes addrMode, const char *
     return newInstr;
 }
 
+/**
+ * Add a new instruction to the instruction list. (single parameter)
+ * @param mne - mnemonic of the instruction
+ * @param addrMode - address mode
+ * @param paramName - parameter name (if needed)
+ * @return pointer to new instruction node
+ */
+Instr* IL_AddInstrP(enum MnemonicCode mne, enum AddrModes addrMode, const char *param1, enum ParamExt paramExt) {
+    assert(param1 != NULL);
+    Instr *newInstr = startNewInstruction(mne, addrMode);
+    newInstr->paramName = param1;
+    newInstr->paramExt = paramExt;
+    newInstr->param2 = NULL;
+
+    IB_AddInstr(curBlock, newInstr);
+    return newInstr;
+}
+
+/**
+ * Add instruction with numeric parameter
+ * @param mne       - mnemonic
+ * @param addrMode  - address mode
+ * @param ofs       - numeric parameter
+ * @return
+ */
 Instr* IL_AddInstrN(enum MnemonicCode mne, enum AddrModes addrMode, int ofs) {
     Instr *newInstr = startNewInstruction(mne, addrMode);
     newInstr->offset = ofs;
@@ -135,6 +160,11 @@ Instr* IL_AddInstrN(enum MnemonicCode mne, enum AddrModes addrMode, int ofs) {
     return newInstr;
 }
 
+/**
+ * Add basic instruction - single byte op
+ * @param mne
+ * @return
+ */
 Instr* IL_AddInstrB(enum MnemonicCode mne) {
     Instr *newInstr = startNewInstruction(mne, ADDR_NONE);
     IB_AddInstr(curBlock, newInstr);

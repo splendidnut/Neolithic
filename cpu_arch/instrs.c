@@ -282,7 +282,7 @@ void ICG_OpWithParamVar(enum MnemonicCode mne, const SymbolRecord *varRec, const
     IL_AddComment(
             IL_AddInstrN(TSX, ADDR_NONE, 0),
             "prepare to read param var");
-    IL_AddInstrS(mne, ADDR_ABX, getVarName(varRec), 0, PARAM_NORMAL);
+    IL_AddInstrP(mne, ADDR_ABX, getVarName(varRec), PARAM_NORMAL);
 }
 
 //-------------------------------------------------------------------
@@ -292,9 +292,9 @@ void ICG_LoadVar(const SymbolRecord *varRec) {
 
     const char *varName = getVarName(varRec);
     if (isConst(varRec)) {
-        IL_AddInstrS(LDA, ADDR_IMM, varName, NULL, PARAM_LO);
+        IL_AddInstrP(LDA, ADDR_IMM, varName, PARAM_LO);
         if (getBaseVarSize(varRec) == 2) {
-            IL_AddInstrS(LDX, ADDR_IMM, varName, NULL, PARAM_HI);
+            IL_AddInstrP(LDX, ADDR_IMM, varName, PARAM_HI);
         }
     } else if (IS_PARAM_VAR(varRec)) {
         switch (varRec->hint) {
@@ -310,9 +310,9 @@ void ICG_LoadVar(const SymbolRecord *varRec) {
                 ICG_OpWithParamVar(LDA, varRec, varName);
         }
     } else {
-        IL_AddInstrS(LDA, ADDR_ZP, varName, NULL, PARAM_NORMAL);
+        IL_AddInstrP(LDA, ADDR_ZP, varName, PARAM_NORMAL);
         if ((getBaseVarSize(varRec) == 2) || isStructDefined(varRec)) {
-            IL_AddInstrS(LDX, ADDR_ZP, varName, "1", PARAM_ADD);
+            IL_AddInstrP(LDX, ADDR_ZP, varName, PARAM_PLUS_ONE);
         }
     }
 
@@ -333,7 +333,7 @@ void ICG_LoadIndexVar(const SymbolRecord *varSym, int size) {
     if (needToLoad) {
         if (size == 2) {
             IL_AddComment(
-                    IL_AddInstrS(LDA, ADDR_ZP, varName, NULL, PARAM_NORMAL), "load array index");
+                    IL_AddInstrP(LDA, ADDR_ZP, varName, PARAM_NORMAL), "load array index");
             IL_AddInstrN(ASL, ADDR_ACC, 0);
             IL_AddInstrN(TAY, ADDR_NONE, 0);
 
@@ -343,7 +343,7 @@ void ICG_LoadIndexVar(const SymbolRecord *varSym, int size) {
                 ICG_OpWithParamVar(LDY, varSym, varName);
             } else {
                 IL_AddComment(
-                        IL_AddInstrS(LDY, ADDR_ZP, varName, NULL, PARAM_NORMAL), "load array index");
+                        IL_AddInstrP(LDY, ADDR_ZP, varName, PARAM_NORMAL), "load array index");
             }
         }
         lastUseForYReg.loadedWith = LW_VAR;
@@ -360,8 +360,8 @@ void ICG_LoadIndexVar(const SymbolRecord *varSym, int size) {
 
 void ICG_LoadAddr(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);
-    IL_AddInstrS(LDA, ADDR_IMM, varName, NULL, PARAM_LO);
-    IL_AddInstrS(LDX, ADDR_IMM, varName, NULL, PARAM_HI);
+    IL_AddInstrP(LDA, ADDR_IMM, varName, PARAM_LO);
+    IL_AddInstrP(LDX, ADDR_IMM, varName, PARAM_HI);
 
     lastUseForAReg.loadedWith = LW_VAR;
     lastUseForAReg.varSym = varSym;
@@ -380,23 +380,23 @@ void ICG_LoadIndirect(const SymbolRecord *varSym, int destSize) {
                 IL_AddInstrB(INY),
                 "load indirect - high byte first");
         IL_AddComment(
-                IL_AddInstrS(LDA, ADDR_IY, varName, NULL, PARAM_NORMAL),
+                IL_AddInstrP(LDA, ADDR_IY, varName, PARAM_NORMAL),
                 "load from pointer location using index");
         IL_AddInstrB(TAX);
         IL_AddInstrB(DEY);
     }
     IL_AddComment(
-            IL_AddInstrS(LDA, ADDR_IY, varName, NULL, PARAM_NORMAL),
+            IL_AddInstrP(LDA, ADDR_IY, varName, PARAM_NORMAL),
             "load from pointer location using index");
 }
 
 void ICG_LoadIndexed(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);
     IL_AddComment(
-            IL_AddInstrS(LDA, ADDR_ABY, varName, NULL, PARAM_NORMAL),
+            IL_AddInstrP(LDA, ADDR_ABY, varName, PARAM_NORMAL),
             "load from array using index");
     if (getBaseVarSize(varSym) > 1) {
-        IL_AddInstrS(LDX, ADDR_ABY, varName, NULL, PARAM_NORMAL + PARAM_PLUS_ONE);
+        IL_AddInstrP(LDX, ADDR_ABY, varName, PARAM_NORMAL + PARAM_PLUS_ONE);
     }
 }
 
@@ -441,17 +441,17 @@ void ICG_LoadRegVar(const SymbolRecord *varSym, char destReg) {
         default:break;
     }
     enum AddrModes addrMode = isConst(varSym) ? ADDR_IMM : CALC_SYMBOL_ADDR_MODE(varSym);
-    IL_AddInstrS(mne, addrMode, varName, "", PARAM_NORMAL);
+    IL_AddInstrP(mne, addrMode, varName, PARAM_NORMAL);
 }
 
 void ICG_LoadPointerAddr(const SymbolRecord *varSym) {
     IL_SetLineComment(varSym->name);
 
     IL_AddComment(
-        IL_AddInstrS(LDA, ADDR_IMM, getVarName(varSym), 0, PARAM_LO),
+        IL_AddInstrP(LDA, ADDR_IMM, getVarName(varSym), PARAM_LO),
         "ICG_LoadPointerAddr");
     ICG_PushAcc();
-    IL_AddInstrS(LDA, ADDR_IMM, getVarName(varSym), 0, PARAM_HI);
+    IL_AddInstrP(LDA, ADDR_IMM, getVarName(varSym), PARAM_HI);
     ICG_PushAcc();
 
     // mark that we have nothing loaded, since we pushed the DATA
@@ -481,11 +481,11 @@ void ICG_StoreVarOffset(const SymbolRecord *varSym, int ofs, int destSize) {
 
     if (isPointer(varSym) && isStructDefined(varSym)) {
         ICG_LoadRegConst('Y', ofs);
-        IL_AddInstrS(STA, ADDR_IY, varName, NULL, PARAM_NORMAL);
+        IL_AddInstrP(STA, ADDR_IY, varName, PARAM_NORMAL);
         if (destSize == 2) {
             IL_AddInstrB(TXA);
             IL_AddInstrB(INY);
-            IL_AddInstrS(STA, ADDR_IY, varName, NULL, PARAM_NORMAL);
+            IL_AddInstrP(STA, ADDR_IY, varName, PARAM_NORMAL);
         }
     } else {
         enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(varSym);
@@ -500,7 +500,7 @@ void ICG_StoreVarOffset(const SymbolRecord *varSym, int ofs, int destSize) {
 
 void ICG_StoreVarIndexed(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);
-    IL_AddInstrS(STA, ADDR_ABY, varName, NULL, PARAM_NORMAL);
+    IL_AddInstrP(STA, ADDR_ABY, varName, PARAM_NORMAL);
     if (getBaseVarSize(varSym) == 2) {
         enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(varSym) + ADDR_Y;
         enum ParamExt paramExt = (addrMode == ADDR_ZPY ? PARAM_LO : PARAM_NORMAL);
@@ -511,7 +511,7 @@ void ICG_StoreVarIndexed(const SymbolRecord *varSym) {
 void ICG_StoreVarSym(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);
     IL_ClearOnUpdate(varSym);
-    IL_AddInstrS(STA, ADDR_ZP, varName, NULL, PARAM_NORMAL);
+    IL_AddInstrP(STA, ADDR_ZP, varName, PARAM_NORMAL);
     if (getBaseVarSize(varSym) == 2) {
         IL_AddInstrS(STX, ADDR_ZP, varName, "1", PARAM_ADD);
     }
@@ -529,7 +529,7 @@ void ICG_StoreIndexedWithOffset(const SymbolRecord *varSym, int ofs) {
 void ICG_Branch(enum MnemonicCode mne, const Label *label) {
     Label *branchLabel = (label->link != NULL) ? label->link : (Label *)label;  // use linked label if available
     addLabelRef(branchLabel);
-    IL_AddInstrS(mne, ADDR_REL, branchLabel->name, NULL, PARAM_NORMAL);
+    IL_AddInstrP(mne, ADDR_REL, branchLabel->name, PARAM_NORMAL);
 }
 
 void ICG_Not() {
@@ -573,11 +573,11 @@ void ICG_OpWithConst(enum MnemonicCode mne, int num, int dataSize) {
 void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym, int dataSize) {
     const char *varName = getVarName(varSym);
     if (isConst(varSym)) {
-        IL_AddInstrS(mne, ADDR_IMM, varName, NULL, PARAM_NORMAL);
+        IL_AddInstrP(mne, ADDR_IMM, varName, PARAM_NORMAL);
     } else if (IS_PARAM_VAR(varSym)) {
         ICG_OpWithParamVar(mne, varSym, varName);
     } else {
-        IL_AddInstrS(mne, ADDR_ZP, varName, NULL, PARAM_NORMAL);
+        IL_AddInstrP(mne, ADDR_ZP, varName, PARAM_NORMAL);
 
         // Handle 16-bit ops
         if (dataSize > 1) ICG_OpHighByte(mne);
@@ -737,7 +737,7 @@ void ICG_AddToInt(const SymbolRecord *varSym) {
     if (IS_PARAM_VAR(varSym)) {
         ICG_OpWithParamVar(ADC, varSym, varName);
     } else {
-        IL_AddInstrS(ADC, ADDR_ZP, varName, NULL, PARAM_NORMAL);
+        IL_AddInstrP(ADC, ADDR_ZP, varName, PARAM_NORMAL);
     }
     IL_AddInstrN(BCC, ADDR_REL, +3);
     IL_AddInstrN(INX, ADDR_NONE, 0);
@@ -746,14 +746,14 @@ void ICG_AddToInt(const SymbolRecord *varSym) {
 void ICG_AddAddr(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);
     IL_AddInstrB(CLC);
-    IL_AddInstrS(ADC, ADDR_IMM, varName, NULL, PARAM_LO);
-    IL_AddInstrS(LDX, ADDR_IMM, varName, NULL, PARAM_HI);
+    IL_AddInstrP(ADC, ADDR_IMM, varName, PARAM_LO);
+    IL_AddInstrP(LDX, ADDR_IMM, varName, PARAM_HI);
     IL_AddInstrN(BCC, ADDR_REL, +3);
     IL_AddInstrB(INX);
 }
 
 void ICG_CompareConstName(const char *constName) {
-    IL_AddInstrS(CMP, ADDR_IMM, constName, NULL, PARAM_NORMAL);
+    IL_AddInstrP(CMP, ADDR_IMM, constName, PARAM_NORMAL);
 }
 
 void ICG_CompareConst(int constValue) {
@@ -765,7 +765,7 @@ void ICG_CompareVar(const SymbolRecord *varSym) {
         IL_AddInstrN(CMP, ADDR_IMM, varSym->constValue);
     } else {
         const char *varName = getVarName(varSym);
-        IL_AddInstrS(CMP, ADDR_ZP, varName, NULL, PARAM_NORMAL);
+        IL_AddInstrP(CMP, ADDR_ZP, varName, PARAM_NORMAL);
     }
 }
 
@@ -773,12 +773,12 @@ void ICG_Jump(const Label *label, const char *comment) {
     Label *jumpLabel = (label->link != NULL) ? label->link : (Label *)label;  // use linked label if available
     addLabelRef(jumpLabel);
     IL_AddComment(
-            IL_AddInstrS(JMP, ADDR_ABS, jumpLabel->name, NULL, PARAM_NORMAL),
+            IL_AddInstrP(JMP, ADDR_ABS, jumpLabel->name, PARAM_NORMAL),
             (char *)comment);
 }
 
 void ICG_Call(const char *funcName) {
-    IL_AddInstrS(JSR, ADDR_ABS, funcName, NULL, PARAM_NORMAL);
+    IL_AddInstrP(JSR, ADDR_ABS, funcName, PARAM_NORMAL);
     lastUseForAReg = REG_USED_FOR_NOTHING;
 }
 
