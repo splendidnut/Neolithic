@@ -131,7 +131,7 @@ void ICG_LoadVarForMultiply(const SymbolRecord *varRec) {
         IL_AddInstrB(TSX);
         addrMode = ADDR_ABX;
     }
-    IL_AddInstrS(LDA, addrMode, varName, "", PARAM_NORMAL);
+    IL_AddInstrP(LDA, addrMode, varName, PARAM_NORMAL);
 }
 
 /*
@@ -204,7 +204,7 @@ void ICG_MultiplyVarWithVar(const SymbolRecord *varRec, const SymbolRecord *varR
     IL_AddInstrN(ROR, ADDR_ZP, ACC_MUL_ADDR);
     IL_AddInstrN(BCC, ADDR_REL, +4);
     IL_AddInstrB(CLC);
-    IL_AddInstrS(ADC, CALC_SYMBOL_ADDR_MODE(varRec2), varRec2->name, "", PARAM_NORMAL);
+    IL_AddInstrP(ADC, CALC_SYMBOL_ADDR_MODE(varRec2), varRec2->name, PARAM_NORMAL);
     //-- skipped over add
     IL_AddInstrB(DEX);
     IL_AddComment(
@@ -239,7 +239,7 @@ void ICG_MultiplyExprWithVar(const int varLoc1, const SymbolRecord *varRec2) {
     IL_AddInstrN(ROR, ADDR_ZP, ACC_MUL_ADDR);
     IL_AddInstrN(BCC, ADDR_REL, +4);
     IL_AddInstrB(CLC);
-    IL_AddInstrS(ADC, CALC_SYMBOL_ADDR_MODE(varRec2), varRec2->name, "", PARAM_NORMAL);
+    IL_AddInstrP(ADC, CALC_SYMBOL_ADDR_MODE(varRec2), varRec2->name, PARAM_NORMAL);
     //-- skipped over add
     IL_AddInstrB(DEX);
     IL_AddComment(
@@ -272,7 +272,7 @@ void ICG_StepMultiplyWithConst(const SymbolRecord *varRec, const char multiplier
             case ADC:
             case SBC:
                 IL_AddInstrB(instrMne == SBC ? SEC : CLC);
-                IL_AddInstrS(instrMne, addrMode, varName, "", PARAM_NORMAL);
+                IL_AddInstrP(instrMne, addrMode, varName, PARAM_NORMAL);
                 break;
             case ASL:
                 IL_AddInstrB(ASL);

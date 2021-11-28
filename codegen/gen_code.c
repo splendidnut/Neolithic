@@ -370,9 +370,8 @@ void GC_OpWithArrayElement(enum MnemonicCode mne, const List *expr) {
         ICG_OpWithOffset(mne, arraySym, ofs);
     } else {
         // Array Index is an expression or a variable
-        SymbolRecord *varSym = lookupSymbolNode(expr->nodes[2], expr->lineNum);
-        if (varSym) ICG_LoadIndexVar(varSym, getBaseVarSize(varSym));
-        ICG_OpIndexed(mne, varSym);
+        SymbolRecord *indexSym = lookupSymbolNode(expr->nodes[2], expr->lineNum);
+        ICG_OpIndexed(mne, arraySym, indexSym);
     }
 }
 

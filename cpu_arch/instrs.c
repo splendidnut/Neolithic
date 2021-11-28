@@ -504,7 +504,7 @@ void ICG_StoreVarIndexed(const SymbolRecord *varSym) {
     if (getBaseVarSize(varSym) == 2) {
         enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(varSym) + ADDR_Y;
         enum ParamExt paramExt = (addrMode == ADDR_ZPY ? PARAM_LO : PARAM_NORMAL);
-        IL_AddInstrS(STX, addrMode, varName, "1", PARAM_ADD + paramExt);
+        IL_AddInstrP(STX, addrMode, varName, PARAM_PLUS_ONE + paramExt);
     }
 }
 
@@ -513,7 +513,7 @@ void ICG_StoreVarSym(const SymbolRecord *varSym) {
     IL_ClearOnUpdate(varSym);
     IL_AddInstrP(STA, ADDR_ZP, varName, PARAM_NORMAL);
     if (getBaseVarSize(varSym) == 2) {
-        IL_AddInstrS(STX, ADDR_ZP, varName, "1", PARAM_ADD);
+        IL_AddInstrP(STX, ADDR_ZP, varName, PARAM_PLUS_ONE);
     }
 }
 
@@ -636,10 +636,13 @@ void ICG_OpPropertyVarIndexed(enum MnemonicCode mne, const SymbolRecord *structS
     }
 }
 
-void ICG_OpIndexed(enum MnemonicCode mne, const SymbolRecord *varSym) {
+void ICG_OpIndexed(enum MnemonicCode mne, const SymbolRecord *varSym, const SymbolRecord *indexSym) {
     const char *varName = getVarName(varSym);
     IL_AddComment(
-            IL_AddInstrS(mne, ADDR_ABY, varName, NULL, PARAM_NORMAL + PARAM_ADD),
+            IL_AddInstrP(LDX, CALC_SYMBOL_ADDR_MODE(indexSym), getVarName(indexSym), PARAM_NORMAL),
+            "loading index var for array op");
+    IL_AddComment(
+            IL_AddInstrP(mne, CALC_SYMBOL_ADDR_MODE(varSym) + ADDR_X, varName, PARAM_NORMAL),
             "op with data from array using index");
 }
 
