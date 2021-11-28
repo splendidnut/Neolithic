@@ -398,6 +398,11 @@ void GC_OpWithPropertyRef(enum MnemonicCode mne, const List *expr, enum SymbolTy
 }
 
 
+bool isSimpleArrayRef(ListNode arg2) {
+    return (arg2.type == N_LIST)
+                && isToken(arg2.value.list->nodes[0], PT_LOOKUP)
+                && (arg2.value.list->hasNestedList == false);
+}
 
 bool isSimplePropertyRef(ListNode arg2) {
     return (arg2.type == N_LIST)
@@ -446,7 +451,8 @@ void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, en
 
         // check for aliased structure
         if (structSymbol && IS_ALIAS(structSymbol)) {
-            SymbolRecord *propertySymbol = findSymbol(getStructSymbolSet(structSymbol), propertyRef->nodes[2].value.str);
+            SymbolRecord *propertySymbol = findSymbol(getStructSymbolSet(structSymbol),
+                                                      propertyRef->nodes[2].value.str);
             if (!propertySymbol) return;      /// EXIT if invalid structure property
 
             ICG_PreOp(preOp);
@@ -460,8 +466,14 @@ void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, en
             }
         } else {
             ICG_PreOp(preOp);
-            GC_OpWithPropertyRef(mne, arg2.value.list, destType);
+            GC_OpWithPropertyRef(mne, propertyRef, destType);
         }
+
+    } else if (isSimpleArrayRef(arg2)) {
+        List *arrayRef = arg2.value.list;
+        ICG_PreOp(preOp);
+        GC_OpWithArrayElement(mne, arrayRef);
+
     } else if (arg2.type == N_LIST) {
 
         // first check to see if expression can be completely evaluated
