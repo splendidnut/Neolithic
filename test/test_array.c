@@ -16,7 +16,7 @@ void fill_array_with_loop() {
 }
 
 /**
- *  Perform tests on arrays using only a constant index
+ *  Perform tests with arrays using only a constant index
  */
 void test_array_with_const_index() {
 	a = 5;
@@ -34,7 +34,19 @@ void test_array_with_const_index() {
 	array[7]++;
 }
 
+/**
+ *  Perform tests with arrays using index variables 
+ */
 void test_array_with_var_index() {
+	
+	// quick test var index
+	a = 3;
+	array[a] = 7;
+	
+	// test basic arithmetic
+	a = 6;
+	b = 5;
+	array[b] = array[a] + 13;
 	
 	// test INC operator
 	i = 0;
@@ -42,6 +54,10 @@ void test_array_with_var_index() {
 		array[i]++;
 		i++;
 	} while (i < 8);
+	
+	//--- test index var arithmetic
+	array[b + 1] = array[a] + 3;
+	array[a - b] = 6;
 }
 
 void main() {

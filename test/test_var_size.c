@@ -18,3 +18,17 @@ Seven *x[2]             // 4 bytes  - two pointers to structs
 char lastVar
 
 //--- above totals 33 bytes
+#echo "Test Variable Sizes"
+#echo ""
+#echo "Address of sevenByteStruct = ", &sevenByteStruct, " should be 138"
+#echo ""
+#echo "Variable space used      = ", (&lastVar - 128)
+#echo "Size used for basic vars = ", (&sevenByteStruct - 128), " should be 10 (2 bytes used by accumulator)"
+#echo "Sizeof (struct Seven)    = ", sizeof(Seven), " should be 7"
+#echo "Sizeof (var fourteen)    = ", sizeof(fourteen), " should be 14"
+#echo "Sizeof (var x)           = ", sizeof(x), " should be 4"
+#echo ""
+#echo "Address of Last variable = ", &lastVar
+#echo "Variable space used      = ", (&lastVar - 128)
+
+void main() {}

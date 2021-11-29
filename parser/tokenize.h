@@ -8,7 +8,7 @@
 #include "tokens.h"
 #include "common/common.h"
 
-#define TOKEN_LENGTH_LIMIT 40
+#define TOKEN_LENGTH_LIMIT 84
 #define TOKEN_LINE_LIMIT 120
 
 // TODO: Potentially split builtin tokens from tokenType

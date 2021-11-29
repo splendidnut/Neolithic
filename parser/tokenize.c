@@ -15,6 +15,7 @@
 
 #include <ctype.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -313,6 +314,12 @@ TokenObject *parseToken() {
         default: break;
 	}
     token[tokenEnd] = '\0';
+
+    if (tokenEnd > 82) {
+        printf("Token too large to process (limit of 80 chars):\n%s\n", token);
+        resetToken();
+        return currentToken;
+    }
 
     // If we have a token, do a lookup for reserved words
     if (tokenEnd > 0) {
