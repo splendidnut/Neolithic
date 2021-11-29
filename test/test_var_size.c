@@ -13,7 +13,7 @@ struct Seven {
 
 Seven sevenByteStruct   // 7 bytes  - single struct
 Seven fourteen[2]       // 14 bytes - two structs
-Seven *x[2]             // 4 bytes  - two pointers to structs
+Seven *ptrToSeven[2]    // 4 bytes  - two pointers to structs
 
 char lastVar
 
@@ -26,7 +26,7 @@ char lastVar
 #echo "Size used for basic vars = ", (&sevenByteStruct - 128), " should be 10 (2 bytes used by accumulator)"
 #echo "Sizeof (struct Seven)    = ", sizeof(Seven), " should be 7"
 #echo "Sizeof (var fourteen)    = ", sizeof(fourteen), " should be 14"
-#echo "Sizeof (var x)           = ", sizeof(x), " should be 4"
+#echo "Sizeof (var ptrToSeven)  = ", sizeof(ptrToSeven), " should be 4"
 #echo ""
 #echo "Address of Last variable = ", &lastVar
 #echo "Variable space used      = ", (&lastVar - 128)
