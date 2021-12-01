@@ -1169,6 +1169,9 @@ ListNode parse_stmt() {
             if (isTypeToken(token) || isModifierToken(token)) {
                 // handle var list/initialization
                 node = parse_variable();
+            } else if (isIdentifier(token) && TypeList_find(token->tokenStr)) {
+                // handle variables using user defined type
+                node = parse_variable();
             } else if (token->tokenStr[0] == '#') {
                 node = parse_compilerDirective(SCOPE_CODEBLOCK);
             } else if (token->tokenType != TT_SEMICOLON) {

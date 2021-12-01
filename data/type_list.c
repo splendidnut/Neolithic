@@ -19,7 +19,7 @@ TypeName* lastTypeName = NULL;
 int numTypes = 0;
 
 void TypeList_add(char *name) {
-#ifdef DEBUG
+#ifdef DEBUG_TYPE_LIST
     printf("TypeList_add: %s\n", name);
 #endif
 
