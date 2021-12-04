@@ -29,7 +29,11 @@ void GCT_FindFuncCalls(List *stmt, SymbolRecord *srcFunc) {
     if (isToken(opNode, PT_FUNC_CALL)) {
         char *destFuncName = stmt->nodes[1].value.str;
         SymbolRecord *destFuncSym = findSymbol(mainSymTable, destFuncName);
-        FM_addCallToMap(srcFunc, destFuncSym);
+        if (destFuncSym) {
+            FM_addCallToMap(srcFunc, destFuncSym);
+        } else {
+            printf("ERROR: Unable to find function '%s'\n", destFuncName);
+        }
     }
 }
 
