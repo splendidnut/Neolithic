@@ -579,8 +579,9 @@ void GC_ShiftRight(const List *expr, enum SymbolType destType) {
 
 
 bool GC_SimpleModifyOp(enum MnemonicCode mne, const List *stmt, enum SymbolType destType) {
-    if (stmt->nodes[1].type == N_LIST) {
-        List *expr = stmt->nodes[1].value.list;
+    ListNode arg = stmt->nodes[1];
+    if (arg.type == N_LIST) {
+        List *expr = arg.value.list;
         switch (expr->nodes[0].value.parseToken) {
             case PT_LOOKUP:
                 GC_OpWithArrayElement(mne, expr);
@@ -591,8 +592,13 @@ bool GC_SimpleModifyOp(enum MnemonicCode mne, const List *stmt, enum SymbolType 
             default:
                 return false;
         }
-    } else if (stmt->nodes[1].type == N_STR) {
-        GC_SimpleOP(stmt, mne, destType);
+    } else if (arg.type == N_STR) {
+        // This is generally an INC/DEC op with a variable
+
+        SymbolRecord *varSym = lookupSymbolNode(arg, stmt->lineNum);
+        if (varSym != NULL) {
+            ICG_OpWithVar(mne, varSym, getBaseVarSize(varSym));
+        }
     }
     return true;
 }
