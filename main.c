@@ -387,7 +387,6 @@ const char *help[] = {
         "  -f  Show function call tree",
         "  -h  Show help for Command Line options",
         "  -i  Include file",
-        "  -l  Show output block layout",
         "  -m  Select machine target",
         "  -v  View details about:",
         "        -va  Show variable allocations",
@@ -434,11 +433,6 @@ void parseCommandLineParameters(int argc, char *argv[]) {
 
             case 'i':
                 addIncludeFile(preProcessInfo, newSubstring(cmdParam, 2, 2));
-                break;
-
-            case 'l':
-                printf("Show output block layout: ON\n");
-                compilerOptions.showOutputBlockList = true;
                 break;
 
             case 'm': {
