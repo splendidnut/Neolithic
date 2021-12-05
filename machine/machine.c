@@ -39,7 +39,7 @@ int getMachineStartAddr(enum Machines machine) {
 }
 
 void prepForMachine(enum Machines machine) {
-    MemoryArea *zeropageMem;
+    MemoryArea *zeropageMem = 0;
     switch (machine) {
         case Atari2600:
             SMA_init(0);        // only has zeropage memory
@@ -68,5 +68,5 @@ void prepForMachine(enum Machines machine) {
             printf("Unknown machine!\n");
     }
     // Allocate two byte for 16-bit accumulator in zeropage space
-    SMA_allocateMemory(zeropageMem, 2);
+    if (zeropageMem) SMA_allocateMemory(zeropageMem, 2);
 }

@@ -24,7 +24,8 @@ Quick Intro
 
 Writing code for the Neolithic Compiler is a lot like writing C code. In fact,
 the book "The C Programming Language: Second Edition" by Brian W. Kernighan
-and Dennis M. Ritchie was used as a reference for the design of this language.
+and Dennis M. Ritchie is used as the main reference for the design of this
+language.
 
 This compiler supports many C-like constructs including variables, functions,
 structures, unions, and enumerations.  Most of the basic expression and
@@ -36,7 +37,7 @@ So, what are the differences?
 
 Well, in general, the language has been simplified.  Primitive types
 have been reduced to just 8-bit chars, 16-bit ints, booleans, and pointers.
-Arrays are one-dimensional.
+Arrays are currently limited to being one-dimensional.
 
 User-defined types still exist, but only consist of structs, unions, and
 enumerations; general typedefs have been eliminated.  This has been done
@@ -136,7 +137,7 @@ constants first.
 Ah, the elusive const... Typically, in the C89 Standard, enumerations or
 preprocessor #define(s) were used to define named-constants.  The reserved
 word 'const' was later added to be utilized to signify a variable that can't
-be changed, as well as other multiple purposes.  But, it didn't really fully
+be changed, as well as other multiple purposes.  But, it didn't really, fully
 replace the use of #define.
 
 With Neolithic, 'const' can be used with one of the simple primitives
@@ -147,7 +148,7 @@ Consts can also be used for defining read-only data blocks within the code.
 
 Examples:
 
-    // define display kernel timer value (used with RIOT 64-cycle timer)
+    // define display kernel timer value (used with RIOT 64-cycle timer)  (Atari 2600)
     const char KERNEL_TIM64   = 188 * 76 / 64     //--- calculate timer value based on 188 scanlines
 
 
@@ -211,6 +212,8 @@ the following can also be used:
 
     for (init_statement ; loop_conditional ; loop_increment_statement) { ... }
 
+    loop (varname, startValue, endValue) { ... }
+
     do { ... } while (condition)
 
     while (condition) { ... }
@@ -237,8 +240,41 @@ DEV NOTE:
      on the 'switch' statement.
 
 
+=====================
+Compiler Directives
+---------------------
+
+Unlike C, Neolithic doesn't really utilize a preprocessor except for
+indicating file inclusions and the target machine.
+
+Instead, Neolithic supports compiler directives which take the place of
+preprocessor directives from C.  Compiler directives are processed during
+symbol processing and code generation.
+
+Compiler Directives currently supported:
+
+    #echo    - Print out strings/evaluations during compile-time
+    #include
+    #machine - Specify machine to target
+
+    #show_cycles
+    #hide_cycles
+
+    #page_align - align to next available page (256-byte alignment)
+
+    #invert - reverse the order of the data in a const array
+
+    #use_quick_index_table
 
 
+Unsupported:
+    #bank
+    #define
+
+    #ifdef
+    #ifndef
+    #else
+    #endif
 
 -----------------------------------------------------
 
