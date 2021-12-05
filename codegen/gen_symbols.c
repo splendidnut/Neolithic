@@ -119,11 +119,10 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
             userTypeSymbol = findSymbol(symbolTable->parentTable, baseType);
         }
 
-        if (userTypeSymbol != NULL) {
-            if (isStruct(userTypeSymbol) || isUnion(userTypeSymbol)) {
-                symbolType = ST_STRUCT;
-                childTable = GET_STRUCT_SYMBOL_TABLE(userTypeSymbol);
-            }
+        if ((userTypeSymbol != NULL) &&
+                (isStruct(userTypeSymbol) || isUnion(userTypeSymbol) || isEnum(userTypeSymbol))) {
+            symbolType = ST_STRUCT;
+            childTable = GET_STRUCT_SYMBOL_TABLE(userTypeSymbol);
         } else {
             ErrorMessage("Unknown user-defined type", baseType, varDef->lineNum);
         }
@@ -289,8 +288,8 @@ int GS_Union(List *unionDef, SymbolTable *symbolTable, int ofs) {
     }
 }
 
-void addSymbolForEnumType(SymbolTable *symbolTable, char *enumTypeName) {
-    addSymbol(symbolTable, enumTypeName, SK_ENUM, ST_CHAR, 0);
+SymbolRecord * addSymbolForEnumType(SymbolTable *symbolTable, char *enumTypeName) {
+    return addSymbol(symbolTable, enumTypeName, SK_ENUM, ST_CHAR, 0);
 }
 
 void addSymbolForEnumValue(SymbolTable *symbolTable, char *enumName, int enumValue) {
@@ -304,9 +303,16 @@ void addSymbolForEnumValue(SymbolTable *symbolTable, char *enumName, int enumVal
 void GS_Enumeration(List *enumDef, SymbolTable *symbolTable) {
     int enumCnt = enumDef->count;
 
+    SymbolRecord *enumSymbol = NULL;
+    SymbolTable *enumSymTbl = NULL;
+
+    // Check to see if enumeration is named...
+    //   IF so, then create symbol for enum + symbol table for the enum values.
     ListNode enumTypeNameNode = enumDef->nodes[1];
     if (enumTypeNameNode.type == N_STR) {
-        addSymbolForEnumType(symbolTable, enumTypeNameNode.value.str);
+        enumSymbol = addSymbolForEnumType(symbolTable, enumTypeNameNode.value.str);
+        enumSymTbl = initSymbolTable(enumSymbol->name, symbolTable);
+        enumSymbol->symbolTbl = enumSymTbl;
     }
 
     int index = 2;
@@ -316,6 +322,9 @@ void GS_Enumeration(List *enumDef, SymbolTable *symbolTable) {
         int enumValue = enumNode->nodes[1].value.num;
 
         addSymbolForEnumValue(symbolTable, enumName, enumValue);
+        if (enumSymbol) {
+            addSymbolForEnumValue(enumSymTbl, enumName, enumValue);
+        }
 
         index++;
     }

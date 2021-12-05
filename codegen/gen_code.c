@@ -304,11 +304,13 @@ void GC_LoadPropertyRef(const List *expr, enum SymbolType destType) {
         return;
     }
 
+    char *structSymbolName = expr->nodes[1].value.str;
+    char *propName = expr->nodes[2].value.str;
+
     SymbolRecord *structSymbol = lookupSymbolNode(expr->nodes[1], expr->lineNum);
     if (!structSymbol) return;      /// EXIT if invalid structure
 
-    char *propName = expr->nodes[2].value.str;
-    SymbolRecord *propertySymbol = findSymbol(getStructSymbolSet(structSymbol), propName);
+    SymbolRecord *propertySymbol = lookupProperty(structSymbol, propName);
     if (!propertySymbol) return;      /// EXIT if invalid structure property
 
     // Now we can get down to business!

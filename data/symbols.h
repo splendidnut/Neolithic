@@ -174,6 +174,7 @@ extern int getBaseVarSize(const SymbolRecord *varSymRec);
 extern SymbolRecord * findSymbol(SymbolTable *symbolTable, const char *name);
 extern char getDestRegFromHint(enum VarHint hint);
 extern SymbolList *getParamSymbols(SymbolTable *symTblWithParams);
+extern SymbolRecord *lookupProperty(SymbolRecord *structSymbol, char *propName);
 
 //--------------------------------------------------------
 //--- TODO:  convert some/most of these to simple macros?
@@ -185,6 +186,7 @@ extern bool isVariable(const SymbolRecord *curSymbol);
 extern bool isFunction(const SymbolRecord *symbol);
 extern bool isStruct(const SymbolRecord *symbol);
 extern bool isUnion(const SymbolRecord *symbol);
+extern bool isEnum(const SymbolRecord *symbol);
 extern bool isPointer(const SymbolRecord *symbol);
 extern bool isArray(const SymbolRecord *symbol);
 extern bool isMainFunction(const SymbolRecord *symbol);

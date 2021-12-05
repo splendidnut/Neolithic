@@ -259,6 +259,14 @@ SymbolList *getParamSymbols(SymbolTable *symTblWithParams) {
     return paramList;
 }
 
+SymbolRecord *lookupProperty(SymbolRecord *structSymbol, char *propName) {
+    if (structSymbol->userTypeDef != NULL) {
+        return findSymbol(getStructSymbolSet(structSymbol), propName);
+    } else {
+        return findSymbol(structSymbol->symbolTbl, propName);
+    }
+}
+
 
 /**
  * isSimpleConst - is this a constant that has a singular value?
@@ -295,6 +303,10 @@ bool isStruct(const SymbolRecord *symbol) {
 
 bool isUnion(const SymbolRecord *symbol) {
     return (symbol->kind == SK_UNION);
+}
+
+bool isEnum(const SymbolRecord *symbol) {
+    return (symbol->kind == SK_ENUM);
 }
 
 //--- Checks for Symbol flags

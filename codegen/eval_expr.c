@@ -94,6 +94,27 @@ EvalResult evaluate_node(const ListNode node) {
     return eval_node(node);
 }
 
+EvalResult eval_property_ref(ListNode structNode, ListNode propNode) {
+    // only enumeration property values will return a value.
+    EvalResult result;
+    result.hasResult = false;
+
+    SymbolRecord *structSymbol = getEvalSymbolRecord(structNode.value.str);
+    if (!structSymbol) return result;      /// EXIT if invalid structure
+    if (structSymbol->symbolTbl == NULL) return result;
+
+    SymbolRecord *propertySymbol = findSymbol(structSymbol->symbolTbl, propNode.value.str);
+    if (!propertySymbol) return result;      /// EXIT if invalid structure property
+
+    // Handle ENUM references
+    if (isEnum(structSymbol)) {
+        result.hasResult = true;
+        result.value = propertySymbol->constValue;
+    }
+
+    return result;
+}
+
 EvalResult evaluate_expression(const List *expr) {
     EvalResult result, leftResult, rightResult;
 
@@ -103,18 +124,27 @@ EvalResult evaluate_expression(const List *expr) {
     ListNode opNode = expr->nodes[0];
     enum ParseToken opToken = opNode.value.parseToken;
 
-    if (opToken == PT_ADDR_OF) {
-        leftResult = eval_addr_of(expr->nodes[1]);
-    } else if (opToken == PT_SIZEOF) {
-        char *varName = expr->nodes[1].value.str;
-        SymbolRecord *varSym = getEvalSymbolRecord(varName);
-        if (varSym != NULL) {
-            leftResult.value = calcVarSize(varSym);
-            leftResult.hasResult = true;
-            return leftResult;
-        }
-    } else {
-        leftResult = eval_node(expr->nodes[1]);
+    // Handle special cases first
+    switch (opToken) {
+        case PT_ADDR_OF:
+            leftResult = eval_addr_of(expr->nodes[1]);
+            break;
+
+        case PT_SIZEOF: {
+            char *varName = expr->nodes[1].value.str;
+            SymbolRecord *varSym = getEvalSymbolRecord(varName);
+            if (varSym != NULL) {
+                leftResult.value = calcVarSize(varSym);
+                leftResult.hasResult = true;
+                return leftResult;
+            }
+        } break;
+
+        case PT_PROPERTY_REF:
+            return eval_property_ref(expr->nodes[1], expr->nodes[2]);
+
+        default:
+            leftResult = eval_node(expr->nodes[1]);
     }
 
     if (expr->count >= 3) {
@@ -262,6 +292,10 @@ char* get_expression(const List *expr) {
                 strcat(result, "[");
                 strcat(result, rightResult);
                 strcat(result, "]");
+                break;
+            case PT_PROPERTY_REF:
+                strcat(result, ".");
+                strcat(result, rightResult);
                 break;
             default:
                 result = (char *) EXPR_ERR;
