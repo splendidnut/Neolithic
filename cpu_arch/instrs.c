@@ -563,7 +563,7 @@ void ICG_OpHighByte(enum MnemonicCode mne, const char *varName) {
             break;
         case INC:
             if (varName != NULL) {
-                IL_AddInstrN(BNE, ADDR_REL, +3);
+                IL_AddInstrN(BNE, ADDR_REL, +4);    // +4 for 2 byte op, +5 for 3 byte op
                 IL_AddInstrP(mne, ADDR_ZP, varName, PARAM_PLUS_ONE);
             } else {
                 IL_AddInstrN(BNE, ADDR_REL, +3);
