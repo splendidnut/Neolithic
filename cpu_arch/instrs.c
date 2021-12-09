@@ -280,7 +280,7 @@ void ICG_LoadConst(int constValue, int size) {
 
 void ICG_OpWithParamVar(enum MnemonicCode mne, const SymbolRecord *varRec, const char *varName) {
     IL_AddComment(
-            IL_AddInstrN(TSX, ADDR_NONE, 0),
+            IL_AddInstrB(TSX),
             "prepare to read param var");
     IL_AddInstrP(mne, ADDR_ABX, getVarName(varRec), PARAM_NORMAL);
 }
@@ -335,7 +335,7 @@ void ICG_LoadIndexVar(const SymbolRecord *varSym, int size) {
             IL_AddComment(
                     IL_AddInstrP(LDA, ADDR_ZP, varName, PARAM_NORMAL), "load array index");
             IL_AddInstrN(ASL, ADDR_ACC, 0);
-            IL_AddInstrN(TAY, ADDR_NONE, 0);
+            IL_AddInstrB(TAY);
 
             lastUseForAReg = REG_USED_FOR_NOTHING;
         } else {
@@ -459,11 +459,11 @@ void ICG_LoadPointerAddr(const SymbolRecord *varSym) {
 }
 
 void ICG_AdjustStack(int ofs) {
-    IL_AddInstrN(TSX, ADDR_NONE, 0);
+    IL_AddInstrB(TSX);
     for (int cnt=0; cnt < ofs; cnt++) {
         IL_AddInstrN(INX, ADDR_NONE, cnt);
     }
-    IL_AddInstrN(TXS, ADDR_NONE, 0);
+    IL_AddInstrB(TXS);
 }
 
 //--------------------------------------------------------------
@@ -542,12 +542,12 @@ void ICG_NotBool() {
 
 void ICG_Negate() {
     IL_AddInstrN(EOR, ADDR_IMM, 0xFF);
-    IL_AddInstrN(CLC, ADDR_NONE, 0);
+    IL_AddInstrB(CLC);
     IL_AddInstrN(ADC, ADDR_IMM, 1);
 }
 
 void ICG_PreOp(enum MnemonicCode preOp) {
-    if (preOp != MNE_NONE) IL_AddInstrN(preOp, ADDR_NONE, 0);
+    if (preOp != MNE_NONE) IL_AddInstrB(preOp);
 }
 
 void ICG_OpHighByte(enum MnemonicCode mne, const char *varName) {
@@ -745,14 +745,14 @@ void ICG_ShiftRight(const SymbolRecord *varSym, int count) {
 
 void ICG_AddToInt(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);
-    IL_AddInstrN(CLC, ADDR_NONE, 0);
+    IL_AddInstrB(CLC);
     if (IS_PARAM_VAR(varSym)) {
         ICG_OpWithParamVar(ADC, varSym, varName);
     } else {
         IL_AddInstrP(ADC, ADDR_ZP, varName, PARAM_NORMAL);
     }
     IL_AddInstrN(BCC, ADDR_REL, +3);
-    IL_AddInstrN(INX, ADDR_NONE, 0);
+    IL_AddInstrB(INX);
 }
 
 void ICG_AddAddr(const SymbolRecord *varSym) {
@@ -795,7 +795,7 @@ void ICG_Call(const char *funcName) {
 }
 
 void ICG_Return() {
-    IL_AddInstrN(RTS, ADDR_NONE, 0);
+    IL_AddInstrB(RTS);
 }
 
 
