@@ -1790,35 +1790,20 @@ void GC_Statement(List *stmt) {
 
 static const char* INIT_VALUE_ERROR_MSG = "Initializer value cannot be evaluated";
 
+/**
+ * Preprocess an initializer expression by running it thru the evaluator
+ * @param initExpr
+ * @param lineNum
+ * @return
+ */
 ListNode PreProcess_Node(ListNode initExpr, int lineNum) {
     int value = 0;
     ListNode resultNode;
-    switch (initExpr.type) {
-
-        case N_LIST: {                //---  Attempt to evaluate the expression
-            EvalResult result = evaluate_expression(initExpr.value.list);
-            if (result.hasResult) {
-                value = result.value;
-            } else {
-                ErrorMessageWithList(INIT_VALUE_ERROR_MSG, initExpr.value.list);
-            }
-        } break;
-
-        case  N_STR: {
-            SymbolRecord *symbolRecord = lookupSymbolNode(initExpr, lineNum);
-            if (symbolRecord && symbolRecord->hasValue) {
-                value = symbolRecord->constValue;
-            } else {
-                ErrorMessageWithNode(INIT_VALUE_ERROR_MSG, initExpr, lineNum);
-            }
-        } break;
-
-        // TODO:  This works BUT... Is this the right thing to do?  This was previously handled by returning
-        //        an N_EMPTY node and letting the caller handle it instead.
-        case N_INT:
-            value = initExpr.value.num;
-
-        default: break;
+    EvalResult result = evaluate_node(initExpr);
+    if (result.hasResult) {
+        value = result.value;
+    } else {
+        ErrorMessageWithNode(INIT_VALUE_ERROR_MSG, initExpr, lineNum);
     }
     resultNode = createIntNode(value & 0xffff);
     return resultNode;
