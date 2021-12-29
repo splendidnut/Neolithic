@@ -80,15 +80,14 @@ OutputBlock *OB_AddData(char *name, SymbolRecord *dataSym, List *dataList, int s
     newBlock->nextBlock = NULL;
     newBlock->blockName = name;
     newBlock->blockAddr = curAddr;
-    newBlock->blockSize = (dataList->count-1) * (isInt ? 2 : 1);
+    newBlock->blockSize = (dataList->count - 1) * (isInt ? 2 : 1);
     newBlock->blockType = BT_DATA;
     newBlock->dataSym = dataSym;
     newBlock->dataList = dataList;
     newBlock->bankNum = suggestedBank;
 
-    // TODO: Remove hack!
-
-    if (isStruct(dataSym) || isStructDefined(dataSym)) {
+    // if this is a user-defined type (struct)
+    if ((dataSym->userTypeDef != NULL) && (isStruct(dataSym->userTypeDef))) {
         newBlock->blockType = BT_STRUCT;
         newBlock->blockSize = dataSym->userTypeDef->numElements * dataSym->numElements;
     }

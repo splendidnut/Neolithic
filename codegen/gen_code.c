@@ -69,6 +69,13 @@ void GC_LoadPrimitive(ListNode loadNode, enum SymbolType destType, int lineNum) 
 }
 
 void GC_HandleLoad(ListNode loadNode, enum SymbolType destType, int lineNum) {
+    /*
+    // Handle the special case where a 16-bit number is being set from an 8-bit value
+    bool is16bitDest = ((destType == ST_INT) || (destType == ST_PTR));
+    if (is16bitDest && ((loadNode.type == N_STR) || (loadNode.type == N_INT))) {
+        ICG_LoadRegConst('X',0);
+    }
+    */
     if (loadNode.type == N_LIST) {
         GC_Expression(loadNode.value.list, destType);
     } else {
@@ -310,8 +317,23 @@ void GC_LoadPropertyRef(const List *expr, enum SymbolType destType) {
     SymbolRecord *structSymbol = lookupSymbolNode(expr->nodes[1], expr->lineNum);
     if (!structSymbol) return;      /// EXIT if invalid structure
 
+    // Handle enumeration reference
+    if (isEnum(structSymbol)) {
+        EvalResult evalResult = evaluate_expression(expr);
+        if (evalResult.hasResult) {
+            ICG_LoadConst(evalResult.value, 1);
+        } else {
+            ErrorMessageWithList("Unable to process enumeration reference", expr);
+        }
+        return;
+    }
+
+
     SymbolRecord *propertySymbol = lookupProperty(structSymbol, propName);
-    if (!propertySymbol) return;      /// EXIT if invalid structure property
+    if (!propertySymbol) {
+        ErrorMessageWithList("GC_LoadPropertyRef: Invalid property reference", expr);
+        return;      /// EXIT if invalid structure property
+    }
 
     // Now we can get down to business!
     int propertyOffset = GET_PROPERTY_OFFSET(propertySymbol);
@@ -383,8 +405,22 @@ void GC_OpWithArrayElement(enum MnemonicCode mne, const List *expr) {
 void GC_OpWithPropertyRef(enum MnemonicCode mne, const List *expr, enum SymbolType destType) {
     if (TypeCheck_PropertyReference(expr, destType)) {
         SymbolRecord *structSym = lookupSymbolNode(expr->nodes[1], expr->lineNum);
-        SymbolRecord *propSym = findSymbol(getStructSymbolSet(structSym), expr->nodes[2].value.str);
 
+        // Handle enumeration reference
+        if (isEnum(structSym)) {
+            EvalResult evalResult = evaluate_expression(expr);
+            if (evalResult.hasResult) {
+                ICG_OpWithConst(mne, evalResult.value, 1);
+            } else {
+                ErrorMessageWithList("Unable to process enumeration reference", expr);
+            }
+            return;
+        }
+
+        //---------------------------------------------------------
+        // Not an enumeration, process as regular struct access
+
+        SymbolRecord *propSym = findSymbol(getStructSymbolSet(structSym), expr->nodes[2].value.str);
         if (IS_ALIAS(structSym)) {
             enum ParseToken aliasType = GC_LoadAlias(expr, structSym);
             SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSym, aliasType);
@@ -455,7 +491,10 @@ void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, en
         if (structSymbol && IS_ALIAS(structSymbol)) {
             SymbolRecord *propertySymbol = findSymbol(getStructSymbolSet(structSymbol),
                                                       propertyRef->nodes[2].value.str);
-            if (!propertySymbol) return;      /// EXIT if invalid structure property
+            if (!propertySymbol) {
+                ErrorMessageWithList("GC_Op: Invalid property reference", propertyRef);
+                return;      /// EXIT if invalid structure property
+            }
 
             ICG_PreOp(preOp);
 
@@ -990,15 +1029,6 @@ void GC_Assignment(const List *stmt, enum SymbolType destType) {
         }
         */
 
-        // Handle the special case where a 16-bit number is being set from a another var or a numeric literal
-        /*if ((destType == ST_INT) &&
-                ((loadNode.type == N_STR) || (loadNode.type == N_INT)) &&
-                (storeNode.type == N_STR)) {
-            //GC_HandleSet_16();
-
-            return;
-        }*/
-
         // figure out where data is coming from
         GC_HandleLoad(loadNode, destType, stmt->lineNum);
 
@@ -1257,15 +1287,58 @@ void GC_If(const List *stmt, enum SymbolType destType) {
 //        [case, value, [code]],
 //        ...,
 //        [default, [code]] ]
+
+const char *INVALID_CASE_ENUM_ERROR = "Unable to process enumeration reference for case statement";
+
+bool isVarEnum(SymbolRecord *varSym) {
+    return (varSym && varSym->userTypeDef && isEnum(varSym->userTypeDef));
+}
+
+void GC_HandleCase(const List *caseStmt, SymbolRecord *switchVarSymbol) {
+    EvalResult evalResult;
+    ListNode caseValueNode = caseStmt->nodes[1];
+
+    switch (caseValueNode.type) {
+        case N_INT: ICG_CompareConst(caseValueNode.value.num); break;
+        case N_STR:
+            if (isVarEnum(switchVarSymbol)) {
+                evalResult = evaluate_enumeration(switchVarSymbol->userTypeDef, caseValueNode);
+            } else if (lookupSymbolNode(caseValueNode, caseStmt->lineNum)) {
+                ICG_CompareConstName(caseValueNode.value.str);
+                return;
+            } else {
+                ErrorMessageWithList("Invalid case condition", caseStmt);
+                return;
+            }
+            break;
+
+        case N_LIST:
+            if (isToken(caseValueNode.value.list->nodes[0], PT_PROPERTY_REF)) {
+                evalResult = evaluate_node(caseValueNode);
+                break;
+            }
+        default:
+            ErrorMessageWithList("Unable to process case statement", caseStmt);
+    }
+
+    if (evalResult.hasResult) {
+        ICG_CompareConst(evalResult.value);
+    } else {
+        ErrorMessageWithList(INVALID_CASE_ENUM_ERROR, caseStmt);
+    }
+}
+
 void GC_Switch(const List *stmt, enum SymbolType destType) {
     Label *endOfSwitch = newGenericLabel(L_CODE);
+
+    SymbolRecord *switchVarSymbol = NULL;
 
     if (stmt->nodes[1].type == N_LIST) {
         GC_Expression(stmt->nodes[1].value.list, ST_CHAR);
     } else if (stmt->nodes[1].type == N_STR) {
-        SymbolRecord *varSym = lookupSymbolNode(stmt->nodes[1], stmt->lineNum);
-        if (varSym != NULL) {
-            ICG_LoadVar(varSym);
+        switchVarSymbol = lookupSymbolNode(stmt->nodes[1], stmt->lineNum);
+        if (switchVarSymbol != NULL) {
+            ICG_LoadVar(switchVarSymbol);
         }
     } else {
         ErrorMessageWithList("Invalid expression used for switch statement", stmt);
@@ -1274,27 +1347,23 @@ void GC_Switch(const List *stmt, enum SymbolType destType) {
     //examineSwitchStmtCases(stmt);
 
     // for each case, do cmp, branch/jump to next cmp if NE
-    for (int caseStmtNum = 2;  caseStmtNum < stmt->count;  caseStmtNum++) {
+    for_range(caseStmtNum, 2, stmt->count) {
         ListNode caseStmtNode = stmt->nodes[caseStmtNum];
         if (caseStmtNode.type == N_LIST) {
             List *caseStmt = caseStmtNode.value.list;
-            if (caseStmt->nodes[0].value.parseToken == PT_CASE) {
+            if (isToken(caseStmt->nodes[0], PT_CASE)) {
                 Label *nextCaseLabel = newGenericLabel(L_CODE);
-                IL_AddCommentToCode(buildSourceCodeLine(&caseStmtNode.value.list->progLine));
+                IL_AddCommentToCode(buildSourceCodeLine(&caseStmt->progLine));
 
                 // handle case condition check
-                ListNode caseValueNode = caseStmt->nodes[1];
-                switch (caseValueNode.type) {
-                    case N_INT: ICG_CompareConst(caseValueNode.value.num); break;
-                    case N_STR: ICG_CompareConstName(caseValueNode.value.str); break;
-                }
+                GC_HandleCase(caseStmt, switchVarSymbol);
                 ICG_Branch(BNE, nextCaseLabel);
 
                 // process case code block/statement
                 GC_CodeBlock(caseStmt->nodes[2].value.list);
                 ICG_Jump(endOfSwitch, "done with case");
                 IL_Label(nextCaseLabel);
-            } else if (caseStmt->nodes[0].value.parseToken == PT_DEFAULT) {
+            } else if (isToken(caseStmt->nodes[0], PT_DEFAULT)) {
                 GC_CodeBlock(caseStmt->nodes[1].value.list);
             }
         }
@@ -1352,7 +1421,7 @@ void GC_Loop(const List *stmt, enum SymbolType destType) {
         return;
     }
     if (counterEndValueNode.type != N_INT) {
-        ErrorMessageWithList("Invalid value specified for initializing loop counter", stmt);
+        ErrorMessageWithList("Invalid value specified for loop counter end value", stmt);
         return;
     }
 
@@ -1620,6 +1689,12 @@ void GC_HandleGlobalAliasInitializer(const List *varDef, SymbolRecord *varSymRec
     }
 }
 
+/**
+ * Process variable definition initializer for a local variable
+ *
+ * @param varDef
+ * @param destType
+ */
 void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
     SymbolRecord *varSymRec = lookupSymbolNode(varDef->nodes[1], varDef->lineNum);
     if (varSymRec == NULL) return;
@@ -1637,11 +1712,14 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
         ListNode valueNode = initList->nodes[1];
         switch (valueNode.type) {
             case N_INT:
-                ICG_LoadConst(valueNode.value.num, 0);
+                ICG_LoadConst(valueNode.value.num, getBaseVarSize(varSymRec));
                 break;
             case N_STR: {
                 SymbolRecord *varSym = lookupSymbolNode(valueNode, initList->lineNum);
                 if (varSym != NULL) ICG_LoadVar(varSym);
+                /*if (getBaseVarSize(varSym) < getBaseVarSize(varSymRec)) {
+                    ICG_LoadRegConst('X',0);
+                }*/
             } break;
             case N_LIST:
                 GC_HandleLoad(valueNode, getVarDestType(varSymRec), initList->lineNum);
@@ -1923,6 +2001,11 @@ void GC_Variable(const List *varDef) {
         List *initValueList = getInitializer(varDef->nodes[4]);
         if (initValueList == NULL) return;
 
+        if (varSymRec->userTypeDef != NULL && isEnum(varSymRec->userTypeDef)) {
+            setEvalLocalSymbolTable(varSymRec->userTypeDef->symbolTbl);
+            printf("Using local symbol table for %s: %s\n", varName, varSymRec->userTypeDef->name);
+        }
+
         List *valueNode = GC_ProcessInitializerList(varDef, initValueList);
 
         OutputBlock *staticData = OB_AddData(varName, varSymRec, valueNode, curBank);
@@ -2004,6 +2087,8 @@ void GC_ProcessFunction(char *funcName, List *code) {
     funcSym->instrBlock = ICG_EndOfFunction(funcLabel);
 
     OB_AddCode(funcName, funcSym->instrBlock, curBank);
+
+    setEvalLocalSymbolTable(NULL);
 }
 
 void GC_Function(const List *function, int codeNodeIndex) {

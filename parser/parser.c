@@ -1086,7 +1086,19 @@ ListNode parse_stmt_switch() {
         if (token->tokenType == TT_CASE) {
             acceptToken(TT_CASE);
             addNode(caseStmt, createParseToken(PT_CASE));
-            addNode(caseStmt, parse_primary_expr(false, false, false));
+            ListNode caseVarNode = parse_primary_expr(false, false, false);
+            if (acceptOptionalToken(TT_PERIOD)) {
+                ListNode casePropRefNode = parse_identifier();
+
+                List *propRef = createList(3);
+                addNode(propRef, createParseToken(PT_PROPERTY_REF));
+                addNode(propRef, caseVarNode);
+                addNode(propRef, casePropRefNode);
+
+                addNode(caseStmt, createListNode(propRef));
+            } else {
+                addNode(caseStmt, caseVarNode);
+            }
             acceptToken(TT_COLON);
             addNode(caseStmt, parse_codeBlock());
         } else if (token->tokenType == TT_DEFAULT) {

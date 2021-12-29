@@ -322,9 +322,11 @@ void GS_Enumeration(List *enumDef, SymbolTable *symbolTable) {
         char *enumName = enumNode->nodes[0].value.str;
         int enumValue = enumNode->nodes[1].value.num;
 
-        addSymbolForEnumValue(symbolTable, enumName, enumValue);
         if (enumSymbol) {
             addSymbolForEnumValue(enumSymTbl, enumName, enumValue);
+        } else {
+            // anonymous enumeration list = global consts
+            addSymbolForEnumValue(symbolTable, enumName, enumValue);
         }
 
         index++;

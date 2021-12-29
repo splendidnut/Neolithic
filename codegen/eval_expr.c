@@ -94,6 +94,23 @@ EvalResult evaluate_node(const ListNode node) {
     return eval_node(node);
 }
 
+EvalResult evaluate_enumeration(SymbolRecord *enumSymbol, ListNode propNode) {
+    // only enumeration property values will return a value.
+    EvalResult result;
+    result.hasResult = false;
+
+    SymbolRecord *propertySymbol = findSymbol(enumSymbol->symbolTbl, propNode.value.str);
+    if (!propertySymbol) return result;      /// EXIT if invalid structure property
+
+    // Handle ENUM references
+    if (isEnum(enumSymbol)) {
+        result.hasResult = true;
+        result.value = propertySymbol->constValue;
+    }
+
+    return result;
+}
+
 EvalResult eval_property_ref(ListNode structNode, ListNode propNode) {
     // only enumeration property values will return a value.
     EvalResult result;
@@ -103,16 +120,7 @@ EvalResult eval_property_ref(ListNode structNode, ListNode propNode) {
     if (!structSymbol) return result;      /// EXIT if invalid structure
     if (structSymbol->symbolTbl == NULL) return result;
 
-    SymbolRecord *propertySymbol = findSymbol(structSymbol->symbolTbl, propNode.value.str);
-    if (!propertySymbol) return result;      /// EXIT if invalid structure property
-
-    // Handle ENUM references
-    if (isEnum(structSymbol)) {
-        result.hasResult = true;
-        result.value = propertySymbol->constValue;
-    }
-
-    return result;
+    return evaluate_enumeration(structSymbol, propNode);
 }
 
 EvalResult evaluate_expression(const List *expr) {

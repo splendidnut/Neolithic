@@ -311,7 +311,7 @@ void ICG_LoadVar(const SymbolRecord *varRec) {
         }
     } else {
         IL_AddInstrP(LDA, ADDR_ZP, varName, PARAM_NORMAL);
-        if ((getBaseVarSize(varRec) == 2) || isStructDefined(varRec)) {
+        if (getBaseVarSize(varRec) == 2) {
             IL_AddInstrP(LDX, ADDR_ZP, varName, PARAM_PLUS_ONE);
         }
     }
