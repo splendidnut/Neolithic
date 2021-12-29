@@ -931,18 +931,17 @@ enum SymbolType getVarDestType(SymbolRecord *destVar) {
                : getType(destVar);
 }
 
-enum SymbolType getAsgnDestType(const List *stmt, ListNode storeNode, enum SymbolType destType) {
+SymbolRecord *getAsgnDestVarSym(const List *stmt, ListNode storeNode) {
     SymbolRecord *destVar = NULL;
     switch (storeNode.type) {
         case N_STR:
-            destVar = lookupSymbolNode(storeNode, stmt->lineNum);
-            break;
+            return lookupSymbolNode(storeNode, stmt->lineNum);
+
         case N_LIST: {
             List *storeExpr = storeNode.value.list;
             // probably a property ref or an array lookup
             if (isToken(storeExpr->nodes[0], PT_LOOKUP)) {
-
-                destVar = lookupSymbolNode(storeExpr->nodes[1], stmt->lineNum);
+                return lookupSymbolNode(storeExpr->nodes[1], stmt->lineNum);
 
             } else if (isToken(storeExpr->nodes[0], PT_PROPERTY_REF)) {
 
@@ -958,11 +957,11 @@ enum SymbolType getAsgnDestType(const List *stmt, ListNode storeNode, enum Symbo
                     }
                 }
             } else {
-                printf("UNKNOWN dest type expression");
+                ErrorMessageWithList("Cannot determine destination type from storage expression", storeExpr);
             }
         } break;
     }
-    return (destVar != NULL) ? getVarDestType(destVar) : ST_ERROR;
+    return destVar;
 }
 
 /**
@@ -976,7 +975,8 @@ void GC_Assignment(const List *stmt, enum SymbolType destType) {
     ListNode storeNode = stmt->nodes[1];
 
     // figure out destination type
-    destType = getAsgnDestType(stmt, storeNode, destType);
+    SymbolRecord *destVar = getAsgnDestVarSym(stmt, storeNode);
+    destType = (destVar != NULL) ? getVarDestType(destVar) : ST_ERROR;
 
     //printf("DEBUG: GC_Assignment -> getAsgnDestType = %d\n", destType);
 
@@ -1462,6 +1462,7 @@ void GC_LoadFuncArg(const SymbolRecord *curParam, ListNode argNode,
             break;
         case N_STR:
             varSym = lookupSymbolNode(argNode, lineNum); //findSymbol(mainSymbolTable, argNode.value.str);
+            if (varSym == NULL) return;
 
             // first check to see if user is passing a struct variable.
             //   If so, we need to do something special to pass the pointer of the struct (16-bit value)
