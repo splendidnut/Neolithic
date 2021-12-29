@@ -903,9 +903,12 @@ ListNode parse_enum() {
     acceptToken(TT_ENUM);
     addNode(enumList, createParseToken(PT_ENUM));
 
-    char *enumName = copyTokenStr(getToken());
-    addNode(enumList, createStrNode(enumName));  // enum name
-    TypeList_add(enumName);
+    //-- check if enumeration has a name
+    if (peekToken()->tokenType != TT_OPEN_BRACE) {
+        char *enumName = copyTokenStr(getToken());
+        addNode(enumList, createStrNode(enumName));  // enum name
+        TypeList_add(enumName);
+    }
 
     acceptToken(TT_OPEN_BRACE);
     while (peekToken()->tokenType != TT_CLOSE_BRACE) {

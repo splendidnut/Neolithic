@@ -315,7 +315,8 @@ void GS_Enumeration(List *enumDef, SymbolTable *symbolTable) {
         enumSymbol->symbolTbl = enumSymTbl;
     }
 
-    int index = 2;
+    // start index for enumeration list is determined by whether enumeration has a name or not
+    int index = (enumSymbol ? 2 : 1);
     while (index < enumCnt) {
         List *enumNode = enumDef->nodes[index].value.list;
         char *enumName = enumNode->nodes[0].value.str;
