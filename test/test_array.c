@@ -56,8 +56,8 @@ void test_array_with_var_index() {
 	} while (i < 8);
 	
 	//--- test index var arithmetic
-	array[b + 1] = array[a] + 3;
-	array[a - b] = 6;
+	array[b + 1] = array[a + 1] + 3;
+	//array[a - b] = 6;
 }
 
 void main() {

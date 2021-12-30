@@ -215,12 +215,9 @@ void GC_Lookup(const List *expr, enum SymbolType destType) {
 bool isArrayIndexConst(const List *arrayExpr) {
     ListNode indexNode = arrayExpr->nodes[2];
     if (indexNode.type == N_INT) return true;
+    if (indexNode.type != N_STR) return false;
 
-    if (indexNode.type != N_STR) {
-        ErrorMessageWithList("Invalid array lookup", arrayExpr);
-        return false;
-    }
-
+    // At this point, we definitely have a symbol, so check and see if it's a CONST kind of symbol
     SymbolRecord *indexSym = lookupSymbolNode(indexNode, arrayExpr->lineNum);
     return (indexSym && isConst(indexSym));
 }
@@ -939,13 +936,50 @@ void GC_StoreToArray(const List *expr) {
         // Array index is a constant value (either a const variable or a numeric literal)
         int ofs = GC_GetArrayIndex(arraySym, expr);
         ICG_StoreVarOffset(arraySym, ofs, getBaseVarSize(arraySym));
+        return;
 
-    } else {
+    } else if (expr->nodes[2].type == N_STR) {
         // Array Index is an expression or a variable
         SymbolRecord *varSym = lookupSymbolNode(expr->nodes[2], expr->lineNum);
         if (varSym) ICG_LoadIndexVar(varSym, getBaseVarSize(varSym));
         ICG_StoreVarIndexed(arraySym);
+        return;
+
+    } else if (expr->nodes[2].type == N_LIST) {
+        List *arrayIndexExpr = expr->nodes[2].value.list;
+        ListNode arg1 = arrayIndexExpr->nodes[1];
+        ListNode arg2 = arrayIndexExpr->nodes[2];
+
+        if ((arg1.type == N_INT) && (arg2.type == N_STR)) {
+            arg2 = arrayIndexExpr->nodes[1];
+            arg1 = arrayIndexExpr->nodes[2];
+        }
+
+        printf("Processing store to array with var + const\n");
+
+        if (arg2.type == N_INT) {
+            int ofs = arg2.value.num;
+
+            SymbolRecord *varSym = lookupSymbolNode(arg1, expr->lineNum);
+            if (!varSym) return;
+            ICG_LoadIndexVar(varSym, getBaseVarSize(varSym));
+
+            switch (arrayIndexExpr->nodes[0].value.parseToken) {
+                case PT_ADD:
+                    ICG_StoreIndexedWithOffset(arraySym, ofs);
+                    return;
+
+                case PT_SUB:
+                    ICG_StoreIndexedWithOffset(arraySym, -ofs);
+                    return;
+
+                default:
+                    break;
+            }
+        }
     }
+
+    ErrorMessageWithNode("Unsupported array index", expr->nodes[2], expr->lineNum);
 }
 
 /*** Process Storage Expression - (Left-side of assignment) */
