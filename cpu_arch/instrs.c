@@ -503,8 +503,12 @@ void ICG_StoreVarIndexed(const SymbolRecord *varSym) {
     IL_AddInstrP(STA, ADDR_ABY, varName, PARAM_NORMAL);
     if (getBaseVarSize(varSym) == 2) {
         enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(varSym) + ADDR_Y;
-        enum ParamExt paramExt = (addrMode == ADDR_ZPY ? PARAM_LO : PARAM_NORMAL);
-        IL_AddInstrP(STX, addrMode, varName, PARAM_PLUS_ONE + paramExt);
+        if (addrMode == ADDR_ZPY) {
+            IL_AddInstrP(STX, addrMode, varName, PARAM_PLUS_ONE + PARAM_LO);
+        } else {
+            IL_AddInstrB(TXA);
+            IL_AddInstrP(STA, addrMode, varName, PARAM_PLUS_ONE + PARAM_NORMAL);
+        }
     }
 }
 
