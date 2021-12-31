@@ -1333,7 +1333,11 @@ void GC_HandleCase(const List *caseStmt, SymbolRecord *switchVarSymbol) {
     ListNode caseValueNode = caseStmt->nodes[1];
 
     switch (caseValueNode.type) {
-        case N_INT: ICG_CompareConst(caseValueNode.value.num); break;
+        case N_INT:
+            ICG_CompareConst(caseValueNode.value.num);
+            return;
+            // ^^^ - done with handling case statement, need to exit now
+
         case N_STR:
             if (isVarEnum(switchVarSymbol)) {
                 evalResult = evaluate_enumeration(switchVarSymbol->userTypeDef, caseValueNode);
