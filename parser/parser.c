@@ -59,7 +59,7 @@ void printError(const char* fmtErrorMsg, ...) {
         vsnprintf(errorMsg, ERR_MSG_SIZE, fmtErrorMsg, argList);
         va_end(argList);
 
-        printf("Error on line %d:  %s\n", getProgLineNum(), errorMsg);
+        printf("ERROR on line %d:  %s\n", getProgLineNum(), errorMsg);
         errorCount++;
     } else if (errorCount == MAX_PARSER_ERRORS) {
         printf("NOTE: Error limit exceeded.  No more errors will be reported.\n\n");
@@ -76,7 +76,7 @@ void printErrorWithSourceLine(const char* errorMsg) {
 
         snprintf(sourceLine, sourceCodeLine.len, sourceCodeLine.data);
 
-        printf("Error on line %d:  %s\n\t%s\n", getProgLineNum(), errorMsg, sourceLine);
+        printf("ERROR on line %d:  %s\n\t%s\n", getProgLineNum(), errorMsg, sourceLine);
         errorCount++;
     } else if (errorCount == MAX_PARSER_ERRORS) {
         printf("NOTE: Error limit exceeded.  No more errors will be reported.\n\n");
@@ -945,7 +945,7 @@ ListNode parse_enum() {
 //
 
 
-ListNode parse_structOrUnion();     // Forward Declaration
+ListNode parse_structOrUnion(enum ParseToken typeToken);     // Forward Declaration
 
 
 ListNode parse_struct_vars() {
@@ -956,10 +956,18 @@ ListNode parse_struct_vars() {
 
     while (peekToken()->tokenType != TT_CLOSE_BRACE) {
         TokenObject *token = peekToken();
-        if ((token->tokenType == TT_STRUCT) || (token->tokenType == TT_UNION)) {
-            node = parse_structOrUnion();
-        } else {
-            node = parse_variable();
+        switch (token->tokenType) {
+            case TT_STRUCT:
+                printError("Structure definitions cannot be nested");
+                node = parse_structOrUnion(PT_STRUCT);
+                break;
+
+            case TT_UNION:
+                node = parse_structOrUnion(PT_UNION);
+                break;
+
+            default:
+                node = parse_variable();
         }
 
         unwarpNodeList(varList, &node);
@@ -976,13 +984,20 @@ ListNode parse_structOrUnion(enum ParseToken typeToken) {
     getToken(); //-- eat typeToken
     addNode(structBase, createParseToken(typeToken));
 
+    bool hasName = false;
     if (peekToken()->tokenType != TT_OPEN_BRACE) {
         char *typeName = copyTokenStr(getToken());
         TypeList_add(typeName);
         addNode(structBase, createStrNode(typeName));
+        hasName = true;
     } else {
         addNode(structBase, createEmptyNode()); // struct/union has no tag name
     }
+
+    if (!hasName && (typeToken == PT_STRUCT)) {
+        printError("Structure definition requires name");
+    }
+
     acceptToken(TT_OPEN_BRACE);
     addNode(structBase, parse_struct_vars());
     acceptToken(TT_CLOSE_BRACE);
@@ -1283,13 +1298,13 @@ ListNode parse_program(char *sourceCode, const char *srcName) {
                     if (TypeList_find(token->tokenStr) != NULL) {   // handle user-defined type - var definition
                         node = parse_variable();
                     } else {
-                        printError("Warning: Unknown type or unexpected identifier: %s\n", tokenStr);
+                        printError("Unknown type or unexpected identifier: %s\n", tokenStr);
                         getToken();
                     }
                 } else if (tokenStr[0] == '#') {
                     node = parse_compilerDirective(SCOPE_PROGRAM);
                 } else {
-                    printError("Warning: bad token: %s %d\n", tokenStr, tokenStr[0]);
+                    printError("Unexpected token: %s", tokenStr);
                     getToken();
                     node = createEmptyNode();
                 }

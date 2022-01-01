@@ -336,16 +336,7 @@ void GS_Enumeration(List *enumDef, SymbolTable *symbolTable) {
 //-----------------------------------------------
 //  ['struct', name, ['varList', [ var1, var2 ] ] ]
 void GS_Structure(List *structDef, SymbolTable *symbolTable) {
-    char *structName;
-    bool isAnonymousSt = false;
-
-    if (structDef->nodes[1].type == N_STR) {
-        structName = structDef->nodes[1].value.str;
-    } else {
-        structName = "__temp";
-        isAnonymousSt = true;
-    }
-
+    char *structName = structDef->nodes[1].value.str;
     int memOfs = 0;
 
     SymbolRecord *structSym = addSymbol(symbolTable, structName, SK_STRUCT, ST_NONE, 0);
@@ -379,11 +370,6 @@ void GS_Structure(List *structDef, SymbolTable *symbolTable) {
     }
 
     setStructSize(structSym, memOfs);
-
-    // if this was an anonymous structure, fold vars into parent structure
-    if (isAnonymousSt) {
-
-    }
 }
 
 //=====================================================================================
