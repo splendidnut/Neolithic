@@ -1,7 +1,7 @@
 =====================================================================
 Neolithic Language Guide                (c) 2021 by Philip Blackman
 
-for Neolithic Compiler - version Alpha 1
+for Neolithic Compiler - version 0.3 alpha
 ---------------------------------------------------------------------
 
 The Neolithic Compiler is cross-compiler that targets the 6502.
@@ -265,6 +265,8 @@ Compiler Directives currently supported:
     #invert - reverse the order of the data in a const array
 
     #use_quick_index_table
+        - generates a quick indexing table for the following array.
+           Best used for arrays of structs.
 
 
 Unsupported:
