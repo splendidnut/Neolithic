@@ -3,6 +3,9 @@
 //
 // Created by admin on 4/17/2020.
 //
+//  TODO: Make another separate scope level for the evaluator so it can potentially handle
+//        local initializers (global, local, enumeration - 3 scope levels)
+//
 
 #include <stdlib.h>
 #include <string.h>
