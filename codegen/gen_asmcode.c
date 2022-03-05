@@ -25,10 +25,15 @@ char* GC_Asm_HandlePropertyRef(List *propertyRef) {
         ErrorMessageWithList("GC_Asm_HandlePropertyRef: Invalid property reference", propertyRef);
         return NULL;
     }
-    SymbolRecord *structSym = lookupSymbolNode(propertyRef->nodes[1], propertyRef->lineNum);
-    SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propertyRef->nodes[2].value.str);
 
-    if (!(structSym && propertySym)) {
+    SymbolRecord *structSym = lookupSymbolNode(propertyRef->nodes[1], propertyRef->lineNum);
+    if (!structSym) {
+        ErrorMessageWithList("GC_Asm_HandlePropertyRef: Invalid struct with property reference", propertyRef);
+        return NULL;
+    }
+
+    SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propertyRef->nodes[2].value.str);
+    if (!propertySym) {
         ErrorMessageWithList("GC_Asm_HandlePropertyRef: Invalid property reference", propertyRef);
         return NULL;
     }
