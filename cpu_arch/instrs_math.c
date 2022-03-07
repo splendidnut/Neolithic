@@ -284,16 +284,34 @@ void ICG_StepMultiplyWithConst(const SymbolRecord *varRec, const char multiplier
     //IL_AddInstrS(STA, addrMode, varName, "", PARAM_NORMAL);
 }
 
+/**
+ * Handle power-of-2 type multiplications.
+ */
 
+bool isPowerOf2(int num) {
+    return (num == 16) || (num == 32) || (num == 64) || (num == 128)
+        || (num == 256) || (num == 512) || (num == 1024) || (num == 2048)
+        || (num == 4096) || (num == 8192) || (num == 16384) || (num == 32768);
+}
+
+void ICG_MultiplyPowerOf2(const char multiplier) {
+    unsigned int m = (unsigned)multiplier;
+    while ((m = m >> 1)) {
+        IL_AddInstrB(ASL);
+    }
+}
 
 void ICG_MultiplyVarWithConst(const SymbolRecord *varRec, const char multiplier) {
     IL_AddCommentToCode("Start of Multiplication");
 
-    if (hasValueLookupTable(multiplier)) {
+    if ((multiplier < 64) && hasValueLookupTable(multiplier)) {
         ICG_MultiplyWithConstTable(varRec, multiplier);
     } else if (multiplier < 17) {
         ICG_LoadVarForMultiply(varRec);
         ICG_StepMultiplyWithConst(varRec, multiplier);
+    } else if (isPowerOf2(multiplier)) {
+        ICG_LoadVarForMultiply(varRec);
+        ICG_MultiplyPowerOf2(multiplier);
     } else {
         // do multiply using a generic routine
         ICG_LoadVarForMultiply(varRec);
