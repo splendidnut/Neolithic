@@ -783,18 +783,31 @@ void GC_MultiplyOp(const List *expr, enum SymbolType destType) {
     ListNode secondParam = expr->nodes[2];
 
     //--------------------------------------------------------------
+    //  Replace a const var with it's value if possible
+
+    if (isConstValueNode(firstParam, expr->lineNum)) {
+        firstParam = createIntNode(getConstValue(firstParam, expr->lineNum));
+    }
+    if (isConstValueNode(secondParam, expr->lineNum)) {
+        secondParam = createIntNode(getConstValue(secondParam, expr->lineNum));
+    }
+
+    //--------------------------------------------------------------
     // swap params if first one is less important than second
+    ListNode tempNode;
 
     // demote numeric literal to second param
     if (firstParam.type == N_INT && secondParam.type != N_INT) {
-        secondParam = expr->nodes[1];
-        firstParam = expr->nodes[2];
+        tempNode = secondParam;
+        secondParam = firstParam;
+        firstParam = tempNode;
     }
 
     // promote expr to first position IF first position is not already an expr
     if (firstParam.type != N_LIST && secondParam.type == N_LIST) {
-        secondParam = expr->nodes[1];
-        firstParam = expr->nodes[2];
+        tempNode = secondParam;
+        secondParam = firstParam;
+        firstParam = tempNode;
     }
 
     //--------------------------------------------------------------
@@ -1454,21 +1467,23 @@ void GC_Loop(const List *stmt, enum SymbolType destType) {
         ErrorMessageWithList("Invalid variable specified for loop statement", stmt);
         return;
     }
-    if (counterStartValueNode.type != N_INT) {
+    if (!isConstValueNode(counterStartValueNode, stmt->lineNum)) {
         ErrorMessageWithList("Invalid value specified for initializing loop counter", stmt);
         return;
     }
-    if (counterEndValueNode.type != N_INT) {
+    int counterStartValue = getConstValue(counterStartValueNode, stmt->lineNum);
+    if (!isConstValueNode(counterEndValueNode, stmt->lineNum)) {
         ErrorMessageWithList("Invalid value specified for loop counter end value", stmt);
         return;
     }
+    int counterEndValue = getConstValue(counterEndValueNode, stmt->lineNum);
 
     //----------------------------------------------------
     Label *startOfLoop = newGenericLabel(L_CODE);
     Label *doneWithLoop = newGenericLabel(L_CODE);
 
     //---  Initialize the loop counter
-    ICG_LoadConst(counterStartValueNode.value.num, getBaseVarSize(cntVarSym));
+    ICG_LoadConst(counterStartValue, getBaseVarSize(cntVarSym));
     ICG_StoreVarSym(cntVarSym);
 
     // start of loop
@@ -1478,7 +1493,7 @@ void GC_Loop(const List *stmt, enum SymbolType destType) {
     // handle loop iteration
     ICG_OpWithVar(INC, cntVarSym, getBaseVarSize(cntVarSym));
     ICG_LoadVar(cntVarSym);
-    ICG_CompareConst(counterEndValueNode.value.num);
+    ICG_CompareConst(counterEndValue);
     ICG_Branch(BEQ, doneWithLoop);
 
     // end of for loop

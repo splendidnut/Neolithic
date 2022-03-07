@@ -19,4 +19,7 @@ extern void ErrorMessage(const char* errorMsg, const char* errorStr, int lineNum
 
 extern SymbolRecord *lookupSymbolNode(ListNode symbolNode, int lineNum);
 
+extern bool isConstValueNode(ListNode node, int lineNum);
+extern int getConstValue(ListNode valueNode, int lineNum);
+
 #endif //MODULE_GEN_COMMON_H

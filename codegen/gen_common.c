@@ -56,3 +56,29 @@ SymbolRecord *lookupSymbolNode(const ListNode symbolNode, int lineNum) {
     }
     return symRec;
 }
+
+
+
+/**
+ * Check if provided node is a const value: numeric literal or const var
+ */
+bool isConstValueNode(ListNode node, int lineNum) {
+    if (node.type == N_INT) return true;
+    if (node.type != N_STR) return false;
+    SymbolRecord *constSym = lookupSymbolNode(node, lineNum);
+    return (constSym && isConst(constSym));
+}
+
+/**
+ * Get const value from provided node: numeric literal or const var value
+ */
+int getConstValue(ListNode valueNode, int lineNum) {
+    switch (valueNode.type) {
+        case N_INT: return valueNode.value.num;
+        case N_STR: {
+            SymbolRecord *constSym = lookupSymbolNode(valueNode, lineNum);
+            return constSym->constValue;
+        }
+        default: return 0;
+    }
+}
