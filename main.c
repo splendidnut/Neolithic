@@ -1,5 +1,9 @@
 /*
- *   Neolithic Compiler v0.3 - Simple C Cross-compiler for the 6502
+ *   Neolithic Compiler v0.4 - Simple C Cross-compiler for the 6502
+ *
+ *   New in alpha 0.4
+ *   -> Working on get other Machine support running (like Atari7800)
+ *   -> Working on banking / bankswitching support
  *
  *
  *   TODO:  Fix compile steps to allow included files to be preprocessed.
@@ -26,9 +30,10 @@
 #include "codegen/gen_calltree.h"
 #include "codegen/gen_code.h"
 #include "cpu_arch/instrs.h"
+#include "output/output_manager.h"
 #include "output/write_output.h"
 
-const char *verStr = "0.3(alpha)";
+const char *verStr = "0.4(alpha)";
 
 //-------------------------------------------
 //  Global Variables
@@ -190,6 +195,13 @@ void loadAndParseAllDependencies() {
     }
 }
 
+void generateCallTreeForDependencies() {
+    for_range(curFileIdx, 0, preProcessInfo->numFiles) {
+        char *curFileName = preProcessInfo->includedFiles[curFileIdx];
+        ListNode progNode = SourceFileList_lookupAST(curFileName);
+        generate_callTree(progNode, mainSymbolTable);
+    }
+}
 
 void generateCodeForDependencies() {
     for_range(curFileIdx, 0, preProcessInfo->numFiles) {
@@ -253,17 +265,16 @@ int mainCompiler() {
     if (compilerOptions.showGeneralInfo) printf("Symbol Table generation Complete\n");
 
     generate_callTree(mainProgNode, mainSymbolTable);
+    if (hasDependencies) {
+        generateCallTreeForDependencies();
+    }
     generate_var_allocations(mainSymbolTable);
 
     if (compilerOptions.showGeneralInfo) printf("Analysis of %s Complete\n", inFileName);
 
     //-----------------------------------------------------------
-    // Configure output for specific machine
-    // TODO: This code is still specific to Atari 2600... need to figure out a way to eliminate that constraint.
-    // only need to initial instruction list and output block modules once
 
-    IL_Init(getMachineStartAddr(targetMachine));
-    OB_Init();
+    initOutputGenerator(targetMachine);
     initCodeGenerator(mainSymbolTable);
 
     //   Now do full compile on any dependencies
@@ -291,8 +302,10 @@ int mainCompiler() {
         //------------------------------------------
         // Output ASM code and BIN file
 
-        WriteOutput(projectName, OUT_DASM, mainSymbolTable);
-        WriteOutput(projectName, OUT_BIN, mainSymbolTable);
+        OutputFlags outputFlags;
+        outputFlags.doOutputASM = true;
+        outputFlags.doOutputBIN = true;
+        generateOutput(projectName, mainSymbolTable, outputFlags);
     } else {
         printf("Unable to process program due to errors\n");
     }
@@ -457,6 +470,7 @@ void parseCommandLineParameters(int argc, char *argv[]) {
                 if (cmdParam[2] != 0) switch (cmdParam[2]) {
                     case 'a': compilerOptions.showVarAllocations = true; break;
                     case 'c': compilerOptions.showCallTree = true; break;
+                    case 'r': compilerOptions.reportFunctionProcessing = true; break;
                     case 'l': compilerOptions.showOutputBlockList = true; break;
                     default:
                         printf("Unknown view option\n");

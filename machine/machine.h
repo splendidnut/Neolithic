@@ -14,8 +14,16 @@ enum Machines {
     Atari7800
 };
 
+typedef struct {
+    char* name;
+    int startAddr;
+    int endAddr;
+    int addrMask;
+} MachineInfo;
+
 extern enum Machines lookupMachineName(char *machineName);
 extern int getMachineStartAddr(enum Machines machine);
 extern void prepForMachine(enum Machines machine);
+extern MachineInfo getMachineInfo(enum Machines machine);
 
 #endif //MODULE_MACHINE_H

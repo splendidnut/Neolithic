@@ -11,11 +11,12 @@
 static FILE *outputFile;
 static SymbolTable *mainSymbolTable;
 static SymbolTable *funcSymbolTable;
+static struct BankLayout *mainBankLayout;
 
 //---------------------------------------------------------
 // Output Adapter API
 
-void WriteBIN_Init(FILE *outFile, SymbolTable *mainSymTbl);
+void WriteBIN_Init(FILE *outFile, SymbolTable *mainSymTbl, struct BankLayout *bankLayout);
 void WriteBIN_Done();
 char* WriteBIN_getExt();
 void WriteBIN_FunctionBlock(const OutputBlock *block);
@@ -41,16 +42,22 @@ struct OutputAdapter BIN_OutputAdapter =
 unsigned char *binData;
 
 
-void WriteBIN_Init(FILE *outFile, SymbolTable *mainSymTbl) {
+void WriteBIN_Init(FILE *outFile, SymbolTable *mainSymTbl, struct BankLayout *bankLayout) {
     outputFile = outFile;
     mainSymbolTable = mainSymTbl;
     funcSymbolTable = NULL;
-    binData = allocMem(65536);
-    for_range(i, 0, 4095) { binData[i] = 0; }
+    mainBankLayout = bankLayout;
+
+    int outputSize = mainBankLayout->banks[0].size;
+    printf("OutputSize for binary: %4X\n", outputSize);
+
+    binData = allocMem(outputSize);
+    for_range(i, 0, outputSize-1) { binData[i] = 0; }
 }
 
 void WriteBIN_Done() {
-    fwrite(binData,4096,1,outputFile);
+    int outputSize = mainBankLayout->banks[0].size;
+    fwrite(binData, outputSize, 1, outputFile);
     free(binData);
 }
 

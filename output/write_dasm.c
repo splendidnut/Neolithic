@@ -8,11 +8,12 @@
 
 static FILE *outputFile;
 static SymbolTable *mainSymbolTable;
+static struct BankLayout *mainBankLayout;
 
 //---------------------------------------------------------
 // Output Adapter API
 
-void WriteDASM_Init(FILE *outFile, SymbolTable *mainSymTbl);
+void WriteDASM_Init(FILE *outFile, SymbolTable *mainSymTbl, struct BankLayout *bankLayout);
 void WriteDASM_Done();
 char* WriteDASM_getExt();
 void WriteDASM_FunctionBlock(const OutputBlock *block);
@@ -56,12 +57,19 @@ void WriteDASM_WriteBlockFooter(char *name) {
 }
 
 void WriteDASM_StartOfBank() {
-    fprintf(outputFile, "\n\n\tORG $0000\n\tRORG $F000\n");
+    int bankStart = mainBankLayout->banks[0].memLoc;
+    fprintf(outputFile, "\n\n\tORG $0000");             // TODO: use file offset from bank in BankLayout
+    fprintf(outputFile,"\n\tRORG $%4X\n", bankStart);
 }
 
 void WriteDASM_EndOfBank() {
+    struct BankDef curBank = mainBankLayout->banks[0];
+    int bankStart = curBank.memLoc;
+    int bankEnd = (bankStart + curBank.size) & 0xfff0 + 0x8;
+
     // print footer
-    fprintf(outputFile, "\n\n\tORG $0FF8\n\tRORG $FFF8\n");
+    fprintf(outputFile, "\n\n\tORG $0FF8\n");       // TODO: NEED to fix
+    fprintf(outputFile,"\tRORG $%4X\n", bankEnd);
     fprintf(outputFile, "\t.word  $0000\n");
     fprintf(outputFile, "\t.word  $0000\n");
     fprintf(outputFile, "\t.word  main\n");
@@ -319,9 +327,10 @@ void HandleSingleStructRecord(const List *dataList, SymbolTable *structSymTbl) {
 
 //---------------------------------------------------------
 
-void WriteDASM_Init(FILE *outFile, SymbolTable *mainSymTbl) {
+void WriteDASM_Init(FILE *outFile, SymbolTable *mainSymTbl, struct BankLayout *bankLayout) {
     outputFile = outFile;
     mainSymbolTable = mainSymTbl;
+    mainBankLayout = bankLayout;
 
     // print preamble
     if (outputFile != stdout) {

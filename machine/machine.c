@@ -11,17 +11,11 @@
 #include "mem.h"
 #include "machine.h"
 
-typedef struct {
-    char* name;
-    int startAddr;
-    int addrMask;
-} MachineInfo;
-
 MachineInfo machineInfo[] = {
         {"",0,0},
-        {"Atari2600", 0x1000, 0x1FFF},
-        {"Atari5200", 0x4000, 0xFFFF},
-        {"Atari7800", 0x8000, 0xFFFF}
+        {"Atari2600", 0x1000, 0x1FFF, 0x1FFF},
+        {"Atari5200", 0x4000, 0xBFFF, 0xFFFF},
+        {"Atari7800", 0x8000, 0xFFFF, 0xFFFF}
 };
 
 enum Machines lookupMachineName(char *machineName) {
@@ -69,4 +63,8 @@ void prepForMachine(enum Machines machine) {
     }
     // Allocate two byte for 16-bit accumulator in zeropage space
     if (zeropageMem) SMA_allocateMemory(zeropageMem, 2);
+}
+
+MachineInfo getMachineInfo(enum Machines machine) {
+    return machineInfo[machine];
 }

@@ -65,7 +65,7 @@ add_executable(neolithic
         parser/parse_directives.c
         parser/parse_directives.h
         output/write_dasm.c
-        output/write_bin.c codegen/flatten_tree.c codegen/flatten_tree.h machine/machine.c codegen/gen_asmcode.c codegen/gen_asmcode.h data/identifiers.c data/identifiers.h codegen/type_checker.c codegen/type_checker.h)
+        output/write_bin.c codegen/flatten_tree.c codegen/flatten_tree.h machine/machine.c codegen/gen_asmcode.c codegen/gen_asmcode.h data/identifiers.c data/identifiers.h codegen/type_checker.c codegen/type_checker.h data/bank_layout.c data/bank_layout.h output/output_manager.c output/output_manager.h)
 
 #--  Uncomment next line to generate .S assembler files for each .C file
 #-- set_target_properties(neolithic PROPERTIES COMPILE_FLAGS "-save-temps -fverbose-asm")

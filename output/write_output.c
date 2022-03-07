@@ -44,7 +44,7 @@ void WO_WriteAllBlocks() {
 
 
 
-void WriteOutput(char *projectName, enum OutputType outputType, SymbolTable *mainSymTbl) {
+void WriteOutput(char *projectName, enum OutputType outputType, SymbolTable *mainSymTbl, struct BankLayout *bankLayout) {
 
     // Select output adapter
     switch (outputType) {
@@ -73,7 +73,7 @@ void WriteOutput(char *projectName, enum OutputType outputType, SymbolTable *mai
         return;
     }
 
-    outputAdapter->init(outputFile, mainSymTbl);
+    outputAdapter->init(outputFile, mainSymTbl, bankLayout);
 
     WO_WriteAllBlocks();
 
