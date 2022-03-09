@@ -2028,8 +2028,6 @@ void GC_Variable(const List *varDef) {
     // does this variable definition have a list of initial values?
     int hasInitializer = (varDef->count >= 4) && (varDef->nodes[4].type == N_LIST);
 
-    bool isAlias = IS_ALIAS(varSymRec);
-
     //---  Handle index generation via #directive
     if (lastDirective == USE_QUICK_INDEX_TABLE) {
         unsigned char multiplier = getBaseVarSize(varSymRec);
@@ -2045,7 +2043,11 @@ void GC_Variable(const List *varDef) {
 
     if (!hasInitializer) return;
 
-    if (isArray(varSymRec) && !isAlias) {
+    if (IS_ALIAS(varSymRec)) {
+
+        GC_HandleGlobalAliasInitializer(varDef, varSymRec);
+
+    } else if (isArray(varSymRec)) {
         if (!isConst(varSymRec)) {
             ErrorMessageWithList("Non-const array cannot be initialized with data", varDef);
             return;
@@ -2059,26 +2061,22 @@ void GC_Variable(const List *varDef) {
             printf("Using local symbol table for %s: %s\n", varName, varSymRec->userTypeDef->name);
         }
 
+        // --- Process the initializer list! ---
         List *valueNode = GC_ProcessInitializerList(varDef, initValueList);
+        reverseData = false;
 
-        OutputBlock *staticData = OB_AddData(varName, varSymRec, valueNode, curBank);
-
-        // Mark where in memory the variable is located...
+        // Add data to output and mark where in memory the variable is located...
         //   TODO:  Doesn't seem this is the best place to do this if we want the blocks
         //            to be magically movable
 
-        //printf("Size of %s is %d\n", varSymRec->name, staticData->blockSize);
-        setSymbolLocation(varSymRec, ICG_MarkStaticArrayData(staticData->blockSize), SS_ROM);
-
-        reverseData = false;
-
-    } else if (isAlias) {
-        GC_HandleGlobalAliasInitializer(varDef, varSymRec);
+        OutputBlock *staticData = OB_AddData(varName, varSymRec, valueNode, curBank);
+        int dataLoc = ICG_MarkStaticArrayData(staticData->blockSize);
+        setSymbolLocation(varSymRec, dataLoc, SS_ROM);
     }
 }
 
 void GC_StatementList(const List *code) {
-    for (int stmtNum = 1; stmtNum < code->count; stmtNum++) {
+    for_range(stmtNum, 1, code->count) {
         ListNode stmtNode = code->nodes[stmtNum];
         if (stmtNode.type == N_LIST) {
             List *stmt = stmtNode.value.list;
@@ -2113,19 +2111,15 @@ void GC_PreloadParams(SymbolList *params) {
     }
 }
 
-void GC_ProcessFunction(char *funcName, List *code) {
-    SymbolRecord *funcSym = findSymbol(mainSymbolTable, funcName);
+void GC_ProcessFunction(SymbolRecord *funcSym, List *code) {
+    char *funcName = funcSym->name;
     Label *funcLabel = newLabel(funcName, L_CODE);
 
     // start building function using provided label and current code address
     int funcAddr = ICG_StartOfFunction(funcLabel, funcSym);
 
-    // TODO:  This can probably be figured out later in the compile process (output layout step)
-    setSymbolLocation(funcSym, funcAddr, SS_ROM);
-
     // load in local symbol table for function
     curFuncSymbolTable = GET_LOCAL_SYMBOL_TABLE(funcSym);
-
     setEvalLocalSymbolTable(curFuncSymbolTable);
 
     // need to let the code generator/instruction generator
@@ -2139,9 +2133,11 @@ void GC_ProcessFunction(char *funcName, List *code) {
     GC_CodeBlock(code);
     funcSym->instrBlock = ICG_EndOfFunction(funcLabel);
 
-    OB_AddCode(funcName, funcSym->instrBlock, curBank);
-
     setEvalLocalSymbolTable(NULL);
+
+    // TODO:  This can probably be figured out later in the compile process (output layout step)
+    setSymbolLocation(funcSym, funcAddr, SS_ROM);
+    OB_AddCode(funcName, funcSym->instrBlock, curBank);
 }
 
 void GC_Function(const List *function, int codeNodeIndex) {
@@ -2161,7 +2157,7 @@ void GC_Function(const List *function, int codeNodeIndex) {
         SymbolRecord *funcSym = findSymbol(mainSymbolTable, funcName);
         isFuncUsed = isMainFunction(funcSym) || IS_FUNC_USED(funcSym);
         if (isFuncUsed) {
-            GC_ProcessFunction(funcName, codeNode.value.list);
+            GC_ProcessFunction(funcSym, codeNode.value.list);
         }
     }
 
@@ -2210,21 +2206,22 @@ void WalkProgram(List *program, ProcessNodeFunc procNode) {
     }
 }
 
-//-------------------------------------------------------------------
-//===
-
 void GC_ProcessProgram(ListNode node) {
 
     // make sure to reset error count
     GC_ErrorCount = 0;
-    if (node.type == N_LIST) {
-        List *program = node.value.list;
-        if (program->nodes[0].value.parseToken == PT_PROGRAM) {
-            // generate all the code for the program
-            WalkProgram(program, &GC_ProcessProgramNode);
-        }
-    }
+    if (node.type != N_LIST) return;
+
+    List *program = node.value.list;
+    if (program->nodes[0].value.parseToken != PT_PROGRAM) return;
+
+    // generate all the code for the program
+    WalkProgram(program, &GC_ProcessProgramNode);
 }
+
+//-------------------------------------------------------------------
+//===
+
 
 void initCodeGenerator(SymbolTable *symbolTable) {
     mainSymbolTable = symbolTable;
