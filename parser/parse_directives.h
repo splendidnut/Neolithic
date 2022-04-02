@@ -24,6 +24,7 @@ enum CompilerDirectiveTokens {
     USE_QUICK_INDEX_TABLE,
     ECHO,
     SET_BANK,
+    INLINE,
 
     //---- size of list
     NUM_COMPILER_DIRECTIVES

@@ -21,7 +21,8 @@ const char* CompilerDirectiveNames[NUM_COMPILER_DIRECTIVES] = {
         "invert",
         "use_quick_index_table",
         "echo",
-        "bank"
+        "bank",
+        "inline"
 };
 
 enum CompilerDirectiveTokens lookupDirectiveToken(char *tokenName) {
