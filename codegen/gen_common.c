@@ -58,6 +58,15 @@ SymbolRecord *lookupSymbolNode(const ListNode symbolNode, int lineNum) {
 }
 
 
+SymbolRecord *lookupFunctionSymbolByNameNode(ListNode funcNameNode, int lineNum) {
+    char *funcName = funcNameNode.value.str;
+    SymbolRecord *funcSym = findSymbol(mainSymbolTable, funcName);
+    if (funcSym == NULL) {
+        ErrorMessageWithNode("Function not defined", funcNameNode, lineNum);
+    }
+    return funcSym;
+}
+
 
 /**
  * Check if provided node is a const value: numeric literal or const var

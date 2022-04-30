@@ -206,7 +206,7 @@ int getBaseVarSize(const SymbolRecord *varSymRec) {
 int getCodeSize(const SymbolRecord *funcSymRec) {
     bool isFunc = isFunction(funcSymRec);
     bool isCodeUsed = IS_FUNC_USED(funcSymRec);
-    return (isFunc && isCodeUsed) ? funcSymRec->instrBlock->codeSize : 0;
+    return (isFunc && isCodeUsed && (funcSymRec->instrBlock != NULL)) ? funcSymRec->instrBlock->codeSize : 0;
 }
 
 SymbolRecord * findSymbol(SymbolTable *symbolTable, const char* name) {

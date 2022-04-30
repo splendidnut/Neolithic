@@ -34,6 +34,7 @@ void GC_Expression(const List *expr, enum SymbolType destType);
 void GC_Statement(List *stmt);
 void GC_CodeBlock(List *code);
 void GC_FuncCall(const List *stmt, enum SymbolType destType);
+void GC_FuncCallExpression(const List *stmt, enum SymbolType destType);
 
 //-----------------------------------------------------------------------------
 //  Some utility functions
@@ -868,7 +869,7 @@ ParseFuncTbl exprFunction[] = {
         {PT_BOOL_AND,       &GC_BoolAnd},
         {PT_BOOL_OR,        &GC_BoolOr},
         {PT_NOT,            &GC_Not},
-        {PT_FUNC_CALL,      &GC_FuncCall},
+        {PT_FUNC_CALL,      &GC_FuncCallExpression},
         {PT_EQ,             &GC_CompareOp},
         {PT_NE,             &GC_CompareOp},
         {PT_GT,             &GC_CompareOp},
@@ -1615,17 +1616,10 @@ void GC_LoadFuncArg(const SymbolRecord *curParam, ListNode argNode,
 
 void GC_FuncCall(const List *stmt, enum SymbolType destType) {
     ListNode funcNameNode = stmt->nodes[1];
-    char *funcName = stmt->nodes[1].value.str;
-    SymbolRecord *funcSym = findSymbol(mainSymbolTable, funcName);
-
-    if (funcSym == NULL) {
-        ErrorMessageWithNode("Function not defined", funcNameNode, stmt->lineNum);
-        return;
-    }
-
+    SymbolRecord* funcSym = lookupFunctionSymbolByNameNode(funcNameNode, stmt->lineNum);
     SymbolList* funcParamList = getParamSymbols(GET_LOCAL_SYMBOL_TABLE(funcSym));
 
-    //------
+    //--- Make sure function call has required parameters
     int requiredParams = (funcParamList != NULL) ? funcParamList->count : 0;
     bool hasParamList = (stmt->nodes[2].type == N_LIST);
 
@@ -1648,11 +1642,44 @@ void GC_FuncCall(const List *stmt, enum SymbolType destType) {
             ErrorMessageWithList("Incorrect number of parameters in function call", stmt);
         }
     }
-    ICG_Call(funcName);
+
+    // Now we can cll the function
+    ICG_Call(funcSym->name);
 
     // now clean-up stack
     if (requiresCleanup && (funcParamList != NULL)) {
         if (funcParamList->cntStackVars > 0) ICG_AdjustStack(funcParamList->cntStackVars);
+    }
+}
+
+/**
+ * Handle function calls within expressions
+ * @param stmt
+ * @param destType
+ */
+void GC_FuncCallExpression(const List *stmt, enum SymbolType destType) {
+    GC_FuncCall(stmt, destType);
+}
+
+
+/**
+ * Handle function calling statements (since they can easily be inlined)
+ *
+ * @param stmt
+ * @param destType
+ */
+void GC_FuncCallStatement(const List *stmt, enum SymbolType destType) {
+    ListNode funcNameNode = stmt->nodes[1];
+    SymbolRecord* funcSym = lookupFunctionSymbolByNameNode(funcNameNode, stmt->lineNum);
+    if (funcSym == NULL) return;
+
+    if (IS_INLINED_FUNCTION(funcSym)) {
+        IL_AddCommentToCode("---Start of inlined function");
+        IL_AddCommentToCode(funcSym->name);
+        GC_CodeBlock(funcSym->astList);
+        IL_AddCommentToCode("---End of inlined function");
+    } else {
+        GC_FuncCall(stmt, destType);
     }
 }
 
@@ -1866,6 +1893,9 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
         case SET_BANK:
             curBank = code->nodes[2].value.num;
             break;
+        case INLINE:
+            // handle #inline directive within code block
+            break;
         default:
             break;
     }
@@ -1885,7 +1915,7 @@ ParseFuncTbl stmtFunction[] = {
         {PT_ASM,        &GC_AsmBlock},
         {PT_SET,        &GC_Assignment},
         {PT_DEFINE,     &GC_LocalVariable},
-        {PT_FUNC_CALL,  &GC_FuncCall},
+        {PT_FUNC_CALL,  &GC_FuncCallStatement},
         {PT_RETURN,     &GC_Return},
         {PT_DOWHILE,    &GC_DoWhile},
         {PT_WHILE,      &GC_While},
@@ -2069,6 +2099,7 @@ void GC_Variable(const List *varDef) {
         //   TODO:  Doesn't seem this is the best place to do this if we want the blocks
         //            to be magically movable
 
+        varSymRec->astList = valueNode;
         OutputBlock *staticData = OB_AddData(varName, varSymRec, valueNode, curBank);
         int dataLoc = ICG_MarkStaticArrayData(staticData->blockSize);
         setSymbolLocation(varSymRec, dataLoc, SS_ROM);
@@ -2111,7 +2142,7 @@ void GC_PreloadParams(SymbolList *params) {
     }
 }
 
-void GC_ProcessFunction(SymbolRecord *funcSym, List *code) {
+int GC_ProcessFunction(SymbolRecord *funcSym, List *code) {
     char *funcName = funcSym->name;
     Label *funcLabel = newLabel(funcName, L_CODE);
 
@@ -2132,12 +2163,10 @@ void GC_ProcessFunction(SymbolRecord *funcSym, List *code) {
 
     GC_CodeBlock(code);
     funcSym->instrBlock = ICG_EndOfFunction(funcLabel);
+    funcSym->astList = code;
 
     setEvalLocalSymbolTable(NULL);
-
-    // TODO:  This can probably be figured out later in the compile process (output layout step)
-    setSymbolLocation(funcSym, funcAddr, SS_ROM);
-    OB_AddCode(funcName, funcSym->instrBlock, curBank);
+    return funcAddr;
 }
 
 void GC_Function(const List *function, int codeNodeIndex) {
@@ -2149,6 +2178,13 @@ void GC_Function(const List *function, int codeNodeIndex) {
         return;
     }
 
+    // check if function has been flagged to be inlined wherever it's used
+    bool isInlineFunction = (lastDirective == INLINE);
+    if (isInlineFunction) {
+        printf("Inline function %s\n", funcName);
+        lastDirective = 0;
+    }
+
     ListNode codeNode = function->nodes[codeNodeIndex];
     hasCode = (codeNode.type == N_LIST);
 
@@ -2157,7 +2193,17 @@ void GC_Function(const List *function, int codeNodeIndex) {
         SymbolRecord *funcSym = findSymbol(mainSymbolTable, funcName);
         isFuncUsed = isMainFunction(funcSym) || IS_FUNC_USED(funcSym);
         if (isFuncUsed) {
-            GC_ProcessFunction(funcSym, codeNode.value.list);
+            if (isInlineFunction) {
+                // save a pointer to the part of the AST containing the code list and mark as INLINE.
+                funcSym->astList = codeNode.value.list;
+                funcSym->flags |= MF_INLINE;
+            } else {
+                int funcAddr = GC_ProcessFunction(funcSym, codeNode.value.list);
+
+                // TODO:  This can probably be figured out later in the compile process (output layout step)
+                setSymbolLocation(funcSym, funcAddr, SS_ROM);
+                OB_AddCode(funcName, funcSym->instrBlock, curBank);
+            }
         }
     }
 

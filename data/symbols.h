@@ -25,10 +25,11 @@
 #define GET_LOCAL_SYMBOL_TABLE(funcSym) ((funcSym)->symbolTbl)
 #define GET_FUNCTION_DEPTH(funcSym)     ((funcSym)->funcDepth)
 #define IS_FUNC_USED(funcSym)           ((funcSym)->cntUses > 0)
+#define IS_INLINED_FUNCTION(funcSym)    ((funcSym)->flags & MF_INLINE)
 
-#define GET_STRUCT_SYMBOL_TABLE(structSym) ((structSym)->symbolTbl)
-#define getStructSymbolSet(sym) GET_STRUCT_SYMBOL_TABLE(sym->userTypeDef)
-#define GET_PROPERTY_OFFSET(propertySymbol) (propertySymbol->location)
+#define GET_STRUCT_SYMBOL_TABLE(structSym)  ((structSym)->symbolTbl)
+#define getStructSymbolSet(sym)             GET_STRUCT_SYMBOL_TABLE((sym)->userTypeDef)
+#define GET_PROPERTY_OFFSET(propertySymbol) ((propertySymbol)->location)
 
 //--------------------------------------
 //   All the flags for symbols
@@ -108,6 +109,8 @@ typedef struct SymbolRecordStruct {     // 112 bytes!
     int location;                           // location in memory  (has location if >= 0)
 
     struct SymbolTableStruct *symbolTbl;    // symbol table set if function or struct symbol
+    struct SymbolRecordStruct *userTypeDef; // user defined type
+    List *astList;                          // code / data list from AST
 
     //---- All the rest of these are SymbolKind specific
 
@@ -126,7 +129,7 @@ typedef struct SymbolRecordStruct {     // 112 bytes!
     int cntUses;                            // number of times function is used
     int funcDepth;                          // track the depth of the function
     struct InstrBlockStruct *instrBlock;
-    struct SymbolRecordStruct *userTypeDef;     // user defined type
+
 } SymbolRecord;
 
 
