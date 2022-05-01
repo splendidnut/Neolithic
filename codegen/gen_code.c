@@ -1695,7 +1695,7 @@ void GC_FuncCallStatement(const List *stmt, enum SymbolType destType) {
 void Debug_AliasEval(const List *varDef, EvalResult *evalResult) {
 #ifdef DEBUG_ALIAS
     // DEBUG INFO
-    printf("Evaluated alias initializer ");
+    printf("Evaluated alias initializer (line# %d)", varDef->lineNum);
     showNode(stdout, varDef->nodes[4], 1);
     if (evalResult != NULL) {
         printf("; resulted in %d", (*evalResult).value);
