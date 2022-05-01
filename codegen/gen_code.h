@@ -7,8 +7,9 @@
 
 #include "data/syntax_tree.h"
 #include "data/symbols.h"
+#include "machine/machine.h"
 
-extern void initCodeGenerator(SymbolTable *symbolTable);
+extern void initCodeGenerator(SymbolTable *symbolTable, enum Machines machines);
 extern void generate_code(char *name, ListNode node);
 
 #endif //MODULE_GEN_CODE_H

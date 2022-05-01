@@ -275,7 +275,7 @@ int mainCompiler() {
     //-----------------------------------------------------------
 
     initOutputGenerator(targetMachine);
-    initCodeGenerator(mainSymbolTable);
+    initCodeGenerator(mainSymbolTable, targetMachine);
 
     //   Now do full compile on any dependencies
     if (hasDependencies) {
@@ -293,6 +293,8 @@ int mainCompiler() {
 
     if (GC_ErrorCount == 0) {
         //OPT_RunOptimizer();
+
+        //OB_ArrangeBlocks();
 
         if (compilerOptions.showOutputBlockList) {
             printf("Output layout:\n");

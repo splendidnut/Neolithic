@@ -92,10 +92,7 @@ extern void ICG_Return();
 extern void ICG_AsmData(int value);
 
 // function specific stuff
-extern int ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym);
+extern void ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym);
 extern InstrBlock* ICG_EndOfFunction();
-
-// general purpose stuff
-extern int ICG_MarkStaticArrayData(int size);
 
 #endif //MODULE_INSTRS_H

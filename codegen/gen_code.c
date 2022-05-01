@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 
+#include "gen_code.h"
 #include "common/common.h"
 #include "data/symbols.h"
 #include "cpu_arch/instrs.h"
@@ -1813,6 +1814,24 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
 }
 
 
+//-------------------------------------------------------------------
+//--- Track code address
+//-
+// TODO:  This is temporary functionality until the "relocatable code/data" blocks issue is solved
+
+static int codeAddr;
+
+/**
+ * Return the current code address
+ * @return
+ */
+int ICG_GetCurrentCodeAddr() {
+    return codeAddr;
+}
+
+void ICG_SetCurrentCodeAddr(int newCodeAddr) {
+    codeAddr = newCodeAddr;
+}
 
 
 
@@ -1881,7 +1900,7 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
             IL_HideCycles();
             break;
         case PAGE_ALIGN:
-            IL_MoveToNextPage();
+            ICG_SetCurrentCodeAddr((ICG_GetCurrentCodeAddr() + 256) & 0xff00);
             OB_MoveToNextPage();
             break;
         case INVERT:
@@ -2064,7 +2083,14 @@ void GC_Variable(const List *varDef) {
 
         // only generate a multiplication lookup table if the multiplier is greater than 2 (not a primitive var)
         if (multiplier > 2) {
-            ICG_Mul_AddLookupTable(multiplier);
+            OutputBlock *staticData = ICG_Mul_AddLookupTable(multiplier);
+
+            //--- track data table size
+            int symAddr = ICG_GetCurrentCodeAddr();
+            ICG_SetCurrentCodeAddr(symAddr + staticData->blockSize);
+
+            setSymbolLocation(staticData->dataSym, symAddr, SS_ROM);
+
         } else {
             printf("Warning: Cannot generate quick index table for %s\n", varName);
         }
@@ -2101,7 +2127,12 @@ void GC_Variable(const List *varDef) {
 
         varSymRec->astList = valueNode;
         OutputBlock *staticData = OB_AddData(varName, varSymRec, valueNode, curBank);
-        int dataLoc = ICG_MarkStaticArrayData(staticData->blockSize);
+
+        //--- track data table address / size ---
+        //     TODO: Figure out how to do this differently to make blocks magically movable
+        int dataLoc = ICG_GetCurrentCodeAddr();
+        ICG_SetCurrentCodeAddr(dataLoc + staticData->blockSize);
+
         setSymbolLocation(varSymRec, dataLoc, SS_ROM);
     }
 }
@@ -2142,12 +2173,12 @@ void GC_PreloadParams(SymbolList *params) {
     }
 }
 
-int GC_ProcessFunction(SymbolRecord *funcSym, List *code) {
+void GC_ProcessFunction(SymbolRecord *funcSym, List *code) {
     char *funcName = funcSym->name;
     Label *funcLabel = newLabel(funcName, L_CODE);
 
-    // start building function using provided label and current code address
-    int funcAddr = ICG_StartOfFunction(funcLabel, funcSym);
+    // start building function using provided label
+    ICG_StartOfFunction(funcLabel, funcSym);
 
     // load in local symbol table for function
     curFuncSymbolTable = GET_LOCAL_SYMBOL_TABLE(funcSym);
@@ -2166,7 +2197,6 @@ int GC_ProcessFunction(SymbolRecord *funcSym, List *code) {
     funcSym->astList = code;
 
     setEvalLocalSymbolTable(NULL);
-    return funcAddr;
 }
 
 void GC_Function(const List *function, int codeNodeIndex) {
@@ -2198,7 +2228,11 @@ void GC_Function(const List *function, int codeNodeIndex) {
                 funcSym->astList = codeNode.value.list;
                 funcSym->flags |= MF_INLINE;
             } else {
-                int funcAddr = GC_ProcessFunction(funcSym, codeNode.value.list);
+                GC_ProcessFunction(funcSym, codeNode.value.list);
+
+                //--- track where this block ends up --- TODO: Potentially figure out how to remove this
+                int funcAddr = ICG_GetCurrentCodeAddr();
+                ICG_SetCurrentCodeAddr(funcAddr + funcSym->instrBlock->codeSize);
 
                 // TODO:  This can probably be figured out later in the compile process (output layout step)
                 setSymbolLocation(funcSym, funcAddr, SS_ROM);
@@ -2269,9 +2303,11 @@ void GC_ProcessProgram(ListNode node) {
 //===
 
 
-void initCodeGenerator(SymbolTable *symbolTable) {
+void initCodeGenerator(SymbolTable *symbolTable, enum Machines machines) {
     mainSymbolTable = symbolTable;
     ICG_Mul_InitLookupTables(symbolTable);
+    IL_Init();
+    ICG_SetCurrentCodeAddr(getMachineStartAddr(machines));
 }
 
 void generate_code(char *name, ListNode node) {

@@ -198,6 +198,14 @@ Label* IL_GetCurLabel() {
     return curLabel;
 }
 
+/**
+ * Return the number of bytes a block of code requires
+ *
+ * This functions walks thru all the instructions in a block and sums their lengths together.
+ *
+ * @param instrBlock
+ * @return number of bytes needed to store the block of instructions
+ */
 int IL_GetCodeSize(InstrBlock *instrBlock) {
     Instr *curInstr = instrBlock->firstInstr;
     int size = 0;

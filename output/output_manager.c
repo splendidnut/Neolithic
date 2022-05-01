@@ -21,7 +21,6 @@ void initOutputGenerator(enum Machines targetMachine) {
     MachineInfo machineInfo = getMachineInfo(targetMachine);
 
     BL_init();
-    IL_Init(machineInfo.startAddr);
     OB_Init();
 
     //-------------------------------------------------------------------------------------------

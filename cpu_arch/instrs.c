@@ -3,6 +3,8 @@
 //
 // Created by admin on 4/6/2020.
 //
+//
+//   TODO:  There appears to be cross references between instrs.* and instr_list.*  NEED TO FIX!
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,20 +30,14 @@ LastRegisterUse lastUseForYReg;
 //------------------------------------------------------------------------------
 //--- Initialization of Instruction List / Instruction Code Generator
 
-static int codeAddr;
 
-void IL_Init(int startCodeAddr) {
-    codeAddr = startCodeAddr;
 
+void IL_Init() {
     lastUseForAReg = REG_USED_FOR_NOTHING;
     lastUseForXReg = REG_USED_FOR_NOTHING;
     lastUseForYReg = REG_USED_FOR_NOTHING;
 
     IL_SetLineComment(NULL);
-}
-
-void IL_MoveToNextPage() {
-    codeAddr = (codeAddr + 256) & 0xff00;
 }
 
 //-----------------------------------------------------------------------------
@@ -64,7 +60,19 @@ void ICG_SystemInitCode() {
 //  Function support
 
 InstrBlock* curBlock;
-int ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym) {
+
+/**
+ * ICG_StartOfFunction - Prepares the Instruction Code Generator for the start of a new function block
+ *
+ * Creates a new instruction block and resets register trackers
+ *
+ * NOTE:  For main() function:  adds init code.
+ *
+ * @param funcLabel
+ * @param funcSym
+ * @return address where function starts
+ */
+void ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym) {
     curBlock = IB_StartInstructionBlock(funcLabel->name);
     curBlock->funcSym = funcSym;
 
@@ -78,8 +86,6 @@ int ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym) {
     if (isMainFunction(curBlock->funcSym)) {
         ICG_SystemInitCode();
     }
-
-    return codeAddr;
 }
 
 InstrBlock* ICG_EndOfFunction() {
@@ -97,24 +103,10 @@ InstrBlock* ICG_EndOfFunction() {
 
     // reset current block
     curBlock = NULL;
-    codeAddr += codeSize;
 
     return funcInstrBlock;
 }
 
-
-//------------------------------------------------------------------------
-//   Output static array data
-
-/**
- * Mark section of address space as Static data
- * TODO:  Work towards removing this.
- */
-int ICG_MarkStaticArrayData(int size) {
-    int startAddr = codeAddr;
-    codeAddr += size;
-    return startAddr;
-}
 
 //================================================================================
 

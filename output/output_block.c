@@ -134,3 +134,35 @@ void OB_WalkCodeBlocks(ProcessBlockFunc codeBlockFunc) {
         block = block->nextBlock;
     }
 }
+
+
+
+/**
+ * Block arrangement - Figure out where all the code and data blocks will go
+ *
+ */
+void OB_ArrangeBlocks() {
+
+    //--------------------------------------
+    // TODO: Remove debug code
+
+    printf("\n\nArranging blocks\n----------------\nInitial layout:\n");
+    OB_PrintBlockList();
+
+    //--------------------------------------
+    // Actually do the arrangement
+
+    OutputBlock *block = (OutputBlock *)OB_getFirstBlock();
+    while (block != NULL) {
+        if (block->blockType == BT_DATA) {
+            printSingleSymbol(stdout, block->dataSym);
+        }
+        block = block->nextBlock;
+    }
+
+    //--------------------------------------
+    // TODO: Remove debug code
+
+    printf("\n\nNew Layout:\n");
+    OB_PrintBlockList();
+}

@@ -40,5 +40,6 @@ extern void OB_PrintBlockList();
 extern const OutputBlock *OB_getFirstBlock();
 
 extern void OB_WalkCodeBlocks(ProcessBlockFunc codeBlockFunc);
+extern void OB_ArrangeBlocks();
 
 #endif //MODULE_OUTPUT_BLOCK_H
