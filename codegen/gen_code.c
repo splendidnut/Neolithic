@@ -1553,7 +1553,37 @@ void GC_DoWhile(const List *stmt, enum SymbolType destType) {
 //------------------------------------------------------------------------------------------------
 //   Handle functions and parameters
 
+/**
+ * Handle the loading of an expression used as a function argument/parameter
+ *
+ * @param argNode
+ * @param destType
+ * @param destReg - which CPU reg should this be loaded into
+ * @param lineNum
+ */
+void GC_HandleLoadFuncArgExpr(ListNode argNode, enum SymbolType destType, char destReg, int lineNum) {
+    List *expr = argNode.value.list;
+    bool isWord = ((destType == ST_INT) || (destType == ST_PTR));
 
+    //  First evaluate the expression to catch and preprocess any simple constant expressions
+
+    EvalResult evalResult = evaluate_expression(expr);
+    if (evalResult.hasResult && !isWord) {
+        // expression was evaluated and produced a numeric result, so we can just use the resulting value
+
+        IL_SetLineComment(get_expression(expr));
+        ICG_LoadRegConst(destReg, evalResult.value);
+
+    } else {
+        GC_Expression(expr, destType);
+        switch (destReg) {
+            case 'X': ICG_MoveAccToIndex('X'); break;
+            case 'Y': ICG_MoveAccToIndex('Y'); break;
+            case 'S': ICG_PushAcc(); break;
+            default:break;
+        }
+    }
+}
 
 /**
  * Handling loading parameters to pass into function call  (function arguments)
@@ -1602,13 +1632,7 @@ void GC_LoadFuncArg(const SymbolRecord *curParam, ListNode argNode,
             }
             break;
         case N_LIST:
-            GC_HandleLoad(argNode, ST_NONE, lineNum);
-            switch (destReg) {
-                case 'X': ICG_MoveAccToIndex('X'); break;
-                case 'Y': ICG_MoveAccToIndex('Y'); break;
-                case 'S': ICG_PushAcc(); break;
-                default:break;
-            }
+            GC_HandleLoadFuncArgExpr(argNode, ST_NONE, destReg, lineNum);
             break;
         default:
             ErrorMessageWithNode("Unsupported parameter passing",argNode, lineNum);
