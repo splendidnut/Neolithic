@@ -6,10 +6,9 @@
 #define MODULE_INSTRS_MATH_H
 
 #include <data/instr_list.h>
-#include <output/output_block.h>
 
 extern void ICG_Mul_InitLookupTables(SymbolTable *globalSymbolTable);
-extern OutputBlock* ICG_Mul_AddLookupTable(char lookupValue);
+extern SymbolRecord* ICG_Mul_AddLookupTable(char lookupValue);
 
 extern void ICG_LoadVarForMultiply(const SymbolRecord *varRec);
 extern void ICG_MultiplyVarWithVar(const SymbolRecord *varRec, const SymbolRecord *varRec2);

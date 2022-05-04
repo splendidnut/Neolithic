@@ -74,11 +74,11 @@ void OB_MoveToNextPage() {
     curAddr = (curAddr + 256) & 0xff00;
 }
 
-OutputBlock *OB_AddData(char *name, SymbolRecord *dataSym, List *dataList, int suggestedBank) {
+OutputBlock *OB_AddData(SymbolRecord *dataSym, List *dataList, int suggestedBank) {
     bool isInt = getBaseVarSize(dataSym) > 1;
     OutputBlock *newBlock = allocMem(sizeof(struct SOutputBlock));
     newBlock->nextBlock = NULL;
-    newBlock->blockName = name;
+    newBlock->blockName = dataSym->name;
     newBlock->blockAddr = curAddr;
     newBlock->blockSize = (dataList->count - 1) * (isInt ? 2 : 1);
     newBlock->blockType = BT_DATA;

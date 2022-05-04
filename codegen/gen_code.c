@@ -1857,6 +1857,41 @@ void ICG_SetCurrentCodeAddr(int newCodeAddr) {
     codeAddr = newCodeAddr;
 }
 
+// TODO: Figure out how to do this differently to make blocks magically movable
+// TODO:  This can probably be figured out later in the compile process (output layout step)
+
+
+void GC_OB_AddCodeBlock(SymbolRecord *funcSym) {
+    OB_AddCode(funcSym->name, funcSym->instrBlock, curBank);
+
+    int funcAddr = ICG_GetCurrentCodeAddr();
+    ICG_SetCurrentCodeAddr(funcAddr + funcSym->instrBlock->codeSize);
+
+    setSymbolLocation(funcSym, funcAddr, SS_ROM);
+}
+
+
+void GC_OB_AddDataBlock(SymbolRecord *varSymRec) {
+    OutputBlock *staticData = OB_AddData(varSymRec, varSymRec->astList, curBank);
+
+    //--- track data table address / size ---
+    int dataLoc = ICG_GetCurrentCodeAddr();
+    ICG_SetCurrentCodeAddr(dataLoc + staticData->blockSize);
+
+    setSymbolLocation(varSymRec, dataLoc, SS_ROM);
+}
+
+
+void GC_OB_AddLookupTable(SymbolRecord *varSymRec) {
+    OutputBlock *staticData = OB_AddData(varSymRec, varSymRec->astList, 0);
+
+    //--- track data table size
+    int symAddr = ICG_GetCurrentCodeAddr();
+    ICG_SetCurrentCodeAddr(symAddr + staticData->blockSize);
+
+    setSymbolLocation(varSymRec, symAddr, SS_ROM);
+}
+
 
 
 //-------------------------------------------------------------------
@@ -2107,13 +2142,8 @@ void GC_Variable(const List *varDef) {
 
         // only generate a multiplication lookup table if the multiplier is greater than 2 (not a primitive var)
         if (multiplier > 2) {
-            OutputBlock *staticData = ICG_Mul_AddLookupTable(multiplier);
-
-            //--- track data table size
-            int symAddr = ICG_GetCurrentCodeAddr();
-            ICG_SetCurrentCodeAddr(symAddr + staticData->blockSize);
-
-            setSymbolLocation(staticData->dataSym, symAddr, SS_ROM);
+            SymbolRecord *lookupTable = ICG_Mul_AddLookupTable(multiplier);
+            GC_OB_AddLookupTable(lookupTable);
 
         } else {
             printf("Warning: Cannot generate quick index table for %s\n", varName);
@@ -2144,20 +2174,9 @@ void GC_Variable(const List *varDef) {
         // --- Process the initializer list! ---
         List *valueNode = GC_ProcessInitializerList(varDef, initValueList);
         reverseData = false;
-
-        // Add data to output and mark where in memory the variable is located...
-        //   TODO:  Doesn't seem this is the best place to do this if we want the blocks
-        //            to be magically movable
-
         varSymRec->astList = valueNode;
-        OutputBlock *staticData = OB_AddData(varName, varSymRec, valueNode, curBank);
+        GC_OB_AddDataBlock(varSymRec);
 
-        //--- track data table address / size ---
-        //     TODO: Figure out how to do this differently to make blocks magically movable
-        int dataLoc = ICG_GetCurrentCodeAddr();
-        ICG_SetCurrentCodeAddr(dataLoc + staticData->blockSize);
-
-        setSymbolLocation(varSymRec, dataLoc, SS_ROM);
     }
 }
 
@@ -2253,14 +2272,7 @@ void GC_Function(const List *function, int codeNodeIndex) {
                 funcSym->flags |= MF_INLINE;
             } else {
                 GC_ProcessFunction(funcSym, codeNode.value.list);
-
-                //--- track where this block ends up --- TODO: Potentially figure out how to remove this
-                int funcAddr = ICG_GetCurrentCodeAddr();
-                ICG_SetCurrentCodeAddr(funcAddr + funcSym->instrBlock->codeSize);
-
-                // TODO:  This can probably be figured out later in the compile process (output layout step)
-                setSymbolLocation(funcSym, funcAddr, SS_ROM);
-                OB_AddCode(funcName, funcSym->instrBlock, curBank);
+                GC_OB_AddCodeBlock(funcSym);
             }
         }
     }

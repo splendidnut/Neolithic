@@ -71,7 +71,7 @@ void ICG_Mul_InitLookupTables(SymbolTable *globalSymbolTable) {
 /**
  * Add a multiplication lookup table
  */
-OutputBlock *ICG_Mul_AddLookupTable(char lookupValue) {
+SymbolRecord *ICG_Mul_AddLookupTable(char lookupValue) {
 
     //--- create a list big enough to contain the lookup table
     int count = (256 / lookupValue) + 1;
@@ -97,9 +97,8 @@ OutputBlock *ICG_Mul_AddLookupTable(char lookupValue) {
 
     // create symbol, add to OutputBlock, set symbol location
     SymbolRecord *lookupTableRec = addSymbol(mul_globalSymbolTable, lookupTableName, SK_CONST, ST_CHAR, MF_ARRAY);
-    OutputBlock *staticData = OB_AddData(lookupTableName, lookupTableRec, lookupTableList, 0);
-
-    return staticData;
+    lookupTableRec->astList = lookupTableList;
+    return lookupTableRec;
 }
 
 bool hasValueLookupTable(char lookupValue) {

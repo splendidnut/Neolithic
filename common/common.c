@@ -48,6 +48,8 @@ int strToInt(const char *str) {
         resultInt = (int)strtol(str + 1, NULL, 16);    // ASM style hex
     } else if (str[0] == '%') {
         resultInt = (int)strtol(str + 1, NULL, 2);   // ASM style binary
+    } else if (str[0] == '-') {
+        resultInt = -((int)strtol(str + 1, NULL, 10));
     } else {
         resultInt = (int)strtol(str, NULL, 10);
     }
