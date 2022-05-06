@@ -145,7 +145,11 @@ EvalResult evaluate_expression(const List *expr) {
             char *varName = expr->nodes[1].value.str;
             SymbolRecord *varSym = getEvalSymbolRecord(varName);
             if (varSym != NULL) {
-                leftResult.value = calcVarSize(varSym);
+                if (isFunction(varSym)) {
+                    leftResult.value = calcCodeSize(varSym);
+                } else {
+                    leftResult.value = calcVarSize(varSym);
+                }
                 leftResult.hasResult = true;
                 return leftResult;
             }

@@ -173,6 +173,7 @@ extern void setStructSize(SymbolRecord *symbol, int unionSize);
 extern unsigned char getStructVarSize(const SymbolRecord *symbol);
 extern void markFunctionUsed(SymbolRecord *funcSymbol);
 extern int calcVarSize(const SymbolRecord *varSymRec);
+extern int calcCodeSize(const SymbolRecord *varSymRec);
 extern int getBaseVarSize(const SymbolRecord *varSymRec);
 extern SymbolRecord * findSymbol(SymbolTable *symbolTable, const char *name);
 extern char getDestRegFromHint(enum VarHint hint);

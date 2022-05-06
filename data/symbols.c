@@ -209,6 +209,11 @@ int getCodeSize(const SymbolRecord *funcSymRec) {
     return (isFunc && isCodeUsed && (funcSymRec->instrBlock != NULL)) ? funcSymRec->instrBlock->codeSize : 0;
 }
 
+int calcCodeSize(const SymbolRecord *funcSymRec) {
+    bool isFunc = isFunction(funcSymRec);
+    return (isFunc && (funcSymRec->instrBlock != NULL)) ? funcSymRec->instrBlock->codeSize : 0;
+}
+
 SymbolRecord * findSymbol(SymbolTable *symbolTable, const char* name) {
     if (name[0] == '\0') return NULL;
     SymbolRecord *curSymbol = symbolTable->firstSymbol;
