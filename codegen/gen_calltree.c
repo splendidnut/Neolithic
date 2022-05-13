@@ -93,23 +93,26 @@ void GCT_Program(List *list) {
     }
 }
 
-
+bool hasWarnedAboutCallTreeDepth = false;
 void generate_callTree(ListNode node, SymbolTable *symbolTable) {
     if (node.type != N_LIST) return;
 
     mainSymTable = symbolTable;
 
     List *program = node.value.list;
-    if (program->nodes[0].value.parseToken == PT_PROGRAM) {
-        GCT_Program(program);
+    if (program->nodes[0].value.parseToken != PT_PROGRAM) return;
 
-        int callTreeDepth = FM_calculateCallTree();
-        if (callTreeDepth > compilerOptions.maxFuncCallDepth) {
-            printf("WARNING: Call tree is very Deep\n");
-        }
+    GCT_Program(program);
 
-        if (compilerOptions.showCallTree) {
-            FM_displayCallTree();
-        }
+    int callTreeDepth = FM_calculateCallTree();
+    if ((callTreeDepth > compilerOptions.maxFuncCallDepth) && !hasWarnedAboutCallTreeDepth) {
+        printf("WARNING: Call tree is very deep: %d (cur limit: %d) \n",
+               callTreeDepth,
+               compilerOptions.maxFuncCallDepth);
+        hasWarnedAboutCallTreeDepth = true;
+    }
+
+    if (compilerOptions.showCallTree) {
+        FM_displayCallTree();
     }
 }
