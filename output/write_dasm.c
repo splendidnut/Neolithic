@@ -317,7 +317,7 @@ void HandleSingleStructRecord(const List *dataList, SymbolTable *structSymTbl) {
         if ((varSize == 1) && (value & 0xff00)) {
             printf("ERROR: The value %d exceeds the size of %s (type: %s)\n", value, structVar->name, dataTypeStr);
         }
-        fprintf(outputFile, "\t.%s %-5d\t\t;-- %s\n", dataTypeStr, value, structVar->name);
+        fprintf(outputFile, "\t.%s $%04X\t\t;-- %s\n", dataTypeStr, value, structVar->name);
 
         symIndex++;
         structVar = structVar->next;
@@ -382,7 +382,8 @@ void WriteDASM_StaticArrayData(const OutputBlock *block) {
     //  print out data, putting 8 bytes on a line
 
     bool isInt = getBaseVarSize(block->dataSym) > 1;
-    char *dataTypeStr = isInt ? "word" : "byte";
+    const char *dataTypeStr = isInt ? "word" : "byte";
+    const char *fmtStr = isInt ? "$%04X%c" : "%d%c";
     int vend = block->dataList->count - 1;
 
     int accum = 0;
@@ -398,7 +399,7 @@ void WriteDASM_StaticArrayData(const OutputBlock *block) {
             sepChar = '\n';
             accum = 0;
         }
-        fprintf(outputFile, "%d%c", block->dataList->nodes[vidx + 1].value.num, sepChar);
+        fprintf(outputFile, fmtStr, block->dataList->nodes[vidx + 1].value.num, sepChar);
     }
     WriteDASM_WriteBlockFooter(block->blockName);
     fprintf(outputFile, "\n\n");
