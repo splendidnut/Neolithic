@@ -74,7 +74,7 @@ void ICG_Mul_InitLookupTables(SymbolTable *globalSymbolTable) {
 SymbolRecord *ICG_Mul_AddLookupTable(char lookupValue) {
 
     //--- create a list big enough to contain the lookup table
-    int count = (256 / lookupValue) + 1;
+    int count = (256 / lookupValue);
     List *lookupTableList = createList(count+1);
     addNode(lookupTableList, createParseToken(PT_INIT));
 
@@ -164,7 +164,7 @@ void ICG_GenericMultiplyWithConst(const char multiplier) {
     //  NOTE: using relative numbers instead of labels for simplification purposes
 
     IL_AddInstrN(LDA, ADDR_IMM, 0);             // clear out accumulator
-    IL_AddInstrN(LDX, ADDR_IMM, 8);             // 8-bits requires 8 loops
+    IL_AddInstrN(LDX, ADDR_IMM, 9);             // 8-bits requires 9? loops
     //-- loop start
     IL_AddInstrB(LSR);
     IL_AddInstrN(ROR, ADDR_ZP, ACC_MUL_ADDR);
@@ -183,6 +183,37 @@ void ICG_GenericMultiplyWithConst(const char multiplier) {
     IL_AddInstrN(LDA, ADDR_ZP, ACC_MUL_ADDR);
 }
 
+
+void do_6502_multiply(const SymbolRecord *varRec2) {
+    enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(varRec2);
+    bool isZp = addrMode == ADDR_ZP;
+
+    //------------------------------------------------------------------------
+    //  NOTE: using relative numbers instead of labels for simplification purposes
+
+    IL_AddInstrN(LDA, ADDR_IMM, 0);             // clear out accumulator
+    IL_AddInstrN(LDX, ADDR_IMM, 9);             // 8-bits requires 9? loops
+
+    //-- loop start
+    IL_AddInstrB(LSR);
+    IL_AddInstrN(ROR, ADDR_ZP, ACC_MUL_ADDR);
+    IL_AddInstrN(BCC, ADDR_REL, isZp ? +5 : +6);
+    IL_AddInstrB(CLC);
+    IL_AddInstrP(ADC, addrMode, getVarName(varRec2), PARAM_NORMAL);
+    //-- skipped over add
+    IL_AddInstrB(DEX);
+    IL_AddComment(
+            IL_AddInstrN(BNE, ADDR_REL, isZp ? -9 : -10),      // Branch back to loop start
+            "Branch back to start of multiply loop");
+
+    //-----------------------------------------------------------------------
+    IL_AddComment(
+            IL_AddInstrB(TAX),                      // move high order byte into X
+            "Move high order byte into X");
+    IL_AddInstrN(LDA, ADDR_ZP, ACC_MUL_ADDR);
+}
+
+
 /**
  * Generate code for Multiplying two variables together
  *
@@ -193,30 +224,9 @@ void ICG_MultiplyVarWithVar(const SymbolRecord *varRec, const SymbolRecord *varR
     // need to load variable into temp var
     ICG_LoadVarForMultiply(varRec);
     IL_AddInstrN(STA, ADDR_ZP, ACC_MUL_ADDR);
-
-    //------------------------------------------------------------------------
-    //  NOTE: using relative numbers instead of labels for simplification purposes
-
-    IL_AddInstrN(LDA, ADDR_IMM, 0);             // clear out accumulator
-    IL_AddInstrN(LDX, ADDR_IMM, 8);             // 8-bits requires 8 loops
-    //-- loop start
-    IL_AddInstrB(LSR);
-    IL_AddInstrN(ROR, ADDR_ZP, ACC_MUL_ADDR);
-    IL_AddInstrN(BCC, ADDR_REL, +4);
-    IL_AddInstrB(CLC);
-    IL_AddInstrP(ADC, CALC_SYMBOL_ADDR_MODE(varRec2), varRec2->name, PARAM_NORMAL);
-    //-- skipped over add
-    IL_AddInstrB(DEX);
-    IL_AddComment(
-            IL_AddInstrN(BNE, ADDR_REL, -8),            // Branch back to loop start
-            "Branch back to start of multiply loop");
-
-    //-----------------------------------------------------------------------
-    IL_AddComment(
-            IL_AddInstrB(TAX),                      // move high order byte into X
-            "Move high order byte into X");
-    IL_AddInstrN(LDA, ADDR_ZP, ACC_MUL_ADDR);
+    do_6502_multiply(varRec2);
 }
+
 
 /**
  * Generate code for Multiplying an expression with a variable
@@ -228,29 +238,7 @@ void ICG_MultiplyVarWithVar(const SymbolRecord *varRec, const SymbolRecord *varR
  */
 void ICG_MultiplyExprWithVar(const int varLoc1, const SymbolRecord *varRec2) {
     IL_AddInstrN(STA, ADDR_ZP, ACC_MUL_ADDR);
-
-    //------------------------------------------------------------------------
-    //  NOTE: using relative numbers instead of labels for simplification purposes
-
-    IL_AddInstrN(LDA, ADDR_IMM, 0);             // clear out accumulator
-    IL_AddInstrN(LDX, ADDR_IMM, 8);             // 8-bits requires 8 loops
-    //-- loop start
-    IL_AddInstrB(LSR);
-    IL_AddInstrN(ROR, ADDR_ZP, ACC_MUL_ADDR);
-    IL_AddInstrN(BCC, ADDR_REL, +4);
-    IL_AddInstrB(CLC);
-    IL_AddInstrP(ADC, CALC_SYMBOL_ADDR_MODE(varRec2), varRec2->name, PARAM_NORMAL);
-    //-- skipped over add
-    IL_AddInstrB(DEX);
-    IL_AddComment(
-            IL_AddInstrN(BNE, ADDR_REL, -8),            // Branch back to loop start
-            "Branch back to start of multiply loop");
-
-    //-----------------------------------------------------------------------
-    IL_AddComment(
-            IL_AddInstrB(TAX),                      // move high order byte into X
-            "Move high order byte into X");
-    IL_AddInstrN(LDA, ADDR_ZP, ACC_MUL_ADDR);
+    do_6502_multiply(varRec2);
 }
 
 /**
