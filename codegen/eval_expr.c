@@ -269,12 +269,14 @@ const char *EXPR_ERR = "#ERROR#";
 char* get_expression(const List *expr) {
     char *result;
     ListNode opNode = expr->nodes[0];
+    if (opNode.type != N_TOKEN) return (char *) EXPR_ERR;
+
     char *leftResult = get_node(expr->nodes[1]);
 
     if (expr->count >= 3) {
         char *rightResult = get_node(expr->nodes[2]);
 
-        if (!(leftResult && rightResult) || (opNode.type != N_TOKEN)) return (char *) EXPR_ERR;
+        if (!(leftResult && rightResult)) return (char *) EXPR_ERR;
 
         result = allocMem(strlen(leftResult) + strlen(rightResult) + 5);
         strcpy(result, leftResult);
@@ -316,7 +318,8 @@ char* get_expression(const List *expr) {
                 result = (char *) EXPR_ERR;
         }
     } else {
-        result = allocMem(strlen(leftResult) + 4);
+        int opLen = (opNode.value.parseToken == PT_SIZEOF) ? 16 : 4;
+        result = allocMem(strlen(leftResult) + opLen);
         switch(opNode.value.parseToken) {
             case PT_NOT:
                 strcpy(result, "!");
@@ -337,6 +340,11 @@ char* get_expression(const List *expr) {
             case PT_ADDR_OF:
                 strcpy(result, "&");
                 strcat(result, leftResult);
+                break;
+            case PT_SIZEOF:
+                strcpy(result, "sizeof( ");
+                strcat(result, leftResult);
+                strcat(result, " )");
                 break;
             default:
                 result = (char *) EXPR_ERR;
