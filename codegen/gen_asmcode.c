@@ -64,7 +64,7 @@ char * GC_Asm_HandleArrayLookup(List *arrayLookup) {
 
     paramAddrMode = CALC_SYMBOL_ADDR_MODE(arraySym);
 
-    //sprintf(paramStr, "%s", getVarName(arraySym));
+    //printf("Using %s mode for %s\n", paramAddrMode == ADDR_ABS ? "ABS" : "ZP", getVarName(arraySym));
     paramStr = (char *)getVarName(arraySym);
     param2 = intToStr(arrayLookup->nodes[2].value.num * baseSize);
     paramExt = PARAM_ADD;
