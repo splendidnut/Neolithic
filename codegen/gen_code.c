@@ -2274,6 +2274,10 @@ void GC_Function(const List *function, int codeNodeIndex) {
                 GC_ProcessFunction(funcSym, codeNode.value.list);
                 GC_OB_AddCodeBlock(funcSym);
             }
+        } else {
+
+            // process function -> just so we can get its size / show its code
+            GC_ProcessFunction(funcSym, codeNode.value.list);
         }
     }
 
