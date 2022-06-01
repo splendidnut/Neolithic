@@ -5,8 +5,10 @@
 #ifndef MODULE_INSTRS_H
 #define MODULE_INSTRS_H
 
-#include "data/instr_list.h"
-#include "data/syntax_tree.h"
+#include "../data/syntax_tree.h"
+#include "../data/symbols.h"
+#include "../data/labels.h"
+#include "../data/instr_list.h"
 
 // Macro to consolidate all cases where address mode is calculated from location
 #define CALC_SYMBOL_ADDR_MODE(symbol) ((((symbol)->flags & SS_STORAGE_MASK) == SS_ZEROPAGE) ? ADDR_ZP : ADDR_ABS)
