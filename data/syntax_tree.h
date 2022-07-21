@@ -27,7 +27,7 @@ typedef union {
     enum AddrModes addrMode;
 } NodeValue;  // can be int, bool, str
 
-typedef struct {
+typedef struct ListNode {
     enum NodeType type;
     NodeValue value;
 } ListNode;

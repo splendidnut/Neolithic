@@ -71,7 +71,7 @@ char * getStructRefComment(const char *prefixComment, const char *structName, co
  * @return new allocated string filled with "extracted" string
  */
 char * newSubstring(const char* inStr, int idxBegin, int idxEnd) {
-    int len = strlen(inStr);
+    int len = (int)strlen(inStr);
     int newStrLen = (idxEnd == idxBegin) ? (len - idxBegin) : (idxEnd - idxBegin);
 
     char *resultStr = malloc(newStrLen+1);
@@ -106,9 +106,9 @@ char *getUnquotedString(const char *srcString) {
  * Generate a filename with the given extension, starting from a filename
  *   that may or may not be using the .c extension
  *
- * @param name
- * @param ext
- * @return
+ * @param name - name with or w/o .c extension
+ * @param ext - desired file extension
+ * @return name with new ext
  */
 char *genFileName(const char *name, const char *ext) {
     // generate file name
