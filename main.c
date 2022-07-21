@@ -265,9 +265,9 @@ int mainCompiler() {
     if (compilerOptions.showGeneralInfo) printf("Symbol Table generation Complete\n");
 
     generate_callTree(mainProgNode, mainSymbolTable);
-    if (hasDependencies) {
+    /*if (hasDependencies) {
         generateCallTreeForDependencies();
-    }
+    }*/
     generate_var_allocations(mainSymbolTable);
 
     if (compilerOptions.showGeneralInfo) printf("Analysis of %s Complete\n", inFileName);
@@ -309,7 +309,7 @@ int mainCompiler() {
         outputFlags.doOutputBIN = true;
         generateOutput(projectName, mainSymbolTable, outputFlags);
     } else {
-        printf("Unable to process program due to errors\n");
+        printf("Unable to process program due to (%d) errors\n", GC_ErrorCount);
     }
 
     //--- Finish off by outputting the symbol table
@@ -332,10 +332,10 @@ int mainCompiler() {
 
 
 void reportMemoryUsage() {
-    printf("\n\nsizeof SymbolRecord = %d\n", sizeof(SymbolRecord));
-    printf("sizeof LabelStruct = %d\n", sizeof(struct LabelStruct));
-    printf("sizeof ListStruct = %d\n", sizeof(struct ListStruct));
-    printf("sizeof ListNode = %d\n", sizeof(ListNode));
+    printf("\n\nsizeof SymbolRecord = %d\n", (int)sizeof(SymbolRecord));
+    printf("sizeof LabelStruct = %d\n", (int)sizeof(struct LabelStruct));
+    printf("sizeof ListStruct = %d\n", (int)sizeof(struct ListStruct));
+    printf("sizeof ListNode = %d\n", (int)sizeof(ListNode));
 
     printParseTreeMemUsage();
 
