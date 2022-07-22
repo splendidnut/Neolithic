@@ -1078,6 +1078,8 @@ void GC_Assignment(const List *stmt, enum SymbolType destType) {
 
     // figure out destination type
     SymbolRecord *destVar = getAsgnDestVarSym(stmt, storeNode);
+    if (destVar == NULL) return;
+
     destType = (destVar != NULL) ? getVarDestType(destVar) : ST_ERROR;
 
     //printf("DEBUG: GC_Assignment -> getAsgnDestType = %d\n", destType);
@@ -1108,7 +1110,7 @@ void GC_Assignment(const List *stmt, enum SymbolType destType) {
                 break;
         }
     } else {
-        printf("#ERROR# destination type unknown\n");
+        ErrorMessageWithList("Destination type unknown\n", stmt);
     }
 }
 
