@@ -150,6 +150,10 @@ void allocateVarStorage(const SymbolTable *symbolTable) {
             bool isZP = ((curSymbol->flags & SS_STORAGE_MASK) == SS_ZEROPAGE);
             MemoryArea *memoryArea = isZP ? SMA_getZeropageArea() : NULL;
             MemoryAllocation newVarAlloc = SMA_allocateMemory(memoryArea, varSize);
+
+            //--- if variable gets allocated on the zeropage, mark it as so.
+            if (newVarAlloc.addr < 256) isZP = true;
+
             setSymbolLocation(curSymbol, newVarAlloc.addr, isZP ? SS_ZEROPAGE : SS_ABSOLUTE);
 
             if (compilerOptions.showVarAllocations) {
