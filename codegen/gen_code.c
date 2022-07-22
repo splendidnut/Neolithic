@@ -1976,9 +1976,13 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
             ICG_SetCurrentCodeAddr((ICG_GetCurrentCodeAddr() + 256) & 0xff00);
             OB_MoveToNextPage();
             break;
+
         case INVERT:
+            WarningMessage("'#invert' is deprecated", NULL, code->lineNum);
+        case REVERSE:
             reverseData = true;
             break;
+
         case ECHO:
             GC_HandleEcho(code);
             break;

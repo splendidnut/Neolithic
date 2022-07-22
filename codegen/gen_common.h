@@ -30,6 +30,7 @@ extern int GC_ErrorCount;
 extern void ErrorMessageWithList(const char* errorMsg, const List *stmt);
 extern void ErrorMessageWithNode(const char* errorMsg, ListNode node, int lineNum);
 extern void ErrorMessage(const char* errorMsg, const char* errorStr, int lineNum);
+extern void WarningMessage(const char* warnMsg, const char* warnStr, int lineNum);
 
 extern SymbolRecord *lookupSymbolNode(ListNode symbolNode, int lineNum);
 extern SymbolRecord *lookupFunctionSymbolByNameNode(ListNode funcNameNode, int lineNum);

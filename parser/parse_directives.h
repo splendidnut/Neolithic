@@ -35,6 +35,7 @@ enum CompilerDirectiveTokens {
     HIDE_CYCLES,
     PAGE_ALIGN,
     INVERT,
+    REVERSE,
     USE_QUICK_INDEX_TABLE,
     ECHO,
     SET_BANK,

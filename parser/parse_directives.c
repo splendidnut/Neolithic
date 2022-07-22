@@ -33,6 +33,7 @@ const char* CompilerDirectiveNames[NUM_COMPILER_DIRECTIVES] = {
         "hide_cycles",
         "page_align",
         "invert",
+        "reverse",
         "use_quick_index_table",
         "echo",
         "bank",

@@ -55,6 +55,12 @@ void ErrorMessage(const char* errorMsg, const char* errorStr, int lineNum) {
     GC_ErrorCount++;
 }
 
+void WarningMessage(const char* warnMsg, const char* warnStr, int lineNum) {
+    printf("WARNING on line %d: %s", lineNum, warnMsg);
+    if (warnStr != NULL) printf(" '%s'", warnStr);
+    printf("\n");
+}
+
 //-------------------------------------------------------
 //--- Symbol lookup
 
