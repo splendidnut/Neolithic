@@ -938,7 +938,10 @@ void GC_StoreToStructProperty(const List *expr) {
     if (structSym == NULL || !isStructDefined(structSym)) return;
 
     SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propName);
-    if (propertySym == NULL) return;
+    if (propertySym == NULL) {
+        ErrorMessage("Property Symbol not found within struct", propName, expr->lineNum);
+        return;
+    }
 
     int propertyOffset = GET_PROPERTY_OFFSET(propertySym);
 
