@@ -96,6 +96,8 @@ enum ModifierFlags {
     MF_PARAM        = 0x0100,
     MF_LOCAL        = 0x0200,
 
+    MF_HINT         = 0x0400,
+
     MF_ENUM_VALUE   = 0x1000,     // only used in enumeration definitions (TODO: is this necessary?)
     MF_INLINE       = 0x2000,       // only applies to functions
 

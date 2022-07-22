@@ -228,7 +228,7 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
     // if there's a memory hint, use it
     if ((varDef->count > 5) && (varDef->nodes[5].type == N_INT)) {
         int addr = varDef->nodes[5].value.num;
-        setSymbolLocation(varSymRec, addr, (addr < 256) ? SS_ZEROPAGE : SS_ABSOLUTE);
+        setSymbolLocation(varSymRec, addr, ((addr < 256) ? SS_ZEROPAGE : SS_ABSOLUTE) | MF_HINT);
     }
 
     int hasInitializer = (varDef->count >= 4) && (varDef->nodes[4].type == N_LIST);
@@ -264,6 +264,10 @@ int GS_ProcessUnionList(SymbolTable *symbolTable, const List *varList, int ofs) 
         } else {
             SymbolRecord *symRec = GS_Variable(varDef, symbolTable, 0);
             if (symRec != NULL) {
+
+                // if there was a location hint, add to the offset
+                if (symRec->flags & MF_HINT) ofs += symRec->location;
+
                 printf("Adding union variable: %s @%d\n", symRec->name, ofs);
                 int varSize = calcVarSize(symRec);
                 setSymbolLocation(symRec, ofs, 0);
@@ -374,7 +378,9 @@ void GS_Structure(List *structDef, SymbolTable *symbolTable) {
                 memOfs += unionSize;
             } else {
                 SymbolRecord *symRec = GS_Variable(varDef, structSymTbl, 0);
-                if (symRec != NULL) {
+
+                //--- set symbol location, unless there's a HINT (which already set location)
+                if ((symRec != NULL) && !(symRec->flags & MF_HINT)) {
                     setSymbolLocation(symRec, memOfs, 0);
                     memOfs += calcVarSize(symRec);
                 }
