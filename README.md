@@ -68,6 +68,15 @@ not enough to handle much of anything else.
 - **/parser** - tokenizer + parser for the language
 - **/test** - example programs to test different area of the compiler 
 
+## Building from Source
+
+This project was developed using the MinGW/GCC compiler and CMake as the
+primary build system for this project.  This is due to this project being
+developed using JetBrain's Clion IDE.
+
+I'm not opposed to including regular Makefiles as long as someone
+else takes responsibility for creating and maintaining them. 
+
 -----
 
 For more information, please read 'Neolithic Language Guide' in the **/docs/** directory.
