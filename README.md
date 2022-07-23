@@ -15,7 +15,7 @@ to help with generating optimal 6502 assembly code.
 >    keep this in mind when writing code targeting this compiler.
 
 
----------------
+
 ## Quick Intro
 
 
@@ -43,8 +43,7 @@ yet to come upon a case in which they are needed.  Though I do believe
 someone might still stumble upon a place where semicolons will be needed.
 
 
--------
-## Limitations
+### Limitations
 
 - Currently there is minimal 16-bit support, enough to support pointers, but
 not enough to handle much of anything else.
@@ -53,9 +52,25 @@ not enough to handle much of anything else.
 
 - Syntax is still in flux.
 
+---
+## Directory Structure
+
+- **/bin** - compiler binaries from latest release
+- **/codegen** - generators for code, variable allocation, call tree, symbols, and the evaulator
+- **/common** - common code used in thru-out the code base
+- **/cpu_arch** - instruction generation for the 6502
+- **/data** - commonly used data structures: identifiers, cpu instructions, symbols, labels, syntax tree, types, function map, bank layout
+- **/docs** - documentation and notes
+- **/examples** - example code (to be added)
+- **/machine** - code for dealing with different machine architectures
+- **/optimizer** - some initial optimizer code (currently unused?)
+- **/output** - output module used to generate binary and DASM-compatible assembly output
+- **/parser** - tokenizer + parser for the language
+- **/test** - example programs to test different area of the compiler 
+
 -----
 
-For more information, please read 'Neolithic Language Guide' in the /docs/ directory.
+For more information, please read 'Neolithic Language Guide' in the **/docs/** directory.
 
 
 > The book "The C Programming Language: Second Edition" by Brian W. Kernighan
