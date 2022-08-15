@@ -81,8 +81,11 @@ extern Instr* IL_AddComment(Instr *inInstr, char *comment);
 extern void IL_AddCommentToCode(char *comment);
 extern void IL_SetLabel(Label *label);
 extern Label* IL_GetCurLabel();
+extern Instr* IL_GetCurrentInstr();
 
 extern int IL_GetCodeSize(InstrBlock *instrBlock);
+extern int IL_GetCodeSizeOfRange(Instr *startInstr, Instr *endInstr);
+extern void IL_FixLongBranch(Instr *startInstr, Instr *endInstr);
 
 extern Instr* IL_AddInstrS(enum MnemonicCode mne, enum AddrModes addrMode, const char *param1, const char *param2, enum ParamExt paramExt);
 extern Instr* IL_AddInstrP(enum MnemonicCode mne, enum AddrModes addrMode, const char *param1, enum ParamExt paramExt);

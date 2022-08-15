@@ -1452,12 +1452,18 @@ void GC_For(const List *stmt, enum SymbolType destType) {
         ErrorMessageWithList("Invalid for loop initializer statement", stmt);
         return;
     }
+
+    // keep track of beginning of entire 'for' block so that we can patch
+    //  branch statements and recalculate code size.
+    Instr *startOfForBlock = IL_GetCurrentInstr();
+
+    // do initializer statement, mark start of loop, do conditional check
     GC_Statement(initStmtNode.value.list);
-
     IL_Label(startOfLoop);
-
-    // loop continue conditional check
     GC_HandleCondExpr(stmt->nodes[2], ST_BOOL, doneWithLoop, stmt->lineNum);
+
+    // Track size of code
+    Instr *startOfBlock = IL_GetCurrentInstr();
 
     // now process loop code
     GC_CodeBlock(stmt->nodes[4].value.list);
@@ -1468,6 +1474,15 @@ void GC_For(const List *stmt, enum SymbolType destType) {
         GC_Statement(incStmtNode.value.list);
     } else {
         ErrorMessageWithList("Invalid for loop next statement", stmt);
+    }
+
+    // Check size of code to determine branch/jump needed
+    //   NOTE: This needs to be done before end of loop code is added (JMP + doneWithLoop label)
+    Instr *endOfBlock = IL_GetCurrentInstr();
+    int blockSize = IL_GetCodeSizeOfRange(startOfBlock, endOfBlock) + 3;  //-- size of next instruction: JMP
+    if (blockSize > 127) {
+        // patch conditional branches at the beginning
+        IL_FixLongBranch(startOfForBlock, startOfBlock);
     }
 
     // end of for loop

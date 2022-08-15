@@ -212,6 +212,10 @@ Label* IL_GetCurLabel() {
     return curLabel;
 }
 
+Instr* IL_GetCurrentInstr() {
+    return curBlock->curInstr;
+}
+
 /**
  * Return the number of bytes a block of code requires
  *
@@ -232,10 +236,83 @@ int IL_GetCodeSize(InstrBlock *instrBlock) {
     return size;
 }
 
+
+/**
+ * Return the number of bytes a range of code instructions requires
+ *
+ * This functions walks thru all the instructions between 'startInstr'
+ *   and 'endInstr' sums their lengths together.
+ *
+ *   NOTE:  startInstr and endInstr need to be from the same code block!
+ *
+ * @param instrBlock
+ * @return number of bytes needed to store the block of instructions
+ */
+
+int IL_GetCodeSizeOfRange(Instr *startInstr, Instr *endInstr) {
+    Instr *curInstr = startInstr;
+    int size = 0;
+    while ((curInstr != NULL) && (curInstr != endInstr)) {
+        int instrSize = getInstrSize(curInstr->mne, curInstr->addrMode);
+        //printf("%d\n", instrSize);
+        size += instrSize;
+        curInstr = curInstr->nextInstr;
+    }
+    return size;
+}
+
 void IL_ShowCycles() {
     showCycles = true;
 }
 
 void IL_HideCycles() {
     showCycles = false;
+}
+
+/**
+ * Scan thru provided range of instructions and switch branches to be long
+ *   (for each branch, invert branch and add jump)
+ * @param startInstr
+ * @param endInstr
+ */
+void IL_FixLongBranch(Instr *startInstr, Instr *endInstr) {
+    Instr *nextInstr, *newInstr;
+    Instr *curInstr = startInstr;
+    while (curInstr != NULL) {
+
+        // make sure to save next instruction
+        nextInstr = curInstr->nextInstr;
+
+        if (isBranch(curInstr->mne)) {
+
+            // create new instruction to insert
+            newInstr = startNewInstruction(JMP, ADDR_ABS);
+            newInstr->paramName = curInstr->paramName;
+            newInstr->paramExt = PARAM_NORMAL;
+            newInstr->nextInstr = nextInstr;
+
+            // change branch instruction (invert)
+            switch (curInstr->mne) {
+                case BCC: curInstr->mne = BCS; break;
+                case BCS: curInstr->mne = BCC; break;
+                case BEQ: curInstr->mne = BNE; break;
+                case BNE: curInstr->mne = BEQ; break;
+                case BPL: curInstr->mne = BMI; break;
+                case BMI: curInstr->mne = BPL; break;
+            }
+            curInstr->paramName = NULL;
+            curInstr->param2 = NULL;
+            curInstr->offset = +5;
+
+            // point to new instruction (inserted)
+            curInstr->nextInstr = newInstr;
+        }
+
+        if (curInstr == endInstr) {
+            curInstr = NULL;            // after we've processed endInstr, then we can exit
+        } else {
+            //--- move on to next instruction (after patch)
+            curInstr = nextInstr;
+        }
+    }
 }
