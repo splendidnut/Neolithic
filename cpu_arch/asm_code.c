@@ -383,7 +383,7 @@ struct StOpcodeTable opcodeTable[] = {
         {STA, ADDR_IY,  0x91, 6},
         //
         {STX, ADDR_ZP,  0x86, 3},
-        {STX, ADDR_ZPX, 0x96, 4},
+        {STX, ADDR_ZPY, 0x96, 4},
         {STX, ADDR_ABS, 0x8E, 4},
         //
         {STY, ADDR_ZP,  0x84, 3},
