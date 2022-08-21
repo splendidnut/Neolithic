@@ -2206,7 +2206,7 @@ void GC_Variable(const List *varDef) {
 
         if (varSymRec->userTypeDef != NULL && isEnum(varSymRec->userTypeDef)) {
             setEvalLocalSymbolTable(varSymRec->userTypeDef->symbolTbl);
-            printf("Using local symbol table for %s: %s\n", varName, varSymRec->userTypeDef->name);
+            //DEBUG: printf("Using local symbol table for %s: %s\n", varName, varSymRec->userTypeDef->name);
         }
 
         // --- Process the initializer list! ---
@@ -2292,7 +2292,9 @@ void GC_Function(const List *function, int codeNodeIndex) {
     // check if function has been flagged to be inlined wherever it's used
     bool isInlineFunction = (lastDirective == INLINE);
     if (isInlineFunction) {
-        printf("Inline function %s\n", funcName);
+        if (compilerOptions.reportFunctionProcessing) {
+            printf("Inline function %s\n", funcName);
+        }
         lastDirective = 0;
     }
 
