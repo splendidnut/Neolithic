@@ -683,14 +683,17 @@ void GC_HandleBranchOp(ListNode opNode, const Label *skipLabel, bool isCmpToZero
     switch (opNode.value.parseToken) {
         case PT_EQ: ICG_Branch(BNE, skipLabel); break;
         case PT_NE: ICG_Branch(BEQ, skipLabel); break;
-        case PT_LTE:
+        case PT_LTE: {
+            Label *contLabel = newGenericLabel(L_CODE);
+            ICG_Branch(BEQ, contLabel);
             if (isSignedCmp) {
                 ICG_Branch(BPL, skipLabel);     // signed numbers
             } else {
                 ICG_Branch(BCS, skipLabel);     // unsigned numbers
             }
-            ICG_Branch(BEQ, skipLabel);
-            break;
+            IL_Label(contLabel);    //-- for equal condition (continue logic)
+        } break;
+
         case PT_LT:
             if (isCmpToZeroR || isSignedCmp) {
                 ICG_Branch(BPL, skipLabel);        // signed numbers
