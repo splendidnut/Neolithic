@@ -32,18 +32,21 @@ struct BankDef {
     int fileLoc;    // where in the binary file the bank is located
     int size;       // size of the bank
 };
+typedef struct BankDef BankDef;
 
 struct BankLayout {
     bool usesMultipleBankSizes;
     int banksUsed;
     struct BankDef banks[MAX_BANKS];
 };
+typedef struct BankLayout BankLayout;
 
 
 extern void BL_init();
-extern void BL_addBank(struct BankDef newBank);
+extern void BL_addBank(int size, int memLoc, int fileLoc);
+extern int BL_getMachineAddr(int bankNum);
 extern void BL_done();
 extern void BL_printBanks();
-extern struct BankLayout *BL_getBankLayout();
+extern BankLayout *BL_getBankLayout();
 
 #endif //NEOLITHIC_BANK_LAYOUT_H

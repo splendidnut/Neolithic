@@ -26,6 +26,7 @@
 //
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "output_block.h"
 
@@ -78,7 +79,6 @@ OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock, int suggestedBank) {
     newBlock->blockType = BT_CODE;
     newBlock->codeBlock = codeBlock;
     newBlock->bankNum = suggestedBank;
-
     OB_AddBlock(newBlock);
     return newBlock;
 }
@@ -86,6 +86,10 @@ OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock, int suggestedBank) {
 // TODO: this is a hack since the OutputBlock module maintains a separate address tracker
 void OB_MoveToNextPage() {
     curAddr = (curAddr + 256) & 0xff00;
+}
+
+void OB_SetAddress(int newAddr) {
+    curAddr = newAddr;
 }
 
 OutputBlock *OB_AddData(SymbolRecord *dataSym, List *dataList, int suggestedBank) {
@@ -109,6 +113,17 @@ OutputBlock *OB_AddData(SymbolRecord *dataSym, List *dataList, int suggestedBank
 
     OB_AddBlock(newBlock);
     return newBlock;
+}
+
+OutputBlock *OB_FindByName(char *blockNameToFind) {
+    OutputBlock *block = firstBlock;
+    while (block != NULL) {
+        if (strncmp(blockNameToFind, block->blockName, SYMBOL_NAME_LIMIT) == 0) {
+            return block;
+        }
+        block = block->nextBlock;
+    }
+    return NULL;
 }
 
 void OB_PrintBlockList() {

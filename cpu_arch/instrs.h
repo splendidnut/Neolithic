@@ -55,7 +55,7 @@ extern void ICG_LoadAddr(const SymbolRecord *varSym);
 extern void ICG_LoadAddrPlusIndex(const SymbolRecord *varSym, unsigned char index);
 extern void ICG_LoadIndirect(const SymbolRecord *varSym, int destSize);
 extern void ICG_LoadIndexed(const SymbolRecord *varSym);
-extern void ICG_LoadIndexedWithOffset(const SymbolRecord *varSym, int ofs);
+extern void ICG_LoadIndexedWithOffset(const SymbolRecord *varSym, int ofs, int varSize);
 extern void ICG_LoadPropertyVar(const SymbolRecord *structSym, const SymbolRecord *propertySym);
 extern void ICG_LoadRegConst(const char destReg, int ofs);
 extern void ICG_LoadRegVar(const SymbolRecord *varSym, char destReg);

@@ -33,9 +33,18 @@ void BL_init() {
     mainBankLayout->usesMultipleBankSizes = false;
 }
 
-void BL_addBank(struct BankDef newBank) {
+void BL_addBank(int size, int memLoc, int fileLoc) {
+    struct BankDef newBank;
+    newBank.size = size;
+    newBank.memLoc = memLoc;
+    newBank.fileLoc = fileLoc;
+
     mainBankLayout->banks[mainBankLayout->banksUsed] = newBank;
     mainBankLayout->banksUsed++;
+}
+
+int BL_getMachineAddr(int bankNum) {
+    return mainBankLayout->banks[bankNum].memLoc;
 }
 
 void BL_done() {
@@ -54,6 +63,6 @@ void BL_printBanks() {
     printf("\n");
 }
 
-struct BankLayout *BL_getBankLayout() {
+BankLayout *BL_getBankLayout() {
     return mainBankLayout;
 }

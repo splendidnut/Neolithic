@@ -406,11 +406,15 @@ void ICG_LoadIndexed(const SymbolRecord *varSym) {
     }
 }
 
-void ICG_LoadIndexedWithOffset(const SymbolRecord *varSym, int ofs) {
+void ICG_LoadIndexedWithOffset(const SymbolRecord *varSym, int ofs, int varSize) {
     const char *varName = getVarName(varSym);
     IL_AddComment(
             IL_AddInstrS(LDA, ADDR_ABY, varName, numToStr(ofs), PARAM_NORMAL + PARAM_ADD),
             "load from array using index with offset");
+
+    if (varSize == 2) {
+        IL_AddInstrS(LDX, ADDR_ABY, varName, numToStr(ofs+1), PARAM_NORMAL + PARAM_ADD);
+    }
 }
 
 void ICG_LoadPropertyVar(const SymbolRecord *structSym, const SymbolRecord *propertySym) {
@@ -421,6 +425,10 @@ void ICG_LoadPropertyVar(const SymbolRecord *structSym, const SymbolRecord *prop
     IL_AddComment(
             IL_AddInstrS(LDA, addrMode, structName, numToStr(propertyOfs), PARAM_NORMAL + PARAM_ADD),
             getStructRefComment("load structure ref", structName, propertySym->name));
+
+    if (getBaseVarSize(propertySym) == 2) {
+        IL_AddInstrS(LDX, addrMode, structName, numToStr(propertyOfs+1), PARAM_NORMAL + PARAM_ADD);
+    }
 }
 
 void ICG_LoadRegConst(const char destReg, int ofs) {
@@ -506,6 +514,12 @@ void ICG_StoreVarOffset(const SymbolRecord *varSym, int ofs, int destSize) {
 
 void ICG_StoreVarIndexed(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);
+
+    if (isPointer(varSym)) {
+        IL_AddInstrP(STA, ADDR_IY, varName, PARAM_NORMAL);
+        return;
+    }
+
     IL_AddInstrP(STA, ADDR_ABY, varName, PARAM_NORMAL);
     if (getBaseVarSize(varSym) == 2) {
         enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(varSym) + ADDR_Y;

@@ -41,18 +41,22 @@ void initOutputGenerator(enum Machines targetMachine) {
     // TODO: this is initial code to start incorporating code/data banks... need to flesh out
     // Build a default bank that matches the binary memory space available in the machine
 
-    struct BankDef mainBank;
-    mainBank.size = (machineInfo.endAddr - machineInfo.startAddr + 1);
-    mainBank.memLoc = machineInfo.startAddr;
-    mainBank.fileLoc = 0;
+    // Create main bank
+    int bankSize = (machineInfo.endAddr - machineInfo.startAddr + 1);
+    BL_addBank(bankSize, machineInfo.startAddr, 0);
 
-    BL_addBank(mainBank);
+    if (targetMachine == Atari2600) {
+        // TEMP (2600-only .. F8 bank-switching
+        BL_addBank(bankSize, machineInfo.startAddr + 0x2000, 0x1000);
+    }
 
     BL_printBanks();
 }
 
 void generateOutput(char *projectName, SymbolTable *mainSymbolTable, OutputFlags outputFlags) {
     struct BankLayout *mainBankLayout = BL_getBankLayout();
+
+    BL_printBanks();
 
     if (outputFlags.doOutputASM)
         WriteOutput(projectName, OUT_DASM, mainSymbolTable, mainBankLayout);

@@ -48,8 +48,10 @@ typedef void (*ProcessBlockFunc)(OutputBlock *);    // pointer to block processi
 extern void OB_Init();
 extern void OB_AddBlock(OutputBlock *newBlock);
 extern void OB_MoveToNextPage();
+extern void OB_SetAddress(int newAddr);
 extern OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock, int suggestedBank);
 extern OutputBlock *OB_AddData(SymbolRecord *dataSym, List *dataList, int suggestedBank);
+extern OutputBlock *OB_FindByName(char *blockNameToFind);
 extern void OB_PrintBlockList();
 extern const OutputBlock *OB_getFirstBlock();
 

@@ -34,6 +34,7 @@
 #include "flatten_tree.h"
 #include "gen_asmcode.h"
 #include "type_checker.h"
+#include "data/bank_layout.h"
 
 //-------------------------------------------
 //  Variables used in code generation
@@ -131,7 +132,7 @@ void GC_ArrayLookupWithExpr(const List *expr, const SymbolRecord *arraySymbol, L
         SymbolRecord *arrayIndexSymbol = lookupSymbolNode(indexExpr->nodes[1], expr->lineNum);
         if (arrayIndexSymbol != NULL) {
             ICG_LoadIndexVar(arrayIndexSymbol, destSize);
-            ICG_LoadIndexedWithOffset(arraySymbol, ofs);
+            ICG_LoadIndexedWithOffset(arraySymbol, ofs, getBaseVarSize(arraySymbol));
         }
     } else {
         // handle normal (potentially complex) expression
@@ -153,6 +154,7 @@ void GC_HandleArrayLookup(const List *expr, enum SymbolType destType) {
 
     if (arraySymbol == NULL) return;
 
+    // TODO: Fix!
     int destSize = (destType == ST_INT || destType == ST_PTR) ? 2 : 1;
 
     switch (indexNode.type) {
@@ -363,7 +365,7 @@ void GC_LoadPropertyRef(const List *expr, enum SymbolType destType) {
         SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSymbol, aliasType);
         if (baseSymbol != NULL) {
             if (aliasType == PT_LOOKUP) {
-                ICG_LoadIndexedWithOffset(baseSymbol, propertyOffset);
+                ICG_LoadIndexedWithOffset(baseSymbol, propertyOffset, getBaseVarSize(propertySymbol));
             } else {
                 ICG_LoadPropertyVar(baseSymbol, propertySymbol);
             }
@@ -402,6 +404,10 @@ void GC_SimpleOP(const List *expr, enum MnemonicCode mne, enum SymbolType destTy
 
 void GC_OpWithArrayElement(enum MnemonicCode mne, const List *expr) {
     SymbolRecord *arraySym = getArraySymbol(expr, expr->nodes[1]);
+    if (arraySym == NULL) {
+        printf("No array symbol available on line %d\n", expr->lineNum);
+        return;
+    }
     if (isArrayIndexConst(expr)) {
         int ofs = GC_GetArrayIndex(arraySym, expr);
         ICG_OpWithOffset(mne, arraySym, ofs);
@@ -433,7 +439,12 @@ void GC_OpWithPropertyRef(enum MnemonicCode mne, const List *expr, enum SymbolTy
         //---------------------------------------------------------
         // Not an enumeration, process as regular struct access
 
-        SymbolRecord *propSym = findSymbol(getStructSymbolSet(structSym), expr->nodes[2].value.str);
+        const char *propName = expr->nodes[2].value.str;
+        SymbolRecord *propSym = findSymbol(getStructSymbolSet(structSym), propName);
+        if (propSym == NULL) {
+            ErrorMessage("Property symbol not found" , propName, expr->lineNum);
+            return;
+        }
         if (IS_ALIAS(structSym)) {
             enum ParseToken aliasType = GC_LoadAlias(expr, structSym);
             SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSym, aliasType);
@@ -965,6 +976,8 @@ void GC_StoreToStructProperty(const List *expr) {
 
 void GC_StoreToArray(const List *expr) {
     SymbolRecord *arraySym = getArraySymbol(expr, expr->nodes[1]);
+    if (arraySym == NULL) return;
+
     IL_SetLineComment(arraySym->name);
 
     if (isArrayIndexConst(expr)) {
@@ -1086,9 +1099,15 @@ void GC_Assignment(const List *stmt, enum SymbolType destType) {
     SymbolRecord *destVar = getAsgnDestVarSym(stmt, storeNode);
     if (destVar == NULL) return;
 
-    destType = (destVar != NULL) ? getVarDestType(destVar) : ST_ERROR;
+    // Need to check if destination is array element
+    //   if so, process without IS_POINTER check
+    if (storeNode.type == N_LIST && isToken(storeNode.value.list->nodes[0], PT_LOOKUP)) {
+        destType = getType(destVar);
+    } else {
+        destType = (destVar != NULL) ? getVarDestType(destVar) : ST_ERROR;
+    }
 
-    //printf("DEBUG: GC_Assignment -> getAsgnDestType = %d\n", destType);
+    //printf("DEBUG line #%d: GC_Assignment -> getAsgnDestType = %d\n", stmt->lineNum, destType);
 
     // make sure we have a destination
     if (destType != ST_ERROR) {
@@ -1879,54 +1898,57 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
 //--- Track code address
 //-
 // TODO:  This is temporary functionality until the "relocatable code/data" blocks issue is solved
-
-static int codeAddr;
-
-/**
- * Return the current code address
- * @return
- */
-int ICG_GetCurrentCodeAddr() {
-    return codeAddr;
-}
-
-void ICG_SetCurrentCodeAddr(int newCodeAddr) {
-    codeAddr = newCodeAddr;
-}
-
 // TODO: Figure out how to do this differently to make blocks magically movable
 // TODO:  This can probably be figured out later in the compile process (output layout step)
 
+bool checkIfBlockFits(const OutputBlock *outputBlock, const SymbolRecord *symRec) {// check if code doesn't fit in bank
+    int blockEndAddr = (outputBlock->blockAddr + outputBlock->blockSize) - 1;
+    if (blockEndAddr > 0xFF7) {
+        char errStr[128];
+        sprintf(errStr, "Block ends at: %04X", blockEndAddr);
+        ErrorMessage("Code block doesn't fit in bank", errStr, symRec->astList->lineNum);
+        return false;
+    }
+    return true;
+}
+
 
 void GC_OB_AddCodeBlock(SymbolRecord *funcSym) {
-    OB_AddCode(funcSym->name, funcSym->instrBlock, curBank);
+    OutputBlock *result = OB_AddCode(funcSym->name, funcSym->instrBlock, curBank);
 
-    int funcAddr = ICG_GetCurrentCodeAddr();
-    ICG_SetCurrentCodeAddr(funcAddr + funcSym->instrBlock->codeSize);
+    if (checkIfBlockFits(result, funcSym)) {
 
-    setSymbolLocation(funcSym, funcAddr, SS_ROM);
+        // NEW CODE: use bank number to lookup code offset within bank
+        int bankCodeAddr = BL_getMachineAddr(result->bankNum) + result->blockAddr;
+
+        //setSymbolLocation(funcSym, funcAddr, SS_ROM);
+        setSymbolLocation(funcSym, bankCodeAddr, SS_ROM);
+    }
 }
 
 
 void GC_OB_AddDataBlock(SymbolRecord *varSymRec) {
     OutputBlock *staticData = OB_AddData(varSymRec, varSymRec->astList, curBank);
+    if (checkIfBlockFits(staticData, varSymRec)) {
 
-    //--- track data table address / size ---
-    int dataLoc = ICG_GetCurrentCodeAddr();
-    ICG_SetCurrentCodeAddr(dataLoc + staticData->blockSize);
+        // NEW CODE: use bank number to lookup code offset within bank
+        int bankCodeAddr = BL_getMachineAddr(staticData->bankNum) + staticData->blockAddr;
 
-    setSymbolLocation(varSymRec, dataLoc, SS_ROM);
+        setSymbolLocation(varSymRec, bankCodeAddr, SS_ROM);
+    }
 }
 
 
 void GC_OB_AddLookupTable(SymbolRecord *varSymRec) {
-    OutputBlock *staticData = OB_AddData(varSymRec, varSymRec->astList, 0);
+    OutputBlock *staticData = OB_AddData(varSymRec, varSymRec->astList, curBank);
 
-    //--- track data table size
-    int symAddr = ICG_GetCurrentCodeAddr();
-    ICG_SetCurrentCodeAddr(symAddr + staticData->blockSize);
+    if (checkIfBlockFits(staticData, varSymRec)) {
 
-    setSymbolLocation(varSymRec, symAddr, SS_ROM);
+        // NEW CODE: use bank number to lookup code offset within bank
+        int bankCodeAddr = BL_getMachineAddr(staticData->bankNum) + staticData->blockAddr;
+
+        setSymbolLocation(varSymRec, bankCodeAddr, SS_ROM);
+    }
 }
 
 
@@ -1983,6 +2005,7 @@ void GC_HandleEcho(const List *echoDirStmt) {
 
 
 void GC_HandleDirective(const List *code, enum SymbolType destType) {
+    int addr;
 
     // NOTE: loose casting op!
     enum CompilerDirectiveTokens directive = code->nodes[1].value.num;
@@ -1996,7 +2019,6 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
             IL_HideCycles();
             break;
         case PAGE_ALIGN:
-            ICG_SetCurrentCodeAddr((ICG_GetCurrentCodeAddr() + 256) & 0xff00);
             OB_MoveToNextPage();
             break;
 
@@ -2011,6 +2033,10 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
             break;
         case SET_BANK:
             curBank = code->nodes[2].value.num;
+            break;
+        case SET_ADDRESS:
+            addr = code->nodes[2].value.num;
+            OB_SetAddress(addr);
             break;
         case INLINE:
             // handle #inline directive within code block
@@ -2192,6 +2218,7 @@ void GC_Variable(const List *varDef) {
         lastDirective = 0;
     }
 
+    ///--- EXIT if there is no initializer
     if (!hasInitializer) return;
 
     if (IS_ALIAS(varSymRec)) {
@@ -2277,7 +2304,7 @@ void GC_ProcessFunction(SymbolRecord *funcSym, List *code) {
     }
 
     GC_CodeBlock(code);
-    funcSym->instrBlock = ICG_EndOfFunction(funcLabel);
+    funcSym->instrBlock = ICG_EndOfFunction();
     funcSym->astList = code;
 
     setEvalLocalSymbolTable(NULL);
@@ -2390,7 +2417,6 @@ void initCodeGenerator(SymbolTable *symbolTable, enum Machines machines) {
     mainSymbolTable = symbolTable;
     ICG_Mul_InitLookupTables(symbolTable);
     IL_Init();
-    ICG_SetCurrentCodeAddr(getMachineStartAddr(machines));
 }
 
 void generate_code(char *name, ListNode node) {
