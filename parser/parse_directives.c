@@ -36,8 +36,10 @@ const char* CompilerDirectiveNames[NUM_COMPILER_DIRECTIVES] = {
         "reverse",
         "use_quick_index_table",
         "echo",
-        "bank",
-        "inline"
+        "inline",
+
+        "set_bank",
+        "set_address"
 };
 
 enum CompilerDirectiveTokens lookupDirectiveToken(char *tokenName) {
@@ -91,6 +93,15 @@ ListNode buildBankDirective(enum CompilerDirectiveTokens token) {
     return createListNode(bankDirList);
 }
 
+ListNode buildAddrDirective(enum CompilerDirectiveTokens token) {
+    List *bankDirList = createList(3);
+    addNode(bankDirList, createParseToken(PT_DIRECTIVE));
+    addNode(bankDirList, createIntNode(token));
+    addNode(bankDirList, parse_expr());
+    return createListNode(bankDirList);
+}
+
+
 ListNode parse_compilerDirective(enum ParserScope parserScope) {
     ListNode node;
     acceptToken(TT_HASH);   // EAT '#'
@@ -113,6 +124,9 @@ ListNode parse_compilerDirective(enum ParserScope parserScope) {
             case SET_BANK:
                 node = buildBankDirective(directiveToken);
                 break;
+            case SET_ADDRESS:
+                node = buildAddrDirective(directiveToken);
+                break;
 
                 // Preprocessor Cases:  These directives have already been processed, so skip them
             case MACHINE_DEF:
@@ -131,6 +145,9 @@ ListNode parse_compilerDirective(enum ParserScope parserScope) {
     } else {
         printf("Missing support for #%s\n", token->tokenStr);
         node = createEmptyNode();
+
+        // tell tokenizer to skip rest of line (since there may be parameters that we can't process)
+        tokenizer_nextLine();
     }
     return node;
 }
