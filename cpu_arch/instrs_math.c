@@ -136,6 +136,8 @@ void ICG_MultiplyWithConstTable(const SymbolRecord *varRec, const char multiplie
 /**
  * Load variable to use in multiplication into Accumulator
  *
+ * TODO: Fix this to allow use of a "hinted" variable symbol
+ *
  * @param varRec
  */
 void ICG_LoadVarForMultiply(const SymbolRecord *varRec) {

@@ -46,6 +46,7 @@
 #include "cpu_arch/instrs.h"
 #include "output/output_manager.h"
 #include "output/write_output.h"
+#include "optimizer/optimizer.h"
 
 const char *verStr = "0.4(alpha)";
 
@@ -306,7 +307,7 @@ int mainCompiler() {
     check_for_entry_point();
 
     if (GC_ErrorCount == 0) {
-        //OPT_RunOptimizer();
+        if (compilerOptions.runOptimizer) OPT_RunOptimizer();
 
         //OB_ArrangeBlocks();
 
@@ -377,6 +378,8 @@ void setDefaultCompilerParameters() {
     compilerOptions.reportFunctionProcessing = false;
 
     compilerOptions.showOutputBlockList = false;
+
+    compilerOptions.runOptimizer = false;
 }
 
 /**
@@ -417,6 +420,7 @@ const char *help[] = {
         "  -h  Show help for Command Line options",
         "  -i  Include file",
         "  -m  Select machine target",
+        "  -o  Run Optimizer on generated machine code",
         "  -v  View details about:",
         "        -va  Show variable allocations",
         "        -vc  Show call tree",
@@ -473,6 +477,10 @@ void parseCommandLineParameters(int argc, char *argv[]) {
                     targetMachine = machine;
                 }
             } break;
+
+            case 'o':
+                compilerOptions.runOptimizer = true;
+                break;
 
             case 'q':
                 compilerOptions.showGeneralInfo = false;

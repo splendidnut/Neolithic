@@ -13,6 +13,8 @@
  */
 
 //
+//  Code Optimizer for Generated Machine Code
+//
 // Created by admin on 6/22/2020.
 //
 
@@ -84,16 +86,25 @@ LabelInfo *findLabelInfo(const char *labelName) {
 /**
  * Find All Labels and generate re-mappings to remove redundant ones
  *
+ * @local lastInstrNone = flag to track whether last "instruction" actually
+ *                        had an instruction/opcode or whether it was only
+ *                        a label/comment line
+ *
  * @param curInstr
  */
 
 void FindAllLabels(Instr *curInstr) {
     static bool lastInstrNone = false;
     static Label *lastLabel = NULL;
+
+    // if current instruction has a label, track it
     if (curInstr->label != NULL) {
         labelSet[curLabelIndex].label = curInstr->label;
         labelSet[curLabelIndex].instr = curInstr;
         labelSet[curLabelIndex].canRemap = lastInstrNone;
+
+        // if previous line(s) had no instruction,
+        //   we can mark labels for consolidation
         if (lastInstrNone) {
             labelSet[curLabelIndex].newLabel = lastLabel;
         }
@@ -102,6 +113,9 @@ void FindAllLabels(Instr *curInstr) {
         if (!lastInstrNone) lastLabel = curInstr->label;
         lastInstrNone = (curInstr->mne == MNE_NONE);
     }
+
+    // if there was an instruction here, remember that
+    if (curInstr->mne != MNE_NONE) lastInstrNone = false;
 }
 
 void clearLabelInfo(int index) {
@@ -141,8 +155,10 @@ void RemapLabel(InstrBlock *instrBlock, Label *oldLabel, Label *newLabel) {
     }
 }
 
-void print_labelList() {
-    printf("Label List\n------------\n");
+void print_labelList(const char *name) {
+    printf("Label List: %s\n", name);
+    printf("   %-20s:  MNE  remap  newLabel\n", "");
+    printf("------------------------------------------\n");
     for (int labelIndex = 0; (labelSet[labelIndex].label != NULL) && (labelIndex < LABEL_COUNT); labelIndex++) {
         LabelInfo labelInfo = labelSet[labelIndex];
         Label *curLabel = labelSet[labelIndex].label;
@@ -283,6 +299,9 @@ void OPT_Jumps(InstrBlock *instrBlock) {
 
 void RemoveEmptyInstrs(Instr *curInstr) {
     if (curInstr->mne != MNE_NONE) return;
+    if (curInstr->lineComment != NULL) return;
+
+    if (curInstr->prevInstr == NULL) return;
 
     Instr *nextInstr = curInstr->nextInstr;
 
@@ -291,7 +310,6 @@ void RemoveEmptyInstrs(Instr *curInstr) {
         curInstr->prevInstr->nextInstr = nextInstr;
     } else if ((curInstr->label != NULL)
                 && (nextInstr->label == NULL)) {
-                //&& (curInstr->prevInstr != NULL)) {
         nextInstr->label = curInstr->label;
         curInstr->prevInstr->nextInstr = nextInstr;
     }
@@ -343,11 +361,14 @@ void OPT_CodeBlock(OutputBlock *curBlock) {
     InstrBlock *instrBlock = curBlock->codeBlock;
 
     OPT_FindAllLabels(instrBlock);
+    print_labelList(curBlock->blockName);
     OPT_Jumps(instrBlock);
     OPT_RemapLabelsInBlock(instrBlock);
 
-    OPT_RemoveEmptyInstrs(instrBlock);
-    OPT_RemoveUnusedLabels(instrBlock);
+    //--- TODO: remove the following as they don't really do anything of value
+    //          now that OPT_RemapLabelsInBlock has been fixed
+    //OPT_RemoveEmptyInstrs(instrBlock);      //--- doesn't actually do much after adding in "comment" rule
+    //OPT_RemoveUnusedLabels(instrBlock);
 }
 
 void OPT_DecCmp(OutputBlock *curBlock) {
@@ -357,9 +378,11 @@ void OPT_DecCmp(OutputBlock *curBlock) {
 }
 
 void OPT_RunOptimizer() {
+    printf("Running optimizer...\n");
+
     // optimize labels - currently done twice to catch what's missed on the first go-round
     OB_WalkCodeBlocks(&OPT_CodeBlock);
-    OB_WalkCodeBlocks(&OPT_CodeBlock);
+    //OB_WalkCodeBlocks(&OPT_CodeBlock);
 
     //----------
     OB_WalkCodeBlocks(&OPT_DecCmp);

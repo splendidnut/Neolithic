@@ -154,7 +154,6 @@ void GC_HandleArrayLookup(const List *expr, enum SymbolType destType) {
 
     if (arraySymbol == NULL) return;
 
-    // TODO: Fix!
     int destSize = (destType == ST_INT || destType == ST_PTR) ? 2 : 1;
 
     switch (indexNode.type) {
