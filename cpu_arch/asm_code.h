@@ -104,6 +104,7 @@ extern struct StAddressMode getAddrModeSt(enum AddrModes addrMode);
 extern int getInstrSize(enum MnemonicCode mne, enum AddrModes addrMode);
 
 extern bool isBranch(enum MnemonicCode mne);
+extern enum MnemonicCode invertBranch(enum MnemonicCode mne);
 
 extern OpcodeEntry lookupOpcodeEntry(enum MnemonicCode mneCode, enum AddrModes addrMode);
 extern int getCycleCount(enum MnemonicCode mne, enum AddrModes addrMode);

@@ -189,6 +189,20 @@ bool isBranch(enum MnemonicCode mne) {
             (mne == BVC) || (mne == BVS));
 }
 
+enum MnemonicCode invertBranch(enum MnemonicCode mne) {
+    switch (mne) {
+        case BEQ: return BNE;
+        case BNE: return BEQ;
+        case BCC: return BCS;
+        case BCS: return BCC;
+        case BMI: return BPL;
+        case BPL: return BMI;
+        case BVC: return BVS;
+        case BVS: return BVC;
+    }
+    return mne;
+}
+
 
 struct StOpcodeTable opcodeTable[] = {
         {MNE_NONE, ADDR_NONE, 0, 0},
