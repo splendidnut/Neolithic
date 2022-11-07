@@ -51,6 +51,8 @@ Label * newGenericLabel(enum LabelType type) {
     label->type = type;
     label->link = NULL;
     label->hasBeenReferenced = false;
+    label->hasLocation = false;
+    label->location = 0;
     addToLabelList(label);
     return label;
 }
@@ -61,6 +63,8 @@ Label * newLabel(char* name, enum LabelType type) {
     label->type = type;
     label->link = NULL;
     label->hasBeenReferenced = false;
+    label->hasLocation = false;
+    label->location = 0;
     addToLabelList(label);
     return label;
 }

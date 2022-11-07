@@ -23,7 +23,7 @@
 
 #define LABEL_NAME_LIMIT 32
 
-enum LabelType { L_CODE, L_DATA };
+enum LabelType { LBL_CODE, LBL_LOOP_START, LBL_DATA };
 
 typedef struct LabelStruct {
     char *name;
