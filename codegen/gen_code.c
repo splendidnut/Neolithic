@@ -694,7 +694,7 @@ void GC_HandleBranchOp(ListNode opNode, const Label *skipLabel, bool isCmpToZero
         case PT_EQ: ICG_Branch(BNE, skipLabel); break;
         case PT_NE: ICG_Branch(BEQ, skipLabel); break;
         case PT_LTE: {
-            Label *contLabel = newGenericLabel(L_CODE);
+            Label *contLabel = newGenericLabel(LBL_CODE);
             ICG_Branch(BEQ, contLabel);
             if (isSignedCmp) {
                 ICG_Branch(BPL, skipLabel);     // signed numbers
@@ -777,7 +777,7 @@ void GC_AddrOf(const List *expr, enum SymbolType destType) {
 
 void GC_CompareOp(const List *expr, enum SymbolType destType) {
     ListNode opNode = expr->nodes[0];
-    Label *skipLabel = newGenericLabel(L_CODE);
+    Label *skipLabel = newGenericLabel(LBL_CODE);
 
     // TODO: maybe need to do something different if 16-bit operation
     ICG_LoadRegConst('X', 0);
@@ -1348,8 +1348,8 @@ void GC_HandleCondExpr(const ListNode ifExprNode, enum SymbolType destType, Labe
 void GC_If(const List *stmt, enum SymbolType destType) {
     bool hasElse = (stmt->count > 3) && (stmt->nodes[3].type == N_LIST);
 
-    Label *skipThenLabel = newGenericLabel(L_CODE);
-    Label *skipElseLabel = (hasElse ? newGenericLabel(L_CODE) : NULL);
+    Label *skipThenLabel = newGenericLabel(LBL_CODE);
+    Label *skipElseLabel = (hasElse ? newGenericLabel(LBL_CODE) : NULL);
 
     // handle if:
     GC_HandleCondExpr(stmt->nodes[1], ST_BOOL, skipThenLabel, stmt->lineNum);
@@ -1422,7 +1422,7 @@ void GC_HandleCase(const List *caseStmt, SymbolRecord *switchVarSymbol) {
 }
 
 void GC_Switch(const List *stmt, enum SymbolType destType) {
-    Label *endOfSwitch = newGenericLabel(L_CODE);
+    Label *endOfSwitch = newGenericLabel(LBL_CODE);
 
     SymbolRecord *switchVarSymbol = NULL;
 
@@ -1445,7 +1445,7 @@ void GC_Switch(const List *stmt, enum SymbolType destType) {
         if (caseStmtNode.type == N_LIST) {
             List *caseStmt = caseStmtNode.value.list;
             if (isToken(caseStmt->nodes[0], PT_CASE)) {
-                Label *nextCaseLabel = newGenericLabel(L_CODE);
+                Label *nextCaseLabel = newGenericLabel(LBL_CODE);
                 IL_AddCommentToCode(buildSourceCodeLine(&caseStmt->progLine));
 
                 // handle case condition check
@@ -1465,8 +1465,8 @@ void GC_Switch(const List *stmt, enum SymbolType destType) {
 }
 
 void GC_For(const List *stmt, enum SymbolType destType) {
-    Label *startOfLoop = newGenericLabel(L_CODE);
-    Label *doneWithLoop = newGenericLabel(L_CODE);
+    Label *startOfLoop = newGenericLabel(LBL_LOOP_START);
+    Label *doneWithLoop = newGenericLabel(LBL_CODE);
 
     ListNode initStmtNode = stmt->nodes[1];
     if (initStmtNode.type != N_LIST) {
@@ -1536,8 +1536,8 @@ void GC_Loop(const List *stmt, enum SymbolType destType) {
     int counterEndValue = getConstValue(counterEndValueNode, stmt->lineNum);
 
     //----------------------------------------------------
-    Label *startOfLoop = newGenericLabel(L_CODE);
-    Label *doneWithLoop = newGenericLabel(L_CODE);
+    Label *startOfLoop = newGenericLabel(LBL_LOOP_START);
+    Label *doneWithLoop = newGenericLabel(LBL_CODE);
 
     //---  Initialize the loop counter
     ICG_LoadConst(counterStartValue, getBaseVarSize(cntVarSym));
@@ -1559,8 +1559,8 @@ void GC_Loop(const List *stmt, enum SymbolType destType) {
 }
 
 void GC_While(const List *stmt, enum SymbolType destType) {
-    Label *startOfLoop = newGenericLabel(L_CODE);
-    Label *doneWithLoop = newGenericLabel(L_CODE);
+    Label *startOfLoop = newGenericLabel(LBL_LOOP_START);
+    Label *doneWithLoop = newGenericLabel(LBL_CODE);
 
     IL_Label(startOfLoop);
 
@@ -1583,7 +1583,7 @@ void GC_While(const List *stmt, enum SymbolType destType) {
 }
 
 void GC_DoWhile(const List *stmt, enum SymbolType destType) {
-    Label *startLoopLabel = newGenericLabel(L_CODE);
+    Label *startLoopLabel = newGenericLabel(LBL_LOOP_START);
     IL_Label(startLoopLabel);
 
     GC_CodeBlock(stmt->nodes[1].value.list);
@@ -1591,7 +1591,7 @@ void GC_DoWhile(const List *stmt, enum SymbolType destType) {
     // now process conditional logic
     ListNode condNode = stmt->nodes[2];
     if (condNode.type == N_LIST) {
-        Label *doneWithLoop = newGenericLabel(L_CODE);
+        Label *doneWithLoop = newGenericLabel(LBL_CODE);
         IL_AddCommentToCode(buildSourceCodeLine(&condNode.value.list->progLine));
         GC_HandleCondExpr(condNode, ST_BOOL, doneWithLoop, stmt->lineNum);
         ICG_Jump(startLoopLabel, "beginning of loop");
@@ -2285,7 +2285,7 @@ void GC_PreloadParams(SymbolList *params) {
 
 void GC_ProcessFunction(SymbolRecord *funcSym, List *code) {
     char *funcName = funcSym->name;
-    Label *funcLabel = newLabel(funcName, L_CODE);
+    Label *funcLabel = newLabel(funcName, LBL_CODE);
 
     // start building function using provided label
     ICG_StartOfFunction(funcLabel, funcSym);
