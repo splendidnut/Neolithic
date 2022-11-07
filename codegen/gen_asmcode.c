@@ -222,7 +222,7 @@ void GC_AsmBlock(const List *code, enum SymbolType destType) {
         if (stmtNode.type == N_LIST) {
             List *statement = stmtNode.value.list;
             if (isToken(statement->nodes[0], PT_LABEL)) {
-                newLabel(statement->nodes[1].value.str, L_CODE);
+                newLabel(statement->nodes[1].value.str, LBL_CODE);
             }
         }
     }
