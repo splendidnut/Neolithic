@@ -922,7 +922,7 @@ void GC_Expression(const List *expr, enum SymbolType destType) {
             bool isWord = ((destType == ST_INT) || (destType == ST_PTR));
             int destSize = isWord ? 2 : 1;
 
-            IL_SetLineComment(get_expression(expr));
+            IL_SetLineComment(catStrs("eval= ", get_expression(expr)));
             //IL_SetLineComment(isWord ? "word" : "byte");
 
             ICG_LoadConst(evalResult.value, destSize);

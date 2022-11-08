@@ -139,6 +139,13 @@ char *genFileName(const char *name, const char *ext) {
     return astFileName;
 }
 
+char *catStrs(const char *str1, const char *str2) {
+    char *result = allocMem(strlen(str1) + strlen(str2) + 2);
+    strcpy(result, str1);
+    strcat(result, str2);
+    return result;
+}
+
 /**
  * Build the source code line to display in the ASM output
  *

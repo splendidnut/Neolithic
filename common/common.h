@@ -64,6 +64,7 @@ extern char *getStructRefComment(const char *prefixComment, const char *structNa
 extern char *newSubstring(const char* inStr, int idxBegin, int idxEnd);
 extern char *getUnquotedString(const char *srcString);
 extern char *genFileName(const char *name, const char *ext);
+extern char *catStrs(const char *str1, const char *str2);
 extern char *buildSourceCodeLine(const SourceCodeLine *srcStr);
 
 #endif //MODULE_COMMON_H
