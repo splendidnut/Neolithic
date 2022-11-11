@@ -93,6 +93,8 @@ extern void ICG_OpWithOffset(enum MnemonicCode mne, SymbolRecord *baseVarSym, in
 extern void ICG_ShiftLeft(const SymbolRecord *varSym, int count);
 extern void ICG_ShiftRight(const SymbolRecord *varSym, int count);
 extern void ICG_AddToInt(const SymbolRecord *varSym);
+extern void ICG_AddOffsetToInt(int ofs);
+extern void ICG_AddTempVarToInt(int addr);
 extern void ICG_AddAddr(const SymbolRecord *varSym);
 extern void ICG_CompareConstName(const char *constName);
 extern void ICG_CompareConst(int constValue);
@@ -105,7 +107,7 @@ extern void ICG_Return();
 //-----------------------------------------------------------------------
 //---- Handle other things:  inline assembly, functions, static data
 
-extern void ICG_AsmData(int value);
+extern void ICG_AsmData(int value, bool isWord);
 
 // function specific stuff
 extern void ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym);

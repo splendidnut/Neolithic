@@ -33,6 +33,7 @@ enum MnemonicCode {
 
     // data in the middle of code (ASM block only)
     MNE_DATA,
+    MNE_DATA_WORD
 };
 
 struct SMnemonic  {

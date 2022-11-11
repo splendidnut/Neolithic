@@ -35,6 +35,7 @@
 #include "gen_asmcode.h"
 #include "type_checker.h"
 #include "data/bank_layout.h"
+#include "cpu_arch/instrs_opt.h"
 
 //-------------------------------------------
 //  Variables used in code generation
@@ -1084,59 +1085,6 @@ SymbolRecord *getAsgnDestVarSym(const List *stmt, ListNode storeNode) {
     return destVar;
 }
 
-/**
- * Process assignment statement
- *
- * @param stmt - statement to process
- * @param destType - unused for now.  This gets overridden by a call to getAsgnDestType
- */
-void GC_Assignment(const List *stmt, enum SymbolType destType) {
-    ListNode loadNode = stmt->nodes[2];
-    ListNode storeNode = stmt->nodes[1];
-
-    // figure out destination type
-    SymbolRecord *destVar = getAsgnDestVarSym(stmt, storeNode);
-    if (destVar == NULL) return;
-
-    // Need to check if destination is array element
-    //   if so, process without IS_POINTER check
-    if (storeNode.type == N_LIST && isToken(storeNode.value.list->nodes[0], PT_LOOKUP)) {
-        destType = getType(destVar);
-    } else {
-        destType = (destVar != NULL) ? getVarDestType(destVar) : ST_ERROR;
-    }
-
-    //printf("DEBUG line #%d: GC_Assignment -> getAsgnDestType = %d\n", stmt->lineNum, destType);
-
-    // make sure we have a destination
-    if (destType != ST_ERROR) {
-
-        /*
-        // flatten out the expression before code generation
-        if (loadNode.type == N_LIST) {
-            flatten_expression(loadNode.value.list, stmt);
-        }
-        */
-
-        // figure out where data is coming from
-        GC_HandleLoad(loadNode, destType, stmt->lineNum);
-
-        //--------------------------------------------------------------
-        // At this point A register should have data to store...
-        //    just need to calculate destination address
-        //    and then store the data
-        switch (storeNode.type) {
-            case N_STR:
-                GC_StoreInVar(storeNode, destType, stmt->lineNum);
-                break;
-            case N_LIST:
-                GC_ExpressionForStore(storeNode.value.list, destType);
-                break;
-        }
-    } else {
-        ErrorMessageWithList("Destination type unknown\n", stmt);
-    }
-}
 
 void GC_Strobe(const List *stmt, enum SymbolType destType) {
     ListNode storeNode = stmt->nodes[1];
@@ -1892,6 +1840,191 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
     }
 }
 
+//----------------------------------------------------------------------------
+//--- Processing functions for Initializer list
+
+static const char* INIT_VALUE_ERROR_MSG = "Initializer value cannot be evaluated";
+bool ppError = false;
+
+/**
+ * Preprocess an initializer expression by running it thru the evaluator
+ * @param initExpr
+ * @param lineNum
+ * @return
+ */
+ListNode PreProcess_Node(ListNode initExpr, int lineNum) {
+    int value = 0;
+    EvalResult result = evaluate_node(initExpr);
+    if (result.hasResult) {
+        value = result.value;
+    } else {
+        ErrorMessageWithNode(INIT_VALUE_ERROR_MSG, initExpr, lineNum);
+        ppError = true;
+    }
+    return createIntNode(value & 0xffff);
+}
+
+/**
+ * Preprocess Initializer Data List in preparation for code generation
+ *
+ * -- Runs the Expression evaluator and replaces constant vars with values.
+ *
+ * @param initList
+ */
+void Preprocess_InitListData(const List* varDef, List *initList) {
+    ppError = false;
+    int index=1;
+    if (initList == NULL) {
+        ErrorMessageWithList("Initializer invalid", varDef);
+        return;
+    }
+    while (index < initList->count) {
+        ListNode initExpr = initList->nodes[index];
+        ListNode processedNode = PreProcess_Node(initExpr, initList->lineNum);
+        if (processedNode.type != N_EMPTY) {
+            initList->nodes[index] = processedNode;
+        }
+        index++;
+    }
+}
+
+
+SymbolRecord* GC_LoadAliasForStructInitializer(const List *expr, SymbolRecord *structSymbol) {
+    List *alias = structSymbol->alias;
+
+    // get alias type
+    enum ParseToken aliasType;
+    if (alias->nodes[0].type == N_TOKEN) {
+        aliasType = alias->nodes[0].value.parseToken;
+    } else {
+        aliasType = PT_EMPTY;
+    }
+
+    if (aliasType != PT_LOOKUP) return NULL;
+
+    SymbolRecord *arraySymbol = lookupSymbolNode(alias->nodes[1], alias->lineNum);
+    SymbolRecord *indexSymbol = lookupSymbolNode(alias->nodes[2], alias->lineNum);
+
+    char multiplier = (char) calcVarSize(structSymbol);
+    ICG_MultiplyVarWithConst(indexSymbol, multiplier & 0x7f);
+    ICG_StoreToAddr(0x80, 1);
+    return arraySymbol;
+}
+
+//---------------------------------------------------
+
+void GC_ProcessInitializerExpr(const List *stmt, ListNode *loadNode, ListNode *storeNode) {
+    bool hasVarDst = ((*storeNode).type == N_STR);
+    if (!hasVarDst) {
+        ErrorMessageWithList("Initializer Expression can only be store into a variable directly\n", stmt);
+        return;
+    }
+
+    SymbolRecord *varSymRec = lookupSymbolNode((*storeNode), stmt->lineNum);
+    if (varSymRec == NULL || !isStructDefined(varSymRec)) {
+        ErrorMessageWithList("Initializer can only be stored in a valid variable\n", stmt);
+        return;
+    }
+
+    // need to evaluate all items in the initializer...
+    // --- Process the initializer list! ---
+    List *initList = (*loadNode).value.list;
+    Preprocess_InitListData(initList, initList);
+
+    printf("initializer results\n");
+    showList(stdout, (*loadNode).value.list, 0);
+    printf("\n\n");
+
+    if (!ppError) {
+        bool useIndirect = false;
+
+        // need to do load ALIAS here
+        if (IS_ALIAS(varSymRec)) {
+            List *expr = (*loadNode).value.list;
+            SymbolRecord *baseSymbol = GC_LoadAliasForStructInitializer(expr, varSymRec);
+            if (baseSymbol != NULL) {
+                ICG_LoadAddr(baseSymbol);
+                ICG_AddTempVarToInt(0x80);
+                ICG_StoreToAddr(0x80, 2);
+                useIndirect = true;
+            } else {
+                ErrorMessageWithList("Error processing alias - base symbol not found", expr);
+                return;
+            }
+        }
+
+        ICG_CopyDataIntoStruct((*loadNode), varSymRec, useIndirect);
+    } else {
+        // need to do each struct var one-by-one.
+        ErrorMessageWithList("Initializer can only be stored in a valid variable\n", stmt);
+    }
+}
+
+/**
+ * Process assignment statement
+ *
+ * @param stmt - statement to process
+ * @param destType - unused for now.  This gets overridden by a call to getAsgnDestType
+ */
+void GC_Assignment(const List *stmt, enum SymbolType destType) {
+    ListNode loadNode = stmt->nodes[2];
+    ListNode storeNode = stmt->nodes[1];
+
+    // figure out destination type
+    SymbolRecord *destVar = getAsgnDestVarSym(stmt, storeNode);
+    if (destVar == NULL) return;
+
+    // Need to check if destination is array element
+    //   if so, process without IS_POINTER check
+    if (storeNode.type == N_LIST && isToken(storeNode.value.list->nodes[0], PT_LOOKUP)) {
+        destType = getType(destVar);
+    } else {
+        destType = (destVar != NULL) ? getVarDestType(destVar) : ST_ERROR;
+    }
+
+    //printf("DEBUG line #%d: GC_Assignment -> getAsgnDestType = %d\n", stmt->lineNum, destType);
+
+    // make sure we have a destination
+    if (destType != ST_ERROR) {
+
+        /*
+        // flatten out the expression before code generation
+        if (loadNode.type == N_LIST) {
+            flatten_expression(loadNode.value.list, stmt);
+        }
+        */
+
+        //------------------------------------------------------------------
+        // if (loadNode is list and dest is struct, do init struct copy)
+
+        bool isInitializerExpr = ((loadNode.type == N_LIST) && isToken(loadNode.value.list->nodes[0], PT_LIST));
+
+        if (isInitializerExpr) {
+            GC_ProcessInitializerExpr(stmt, &loadNode, &storeNode);
+        } else {
+
+            // figure out where data is coming from
+            GC_HandleLoad(loadNode, destType, stmt->lineNum);
+
+            //--------------------------------------------------------------
+            // At this point A register should have data to store...
+            //    just need to calculate destination address
+            //    and then store the data
+            switch (storeNode.type) {
+                case N_STR:
+                    GC_StoreInVar(storeNode, destType, stmt->lineNum);
+                    break;
+                case N_LIST:
+                    GC_ExpressionForStore(storeNode.value.list, destType);
+                    break;
+            }
+        }
+    } else {
+        ErrorMessageWithList("Destination type unknown\n", stmt);
+    }
+}
+
+
 
 //-------------------------------------------------------------------
 //--- Track code address
@@ -2094,49 +2227,6 @@ void GC_Statement(List *stmt) {
 //-----------------------------------------------------------------------
 //  High level structure items
 
-static const char* INIT_VALUE_ERROR_MSG = "Initializer value cannot be evaluated";
-
-/**
- * Preprocess an initializer expression by running it thru the evaluator
- * @param initExpr
- * @param lineNum
- * @return
- */
-ListNode PreProcess_Node(ListNode initExpr, int lineNum) {
-    int value = 0;
-    ListNode resultNode;
-    EvalResult result = evaluate_node(initExpr);
-    if (result.hasResult) {
-        value = result.value;
-    } else {
-        ErrorMessageWithNode(INIT_VALUE_ERROR_MSG, initExpr, lineNum);
-    }
-    resultNode = createIntNode(value & 0xffff);
-    return resultNode;
-}
-
-/**
- * Preprocess Initializer Data List in preparation for code generation
- *
- * -- Runs the Expression evaluator and replaces constant vars with values.
- *
- * @param initList
- */
-void Preprocess_InitListData(const List* varDef, List *initList) {
-    int index=1;
-    if (initList == NULL) {
-        ErrorMessageWithList("Initializer invalid", varDef);
-        return;
-    }
-    while (index < initList->count) {
-        ListNode initExpr = initList->nodes[index];
-        ListNode processedNode = PreProcess_Node(initExpr, initList->lineNum);
-        if (processedNode.type != N_EMPTY) {
-            initList->nodes[index] = processedNode;
-        }
-        index++;
-    }
-}
 
 ListNode Preprocess_InitData(const List *varDef, ListNode nestedNode) {
     ListNode processedNode;

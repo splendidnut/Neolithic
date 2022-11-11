@@ -88,7 +88,8 @@ struct SMnemonic Mnemonics[] = {
         {"LAX", LAX, false},
 
         // ex
-        {"byte", MNE_DATA, false}
+        {"byte", MNE_DATA, false},
+        {"word", MNE_DATA_WORD, false}
 };
 
 const int NumMnemonics = sizeof(Mnemonics) / sizeof(struct SMnemonic);
@@ -179,6 +180,7 @@ struct StAddressMode getAddrModeSt(enum AddrModes addrMode) {
 }
 
 int getInstrSize(enum MnemonicCode mne, enum AddrModes addrMode) {
+    if (mne == MNE_DATA_WORD) return 2;
     return ((mne != MNE_NONE) ? AddressModes[addrMode].instrSize : 0);
 }
 

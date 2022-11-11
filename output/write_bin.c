@@ -179,6 +179,7 @@ void WriteBIN_PreprocessLabels(const InstrBlock *instrBlock, int blockAddr) {
         if (curOutInstr->mne != MNE_NONE) {
             struct StAddressMode addressMode = getAddrModeSt(curOutInstr->addrMode);
             blockAddr += addressMode.instrSize;
+            if (curOutInstr->mne == MNE_DATA_WORD) blockAddr++;
         }
         curOutInstr = curOutInstr->nextInstr;
     }
@@ -206,8 +207,14 @@ void WriteBIN_FunctionBlock(const OutputBlock *block) {
         struct StAddressMode addressMode = getAddrModeSt(addrMode);
         OpcodeEntry opcodeEntry = lookupOpcodeEntry(curOutInstr->mne, addrMode);
 
+        if (curOutInstr->mne >= MNE_DATA) {
+            binData[writeAddr++] = curOutInstr->offset & 0xff;
+            if (curOutInstr->mne == MNE_DATA_WORD) {
+                binData[writeAddr++] = (curOutInstr->offset >> 8) & 0xff;
+            }
+        } else
         if (curOutInstr->mne != MNE_NONE) {
-            binData[writeAddr++] = (curOutInstr->mne != MNE_DATA) ? opcodeEntry.opcode : curOutInstr->offset;
+            binData[writeAddr++] = opcodeEntry.opcode;
 
             //DEBUG
 #ifdef DEBUG_WRITE_BIN_OPCODE

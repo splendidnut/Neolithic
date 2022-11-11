@@ -42,8 +42,10 @@ void WalkInstructionsBackwards(ProcessInstrFunc instrFunc, InstrBlock *instrBloc
     }
 }
 
-//-------------------------------------------
-const int LABEL_COUNT = 50;
+//-------------------------------------------------------------------------------
+//  Label tracking (for remap and remove)
+//-------------------------------------------------------------------------------
+enum { LABEL_COUNT = 50 };
 int curLabelIndex;
 
 typedef struct {
@@ -55,7 +57,7 @@ typedef struct {
     Label *newLabel;
 } LabelInfo;
 
-LabelInfo labelSet[50];
+LabelInfo labelSet[LABEL_COUNT];
 
 /**
  * Find label destination
@@ -80,6 +82,30 @@ LabelInfo *findLabelInfo(const char *labelName) {
         }
     }
     return NULL;
+}
+
+void clearLabelInfo(int index) {
+    labelSet[index].label = NULL;
+    labelSet[index].instr = NULL;
+    labelSet[index].newLabel = NULL;
+}
+
+void print_labelList(const char *name) {
+    printf("Label List: %s\n", name);
+    printf("   %-20s:  Addr  MNE  remap  newLabel\n", "");
+    printf("------------------------------------------\n");
+    for (int labelIndex = 0; (labelSet[labelIndex].label != NULL) && (labelIndex < LABEL_COUNT); labelIndex++) {
+        LabelInfo labelInfo = labelSet[labelIndex];
+        Label *curLabel = labelSet[labelIndex].label;
+        bool hasNewLabel = (labelInfo.newLabel != NULL && labelInfo.canRemap);
+        printf("   %-20s:  %4X  %4s  %5s  %s\n",
+               curLabel->name,
+               curLabel->location,
+               getMnemonicStr(labelInfo.instr->mne),
+               (labelInfo.canRemap ? "true" : "false"),
+               hasNewLabel ? labelInfo.newLabel->name : "");
+    }
+    printf("\n");
 }
 
 
@@ -118,17 +144,13 @@ void FindAllLabels(Instr *curInstr) {
     if (curInstr->mne != MNE_NONE) lastInstrNone = false;
 }
 
-void clearLabelInfo(int index) {
-    labelSet[index].label = NULL;
-    labelSet[index].instr = NULL;
-    labelSet[index].newLabel = NULL;
-}
-
-void PrintLabelUsage(Instr *curInstr) {
-    bool isJump = (curInstr->mne == JMP) || (curInstr->mne == JSR);
-    if (isBranch(curInstr->mne) || isJump) {
-        printf("   %s\n", curInstr->paramName);
+static int labelLocation = 0;
+void RecalcAllLabelLocations(Instr *curInstr) {
+    if (curInstr->label != NULL) {
+        curInstr->label->location = labelLocation;
+        curInstr->label->hasLocation = true;
     }
+    labelLocation += getInstrSize(curInstr->mne, curInstr->addrMode);
 }
 
 /**
@@ -153,23 +175,6 @@ void RemapLabel(InstrBlock *instrBlock, Label *oldLabel, Label *newLabel) {
         }
         curInstr = curInstr->nextInstr;
     }
-}
-
-void print_labelList(const char *name) {
-    printf("Label List: %s\n", name);
-    printf("   %-20s:  MNE  remap  newLabel\n", "");
-    printf("------------------------------------------\n");
-    for (int labelIndex = 0; (labelSet[labelIndex].label != NULL) && (labelIndex < LABEL_COUNT); labelIndex++) {
-        LabelInfo labelInfo = labelSet[labelIndex];
-        Label *curLabel = labelSet[labelIndex].label;
-        bool hasNewLabel = (labelInfo.newLabel != NULL && labelInfo.canRemap);
-        printf("   %-20s:  %4s  %5s  %s\n",
-               curLabel->name,
-               getMnemonicStr(labelInfo.instr->mne),
-               (labelInfo.canRemap ? "true" : "false"),
-               hasNewLabel ? labelInfo.newLabel->name : "");
-    }
-    printf("\n");
 }
 
 void remap_labels(InstrBlock *curBlock) {
@@ -197,9 +202,14 @@ void mark_all_labels_unused() {
 void OPT_FindAllLabels(InstrBlock *instrBlock) {
     // collect all labels
     curLabelIndex = 0;
-    clearLabelInfo(curLabelIndex);
+    clearLabelInfo(curLabelIndex);                  // clear first entry
     WalkInstructions(&FindAllLabels, instrBlock);
-    clearLabelInfo(curLabelIndex);
+    clearLabelInfo(curLabelIndex);                  // mark end of list
+}
+
+void OPT_RecalcAllLabelLocations(InstrBlock *instrBlock) {
+    labelLocation = instrBlock->funcSym->location;
+    WalkInstructions(&RecalcAllLabelLocations, instrBlock);
 }
 
 void OPT_RemapLabelsInBlock(InstrBlock *instrBlock) {
@@ -292,33 +302,6 @@ void OPT_Jumps(InstrBlock *instrBlock) {
     WalkInstructions(&ReplaceDoubleJMP, instrBlock);
 }
 
-/**
- *  Remove Empty instructions (MNE_NONE)
- *
- */
-
-void RemoveEmptyInstrs(Instr *curInstr) {
-    if (curInstr->mne != MNE_NONE) return;
-    if (curInstr->lineComment != NULL) return;
-
-    if (curInstr->prevInstr == NULL) return;
-
-    Instr *nextInstr = curInstr->nextInstr;
-
-    if (curInstr->label == NULL) {
-        // remove current instruction
-        curInstr->prevInstr->nextInstr = nextInstr;
-    } else if ((curInstr->label != NULL)
-                && (nextInstr->label == NULL)) {
-        nextInstr->label = curInstr->label;
-        curInstr->prevInstr->nextInstr = nextInstr;
-    }
-}
-
-void OPT_RemoveEmptyInstrs(InstrBlock *instrBlock) {
-    WalkInstructionsBackwards(&RemoveEmptyInstrs, instrBlock);
-}
-
 
 /**
  *  Fit program code blocks into pages to avoid branch issues
@@ -352,6 +335,40 @@ void OptimizeDecCmpZero(Instr *curInstr) {
     }
 }
 
+static int instrLocation = 0;
+void OptimizeBranchJumps(Instr *curInstr) {
+    Instr *instr2 = curInstr->nextInstr;
+    if (instr2 == NULL) return;
+    Instr *instr3 = instr2->nextInstr;
+    if (instr3 == NULL) return;
+
+    // check for sequence
+    //     BRx label
+    //     JMP label2
+    // label:
+    //
+    // REPLACE with:
+    //     BRx label2
+
+    if (isBranch(curInstr->mne) && (curInstr->paramName != NULL)
+        && (instr2->mne == JMP) && (instr2->paramName != NULL)
+        && (curInstr->paramName != NULL) && (instr3->label != NULL)
+            && (strcmp(curInstr->paramName, instr3->label->name)==0)) {
+
+        printf("Optimizing branch at %4X\n", instrLocation);
+        curInstr->mne = invertBranch(curInstr->mne);
+        curInstr->paramName = instr2->paramName;
+        curInstr->nextInstr = instr3;
+    }
+
+    instrLocation += getInstrSize(curInstr->mne, curInstr->addrMode);
+}
+
+void OPT_Loops(OutputBlock *curBlock) {
+    instrLocation = curBlock->codeBlock->funcSym->location;
+    WalkInstructions(&OptimizeBranchJumps, curBlock->codeBlock);
+}
+
 
 /**
  * MAIN OPTIMIZER
@@ -361,13 +378,16 @@ void OPT_CodeBlock(OutputBlock *curBlock) {
     InstrBlock *instrBlock = curBlock->codeBlock;
 
     OPT_FindAllLabels(instrBlock);
+    OPT_RecalcAllLabelLocations(instrBlock);
     print_labelList(curBlock->blockName);
+
+    OPT_Loops(curBlock);
+
     OPT_Jumps(instrBlock);
     OPT_RemapLabelsInBlock(instrBlock);
 
     //--- TODO: remove the following as they don't really do anything of value
     //          now that OPT_RemapLabelsInBlock has been fixed
-    //OPT_RemoveEmptyInstrs(instrBlock);      //--- doesn't actually do much after adding in "comment" rule
     //OPT_RemoveUnusedLabels(instrBlock);
 }
 
@@ -376,6 +396,37 @@ void OPT_DecCmp(OutputBlock *curBlock) {
 
     WalkInstructions(&OptimizeDecCmpZero, instrBlock);
 }
+
+/**
+ * Resize / relocate code blocks after optimizations have been performed
+ */
+
+static int recalcAddr = 0;
+static int blockSize = 0;
+static OutputBlock *lastBlock = NULL;
+
+void RECALC_CodeBlockSize(Instr *curInstr) {
+
+}
+
+void OPT_RecalcCodeBlockSpace(OutputBlock *curBlock) {
+
+    if (lastBlock != NULL) {
+        // recalculate location based on last block
+        if (lastBlock->blockSize != blockSize) {
+
+        }
+    }
+    if (blockSize + recalcAddr > 0) {
+        recalcAddr = lastBlock + blockSize;
+    } else {
+        recalcAddr = curBlock->blockAddr;
+    }
+
+    WalkInstructions(&RECALC_CodeBlockSize, curBlock->codeBlock);
+}
+
+//================================================
 
 void OPT_RunOptimizer() {
     printf("Running optimizer...\n");
@@ -386,5 +437,7 @@ void OPT_RunOptimizer() {
 
     //----------
     OB_WalkCodeBlocks(&OPT_DecCmp);
+
+    OB_WalkCodeBlocks(&OPT_RecalcCodeBlockSpace);
 }
 

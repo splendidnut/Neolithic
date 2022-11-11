@@ -779,6 +779,20 @@ void ICG_AddToInt(const SymbolRecord *varSym) {
     IL_AddInstrB(INX);
 }
 
+void ICG_AddOffsetToInt(int ofs) {
+    IL_AddInstrB(CLC);
+    IL_AddInstrN(ADC, ADDR_IMM, ofs);
+    IL_AddInstrN(BCC, ADDR_REL, +3);
+    IL_AddInstrB(INX);
+}
+
+void ICG_AddTempVarToInt(int addr) {
+    IL_AddInstrB(CLC);
+    IL_AddInstrN(ADC, ADDR_ZP, addr);
+    IL_AddInstrN(BCC, ADDR_REL, +3);
+    IL_AddInstrB(INX);
+}
+
 void ICG_AddAddr(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);
     IL_AddInstrB(CLC);
@@ -826,7 +840,7 @@ void ICG_Return() {
 //----------------------------------------
 //  Handle inline assembly
 
-void ICG_AsmData(int value) {
-    IL_AddInstrN(MNE_DATA, ADDR_NONE, value);
+void ICG_AsmData(int value, bool isWord) {
+    IL_AddInstrN(isWord ? MNE_DATA_WORD : MNE_DATA, ADDR_NONE, value);
 }
 

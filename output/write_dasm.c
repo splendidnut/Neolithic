@@ -187,7 +187,9 @@ void WriteDASM_OutputInstr(FILE *output, Instr *instr) {
         sprintf(instrBuf, "%s%s  %s", instrName, opExt, instrParams);
 
     } else if (instr->mne == MNE_DATA) {
-        sprintf(instrBuf, "%s $%2X", instrName, instr->offset);
+        sprintf(instrBuf, "%s $%02X", instrName, instr->offset);
+    } else if (instr->mne == MNE_DATA_WORD) {
+        sprintf(instrBuf, "%s $%04X", instrName, instr->offset);
     } else {
         sprintf(instrBuf, "%s", instrName);
     }
