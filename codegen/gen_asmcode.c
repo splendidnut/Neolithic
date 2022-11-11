@@ -256,7 +256,8 @@ void GC_AsmBlock(const List *code, enum SymbolType destType) {
                 Label *asmLabel = findLabel(labelName);
                 IL_Label(asmLabel);
             } else if (instrNode.value.parseToken == PT_INIT) {
-                ICG_AsmData(statement->nodes[1].value.num);
+                bool isWord = (statement->nodes[1].value.parseToken == PT_WORD);
+                ICG_AsmData(statement->nodes[2].value.num, isWord);
             }
         }
     }

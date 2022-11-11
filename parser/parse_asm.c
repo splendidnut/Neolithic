@@ -139,6 +139,8 @@ ListNode parse_asm_instr(enum MnemonicCode instrCode) {
             forceZp = true;             // TODO: this should force zeropage mode (currently unnecessary since that's the default)
         default: {
             // branches typically just use labels... to use expressions, they need to be wrapped in parenthesis
+            //   NOTE: branches and jumps are done separately because of the possibility of '.byte' being
+            //          parsed as a struct property... TODO: Figure out how to fix that
             if (isBranch(instrCode)) {
                 if (peekToken()->tokenStr[0] == '(') {
                     paramNode = parse_expr();
@@ -146,6 +148,14 @@ ListNode parse_asm_instr(enum MnemonicCode instrCode) {
                     paramNode = parse_identifier();
                 }
                 addrMode = ADDR_REL;
+            } else if (instrCode == JMP || instrCode == JSR) {
+                if (peekToken()->tokenStr[0] == '(') {
+                    paramNode = parse_expr();
+                    addrMode = ADDR_IND;
+                } else {
+                    paramNode = parse_identifier();
+                }
+                addrMode = ADDR_ABS;
             } else {
                 paramNode = parse_expr();
                 addrMode = getDirectAddrMode(forceZp, forceAbs);
@@ -190,9 +200,12 @@ ListNode PA_create_equate(char *piece) {
 
 ListNode parse_pseudo_op() {
     char *opName = getToken()->tokenStr;
-    if (strncmp(opName, "byte", 4)==0) {
-        List *byteData = createList(2);
+    bool isByte = (strncmp(opName, "byte", 4)==0);
+    bool isWord = (strncmp(opName, "word", 4)==0);
+    if (isByte || isWord) {
+        List *byteData = createList(3);
         addNode(byteData, createParseToken(PT_INIT));
+        addNode(byteData, createParseToken(isWord ? PT_WORD : PT_BYTE));
         switch (peekToken()->tokenType) {
             case TT_NUMBER:
                 addNode(byteData, createIntNode(copyTokenInt(getToken())));

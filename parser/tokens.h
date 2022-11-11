@@ -64,7 +64,7 @@ enum ParseToken {
     PT_SET, PT_CAST, PT_ADDR_OF, PT_DATA_AT,
 
     // handle inline assembly language
-    PT_ASM, PT_LABEL, PT_EQUATE, PT_STROBE,
+    PT_ASM, PT_LABEL, PT_EQUATE, PT_STROBE, PT_BYTE, PT_WORD,
 
     // basic math ops
     PT_ADD, PT_SUB,

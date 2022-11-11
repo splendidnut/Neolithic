@@ -69,6 +69,8 @@ const char* ParseTokenNames[NUM_PARSE_TOKENS] = {
         "label",
         "equate",
         "strobe",
+        "byte",
+        "word",
 
         "add",
         "sub",
