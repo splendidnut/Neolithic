@@ -944,6 +944,20 @@ void GC_Expression(const List *expr, enum SymbolType destType) {
     }
 }
 
+SymbolRecord *getPropertySymbol(List *expr) {
+    ListNode structNameNode = expr->nodes[1];
+    char *propName = expr->nodes[2].value.str;
+
+    SymbolRecord *structSym = lookupSymbolNode(structNameNode, expr->lineNum);
+    if (structSym == NULL || !isStructDefined(structSym)) return NULL;
+
+    SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propName);
+    if (propertySym == NULL) {
+        ErrorMessage("Property Symbol not found within struct", propName, expr->lineNum);
+    }
+    return propertySym;
+}
+
 void GC_StoreToStructProperty(const List *expr) {
     ListNode structNameNode = expr->nodes[1];
     char *propName = expr->nodes[2].value.str;
@@ -1375,7 +1389,16 @@ void GC_Switch(const List *stmt, enum SymbolType destType) {
     SymbolRecord *switchVarSymbol = NULL;
 
     if (stmt->nodes[1].type == N_LIST) {
-        GC_Expression(stmt->nodes[1].value.list, ST_CHAR);
+
+        List *expr = stmt->nodes[1].value.list;
+
+        // NEED to look up type first!  (incase of enum)
+        ListNode opNode = expr->nodes[0];
+        if (opNode.type == N_TOKEN && opNode.value.parseToken == PT_PROPERTY_REF) {
+            switchVarSymbol = getPropertySymbol(expr);
+        }
+
+        GC_Expression(expr, ST_CHAR);
     } else if (stmt->nodes[1].type == N_STR) {
         switchVarSymbol = lookupSymbolNode(stmt->nodes[1], stmt->lineNum);
         if (switchVarSymbol != NULL) {
