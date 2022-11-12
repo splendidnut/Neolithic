@@ -97,6 +97,16 @@ void GS_processInitializer(const List *varDef, SymbolRecord *varSymRec) {
     }
 }
 
+void GS_processAliasInitializer(List *varDef, SymbolRecord *varSymRec) {
+    List* initList = varDef->nodes[4].value.list;
+    if (initList->nodes[0].value.parseToken == PT_INIT) {
+        ListNode valueNode = initList->nodes[1];
+        if (valueNode.type == N_STR) {
+            varSymRec->alias = initList;
+        }
+    }
+}
+
 /**
  * Process Variable definition statement
  *
@@ -183,7 +193,7 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
     bool isTypeModified = (modList != NULL) && (modList->count > 0);
     if (isTypeModified) {
 
-        // loop thru Modifier List, and process the results, setting the appropriate flags for the symbol
+        // loop thru Modifier List, and process the results, set the appropriate flags for the symbol
 
         for (int modIndex = 0; modIndex < modList->count; modIndex++) {
             ListNode modNode = modList->nodes[modIndex];
@@ -232,8 +242,12 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
     }
 
     int hasInitializer = (varDef->count >= 4) && (varDef->nodes[4].type == N_LIST);
-    if (hasInitializer && (symbolKind != SK_ALIAS)) {
-        GS_processInitializer(varDef, varSymRec);
+    if (hasInitializer) {
+        if (symbolKind == SK_ALIAS) {
+            GS_processAliasInitializer(varDef, varSymRec);
+        } else {
+            GS_processInitializer(varDef, varSymRec);
+        }
     }
     return varSymRec;
 }

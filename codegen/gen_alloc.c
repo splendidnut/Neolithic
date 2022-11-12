@@ -34,6 +34,7 @@
 
 #include "gen_alloc.h"
 #include "data/func_map.h"
+#include "gen_common.h"
 
 #define DEBUG_ALLOCATOR
 
@@ -196,6 +197,8 @@ int allocateLocalVarStorage(const SymbolTable *symbolTable, int curMemloc) {
     if (compilerOptions.showVarAllocations) {
         printf("\nVariables for %s\n", (symbolTable->name != NULL ? symbolTable->name : "(none)"));
     }
+
+    curFuncSymbolTable = (SymbolTable *)symbolTable;   //--- Needed for allowing symbol lookup (used by alias)
     SymbolRecord *curSymbol = symbolTable->firstSymbol;
     while (curSymbol != NULL) {
 
@@ -217,6 +220,20 @@ int allocateLocalVarStorage(const SymbolTable *symbolTable, int curMemloc) {
                     printf("\t%-20s allocated at %4X\n", curSymbol->name, startLoc);
                 } else {
                     printf("\t%-20s allocated on stack\n", curSymbol->name);
+                }
+            }
+        } else if (IS_ALIAS(curSymbol)) {
+
+            // Need to assign memory location for simple alias variable (name alias)
+            List *aliasDef = curSymbol->alias;
+            if (aliasDef != NULL) {
+                if ((aliasDef->count == 2) && (aliasDef->nodes[1].type == N_STR)) {
+                    SymbolRecord *linkedVarSym = lookupSymbolNode(aliasDef->nodes[1], aliasDef->lineNum);
+                    setSymbolLocation(curSymbol, linkedVarSym->location, linkedVarSym->flags & SS_STORAGE_MASK);
+                    if (compilerOptions.showVarAllocations) {
+                        printf("\t%-20s allocated at %4X - shared with %s\n",
+                               curSymbol->name, linkedVarSym->location, linkedVarSym->name);
+                    }
                 }
             }
         }
