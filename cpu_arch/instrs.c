@@ -294,7 +294,7 @@ void ICG_OpWithParamVar(enum MnemonicCode mne, const SymbolRecord *varRec, const
 //-------------------------------------------------------------------
 
 void ICG_LoadByteVar(const SymbolRecord *varRec, int ofs) {
-    const char *varName = varRec->name;
+    const char *varName = getVarName(varRec);
     enum AddrModes addrMode = (ofs < 0x100 ? ADDR_ZP : ADDR_ABS);
     IL_AddInstrS(LDA, addrMode, varName, numToStr(ofs), PARAM_ADD);
 }
