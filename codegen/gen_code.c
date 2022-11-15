@@ -960,6 +960,23 @@ SymbolRecord *getPropertySymbol(List *expr) {
 
 void GC_StoreToStructProperty(const List *expr) {
     ListNode structNameNode = expr->nodes[1];
+
+    /// Handle if struct is in an array
+    if ((structNameNode.type == N_LIST) && isToken(structNameNode.value.list->nodes[0], PT_LOOKUP)) {
+        List *structLookup = structNameNode.value.list;
+        structNameNode =  structLookup->nodes[1];
+        ListNode indexNode = structLookup->nodes[2];
+        switch (indexNode.type) {
+            case N_INT:
+                ICG_LoadRegConst('Y', indexNode.value.num);
+                break;
+            case N_STR: {
+                SymbolRecord *indexSym = lookupSymbolNode(indexNode, expr->lineNum);
+                ICG_LoadRegVar(indexSym, 'Y');
+            } break;
+        }
+    }
+
     char *propName = expr->nodes[2].value.str;
 
     SymbolRecord *structSym = lookupSymbolNode(structNameNode, expr->lineNum);
@@ -1080,8 +1097,14 @@ SymbolRecord *getAsgnDestVarSym(const List *stmt, ListNode storeNode) {
 
             } else if (isToken(storeExpr->nodes[0], PT_PROPERTY_REF)) {
 
+                //--- handle case where this is an array of structs...
+                ListNode structNameNode = storeExpr->nodes[1];
+                if ((structNameNode.type == N_LIST) && isToken(structNameNode.value.list->nodes[0], PT_LOOKUP)) {
+                    structNameNode = structNameNode.value.list->nodes[1];
+                }
+
                 char *propName = storeExpr->nodes[2].value.str;
-                SymbolRecord *structVar = lookupSymbolNode(storeExpr->nodes[1], stmt->lineNum);
+                SymbolRecord *structVar = lookupSymbolNode(structNameNode, stmt->lineNum);
                 if (structVar != NULL) {
                     SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structVar), propName);
                     destVar = propertySym;
