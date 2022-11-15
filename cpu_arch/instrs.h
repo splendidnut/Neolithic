@@ -49,6 +49,7 @@ extern bool ICG_IsCurrentTag(char regName, SymbolRecord *varSym);
 extern void ICG_LoadFromArray(const SymbolRecord *arraySymbol, int index, enum SymbolType destType);
 extern void ICG_LoadConst(int constValue, int size);
 
+extern void ICG_LoadByteVar(const SymbolRecord *varRec, int ofs);
 extern void ICG_LoadVar(const SymbolRecord *varRec);
 extern void ICG_LoadIndexVar(const SymbolRecord *varSym, int size);
 extern void ICG_LoadAddr(const SymbolRecord *varSym);

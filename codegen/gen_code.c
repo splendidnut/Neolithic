@@ -878,6 +878,30 @@ void GC_MultiplyOp(const List *expr, enum SymbolType destType) {
     }
 }
 
+void GC_LowByte(const List *expr, enum SymbolType destType) {
+    ListNode dataNode = expr->nodes[1];
+    switch (dataNode.type) {
+        case N_STR: {
+            SymbolRecord *sym = lookupSymbolNode(dataNode, expr->lineNum);
+            ICG_LoadByteVar(sym, 0);
+        } break;
+        default:
+            ErrorMessageWithList("Unsupported op: ", expr);
+    }
+}
+
+void GC_HighByte(const List *expr, enum SymbolType destType) {
+    ListNode dataNode = expr->nodes[1];
+    switch (dataNode.type) {
+        case N_STR: {
+            SymbolRecord *sym = lookupSymbolNode(dataNode, expr->lineNum);
+            ICG_LoadByteVar(sym, 1);
+        } break;
+        default:
+            ErrorMessageWithList("Unsupported op: ", expr);
+    }
+}
+
 //---------------------------------------------------------------------------------
 
 ParseFuncTbl exprFunction[] = {
@@ -906,6 +930,8 @@ ParseFuncTbl exprFunction[] = {
         {PT_GTE,            &GC_CompareOp},
         {PT_LTE,            &GC_CompareOp},
         {PT_MULTIPLY,       &GC_MultiplyOp},
+        {PT_LOW_BYTE,       &GC_LowByte},
+        {PT_HIGH_BYTE,      &GC_HighByte}
 };
 const int exprFunctionSize = sizeof(exprFunction) / sizeof(ParseFuncTbl);
 
