@@ -51,6 +51,11 @@ void GCT_FindFuncCalls(List *stmt, SymbolRecord *srcFunc) {
     }
 }
 
+/**
+ * Walk a tree of nodes, looking for function calls.
+ * @param code
+ * @param funcSym
+ */
 void GCT_WalkCodeNodes(List *code, SymbolRecord *funcSym) {
     GCT_FindFuncCalls(code, funcSym);
 

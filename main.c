@@ -279,10 +279,10 @@ int mainCompiler() {
     if (GC_ErrorCount > 0) return -1;               // abort if any issues when processing symbols
     if (compilerOptions.showGeneralInfo) printf("Symbol Table generation Complete\n");
 
-    generate_callTree(mainProgNode, mainSymbolTable);
-    /*if (hasDependencies) {
+    if (hasDependencies) {
         generateCallTreeForDependencies();
-    }*/
+    }
+    generate_callTree(mainProgNode, mainSymbolTable);
     generate_var_allocations(mainSymbolTable);
 
     if (compilerOptions.showGeneralInfo) printf("Analysis of %s Complete\n", inFileName);
