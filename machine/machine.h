@@ -29,6 +29,7 @@ enum Machines {
 };
 
 typedef struct {
+    enum Machines machine;
     char* name;
     int startAddr;
     int endAddr;

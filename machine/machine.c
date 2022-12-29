@@ -26,10 +26,10 @@
 #include "machine.h"
 
 MachineInfo machineInfo[] = {
-        {"",0,0},
-        {"Atari2600", 0x1000, 0x1FFF, 0x1FFF},
-        {"Atari5200", 0x4000, 0xBFFF, 0xFFFF},
-        {"Atari7800", 0x8000, 0xFFFF, 0xFFFF}
+        {Machine_Unknown, "",0,0},
+        {Atari2600, "Atari2600", 0x1000, 0x1FFF, 0x1FFF},
+        {Atari5200, "Atari5200", 0x4000, 0xBFFF, 0xFFFF},
+        {Atari7800, "Atari7800", 0x8000, 0xFFFF, 0xFFFF}
 };
 
 enum Machines lookupMachineName(char *machineName) {
