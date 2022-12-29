@@ -2003,9 +2003,11 @@ void GC_ProcessInitializerExpr(const List *stmt, ListNode *loadNode, ListNode *s
     List *initList = (*loadNode).value.list;
     Preprocess_InitListData(initList, initList);
 
+#ifdef DEBUG_INITIALIZER
     printf("initializer results\n");
     showList(stdout, (*loadNode).value.list, 0);
     printf("\n\n");
+#endif
 
     if (!ppError) {
         bool useIndirect = false;
@@ -2495,7 +2497,7 @@ void GC_Function(const List *function, int codeNodeIndex) {
     // only process function code, if it exists, and the function is used
     if (hasCode) {
         SymbolRecord *funcSym = findSymbol(mainSymbolTable, funcName);
-        isFuncUsed = isMainFunction(funcSym) || IS_FUNC_USED(funcSym);
+        isFuncUsed = isMainFunction(funcSym) || isSystemFunction(funcSym) || IS_FUNC_USED(funcSym);
         if (isFuncUsed) {
             if (isInlineFunction) {
                 // save a pointer to the part of the AST containing the code list and mark as INLINE.

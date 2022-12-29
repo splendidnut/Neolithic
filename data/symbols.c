@@ -344,6 +344,11 @@ bool isMainFunction(const SymbolRecord *symbol) {
     return (strcmp(symbol->name, compilerOptions.entryPointFuncName)==0);
 }
 
+bool isSystemFunction(const SymbolRecord *symbol) {
+    return (strcmp(symbol->name, "irq")==0)
+        || (strcmp(symbol->name, "nmi")==0);
+}
+
 enum SymbolType getType(const SymbolRecord *symbol) {
     return (symbol->flags & ST_MASK);
 }

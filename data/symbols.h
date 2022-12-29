@@ -210,6 +210,7 @@ extern bool isEnum(const SymbolRecord *symbol);
 extern bool isPointer(const SymbolRecord *symbol);
 extern bool isArray(const SymbolRecord *symbol);
 extern bool isMainFunction(const SymbolRecord *symbol);
+extern bool isSystemFunction(const SymbolRecord *symbol);
 
 //------
 
