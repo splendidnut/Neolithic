@@ -58,7 +58,8 @@ void WO_WriteAllBlocks() {
 
 
 
-void WriteOutput(char *projectName, enum OutputType outputType, SymbolTable *mainSymTbl, struct BankLayout *bankLayout) {
+void WriteOutput(char *projectName, enum OutputType outputType, SymbolTable *mainSymTbl, struct BankLayout *bankLayout,
+                 MachineInfo targetMachine) {
 
     // Select output adapter
     switch (outputType) {
@@ -87,7 +88,7 @@ void WriteOutput(char *projectName, enum OutputType outputType, SymbolTable *mai
         return;
     }
 
-    outputAdapter->init(outputFile, mainSymTbl, bankLayout);
+    outputAdapter->init(outputFile, targetMachine, mainSymTbl, bankLayout);
 
     WO_WriteAllBlocks();
 

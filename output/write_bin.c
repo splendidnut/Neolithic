@@ -26,11 +26,12 @@ static FILE *outputFile;
 static SymbolTable *mainSymbolTable;
 static SymbolTable *funcSymbolTable;
 static struct BankLayout *mainBankLayout;
+static MachineInfo BIN_target;
 
 //---------------------------------------------------------
 // Output Adapter API
 
-void WriteBIN_Init(FILE *outFile, SymbolTable *mainSymTbl, struct BankLayout *bankLayout);
+void WriteBIN_Init(FILE *outFile, MachineInfo targetMachine, SymbolTable *mainSymTbl, struct BankLayout *bankLayout);
 void WriteBIN_Done();
 char* WriteBIN_getExt();
 void WriteBIN_FunctionBlock(const OutputBlock *block);
@@ -54,18 +55,20 @@ struct OutputAdapter BIN_OutputAdapter =
 //---------------------------------------------------------
 
 unsigned char *binData;
+unsigned int binSize;
 
-
-void WriteBIN_Init(FILE *outFile, SymbolTable *mainSymTbl, struct BankLayout *bankLayout) {
+void WriteBIN_Init(FILE *outFile, MachineInfo targetMachine, SymbolTable *mainSymTbl, struct BankLayout *bankLayout) {
     outputFile = outFile;
     mainSymbolTable = mainSymTbl;
     funcSymbolTable = NULL;
     mainBankLayout = bankLayout;
+    BIN_target = targetMachine;
 
     int outputSize = mainBankLayout->banks[0].size;
     printf("OutputSize for binary: %4X\n", outputSize);
 
     binData = allocMem(outputSize);
+    binSize = outputSize;
     for_range(i, 0, outputSize-1) { binData[i] = 0; }
 }
 
@@ -82,11 +85,35 @@ void WriteBIN_StartOfBlock(const OutputBlock *block) {
 }
 
 void WriteBIN_EndOfBlock(const OutputBlock *block) {
+    //printf("DEBUG: called WriteBIN_EndOfBlock\n");
+
     Label *mainLabel = findLabel("main");
-    binData[4092] = mainLabel->location & 0xff;
-    binData[4093] = (mainLabel->location >> 8) & 0xff;
-    binData[4094] = mainLabel->location & 0xff;
-    binData[4095] = (mainLabel->location >> 8) & 0xff;
+
+    // TODO: These are machine specific (4096 for 2600, 32768 for 7800)
+    //       They should be generated as OutputBlocks instead!
+
+    switch (BIN_target.machine) {
+        case Atari2600: {
+            binData[4092] = mainLabel->location & 0xff;
+            binData[4093] = (mainLabel->location >> 8) & 0xff;
+            binData[4094] = mainLabel->location & 0xff;
+            binData[4095] = (mainLabel->location >> 8) & 0xff;
+        } break;
+
+        case Atari7800: {
+            Label *irqLabel = findLabel("irq");
+            Label *nmiLabel = findLabel("nmi");
+
+            binData[32760] = 0xFF;
+            binData[32761] = 0x87;
+            binData[32762] = nmiLabel->location & 0xff;
+            binData[32763] = (nmiLabel->location >> 8) & 0xff;
+            binData[32764] = mainLabel->location & 0xff;
+            binData[32765] = (mainLabel->location >> 8) & 0xff;
+            binData[32766] = irqLabel->location & 0xff;
+            binData[32767] = (irqLabel->location >> 8) & 0xff;
+        } break;
+    }
 }
 
 /**
@@ -171,7 +198,7 @@ void WriteBIN_PreprocessLabels(const InstrBlock *instrBlock, int blockAddr) {
     while (curOutInstr != NULL) {
         // handle label, if this instruction has a label, keep track of where it is
         if (curOutInstr->label != NULL) {
-            curOutInstr->label->location = blockAddr + 0xF000;
+            curOutInstr->label->location = blockAddr + BIN_target.startAddr;
             curOutInstr->label->hasLocation = true;
         }
 

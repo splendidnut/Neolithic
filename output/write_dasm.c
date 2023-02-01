@@ -27,7 +27,7 @@ static struct BankLayout *mainBankLayout;
 //---------------------------------------------------------
 // Output Adapter API
 
-void WriteDASM_Init(FILE *outFile, SymbolTable *mainSymTbl, struct BankLayout *bankLayout);
+void WriteDASM_Init(FILE *outFile, MachineInfo targetMachine, SymbolTable *mainSymTbl, struct BankLayout *bankLayout);
 void WriteDASM_Done();
 char* WriteDASM_getExt();
 void WriteDASM_FunctionBlock(const OutputBlock *block);
@@ -79,15 +79,17 @@ void WriteDASM_StartOfBank() {
 void WriteDASM_EndOfBank() {
     struct BankDef curBank = mainBankLayout->banks[0];
     int bankStart = curBank.memLoc;
-    int bankEnd = (bankStart + curBank.size) & 0xfff0 + 0x8;
+    int bankEnd = (bankStart + curBank.size) & 0xfff0 - 0x8;
 
     // print footer
-    fprintf(outputFile, "\n\n\tORG $0FF8\n");       // TODO: NEED to fix
-    fprintf(outputFile,"\tRORG $%4X\n", bankEnd);
-    fprintf(outputFile, "\t.word  $0000\n");
-    fprintf(outputFile, "\t.word  $0000\n");
+    fprintf(outputFile, "\n;---------------------------------------------\n");
+    fprintf(outputFile, ";-- $%04X .. $%04x\n", bankStart, bankEnd);
+    fprintf(outputFile, "\n\tORG $%04X\n", (curBank.size - 0x8));       // TODO: NEED to fix
+    fprintf(outputFile,"\tRORG $%04X\n", bankEnd);
+    fprintf(outputFile, "\t.word  $87FF\n");
+    fprintf(outputFile, "\t.word  nmi\n");
     fprintf(outputFile, "\t.word  main\n");
-    fprintf(outputFile, "\t.word  main\n");
+    fprintf(outputFile, "\t.word  irq\n");
     fprintf(outputFile, "\n\n;--- END OF PROGRAM\n\n");
 }
 
@@ -343,7 +345,7 @@ void HandleSingleStructRecord(const List *dataList, SymbolTable *structSymTbl) {
 
 //---------------------------------------------------------
 
-void WriteDASM_Init(FILE *outFile, SymbolTable *mainSymTbl, struct BankLayout *bankLayout) {
+void WriteDASM_Init(FILE *outFile, MachineInfo targetMachine, SymbolTable *mainSymTbl, struct BankLayout *bankLayout) {
     outputFile = outFile;
     mainSymbolTable = mainSymTbl;
     mainBankLayout = bankLayout;

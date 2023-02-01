@@ -28,11 +28,13 @@
 #include "output_block.h"
 #include "write_output.h"
 
+static MachineInfo outputTargetMachine;
+
 void initOutputGenerator(enum Machines targetMachine) {
     // Configure output for specific machine
     // only need to initialize instruction list and output block modules once
 
-    MachineInfo machineInfo = getMachineInfo(targetMachine);
+    outputTargetMachine = getMachineInfo(targetMachine);
 
     BL_init();
     OB_Init();
@@ -42,12 +44,12 @@ void initOutputGenerator(enum Machines targetMachine) {
     // Build a default bank that matches the binary memory space available in the machine
 
     // Create main bank
-    int bankSize = (machineInfo.endAddr - machineInfo.startAddr + 1);
-    BL_addBank(bankSize, machineInfo.startAddr, 0);
+    int bankSize = (outputTargetMachine.endAddr - outputTargetMachine.startAddr + 1);
+    BL_addBank(bankSize, outputTargetMachine.startAddr, 0);
 
     if (targetMachine == Atari2600) {
         // TEMP (2600-only .. F8 bank-switching
-        BL_addBank(bankSize, machineInfo.startAddr + 0x2000, 0x1000);
+        BL_addBank(bankSize, outputTargetMachine.startAddr + 0x2000, 0x1000);
     }
 
     BL_printBanks();
@@ -59,7 +61,7 @@ void generateOutput(char *projectName, SymbolTable *mainSymbolTable, OutputFlags
     BL_printBanks();
 
     if (outputFlags.doOutputASM)
-        WriteOutput(projectName, OUT_DASM, mainSymbolTable, mainBankLayout);
+        WriteOutput(projectName, OUT_DASM, mainSymbolTable, mainBankLayout, outputTargetMachine);
     if (outputFlags.doOutputBIN)
-        WriteOutput(projectName, OUT_BIN, mainSymbolTable, mainBankLayout);
+        WriteOutput(projectName, OUT_BIN, mainSymbolTable, mainBankLayout, outputTargetMachine);
 }
