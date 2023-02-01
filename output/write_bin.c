@@ -132,7 +132,7 @@ int getParamStringValue(const char *param, int paramPos) {
     if (funcSymbolTable != NULL) {
         paramSym = findSymbol(funcSymbolTable, param);
     }
-    if ((paramSym == NULL) && (funcSymbolTable != NULL)) {
+    if ((paramSym == NULL) && (funcSymbolTable != NULL) && (param[0] == '.')) {
         paramSym = findSymbol(funcSymbolTable, param + 1);
     }
     if (paramSym == NULL) {
