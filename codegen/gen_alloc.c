@@ -183,6 +183,20 @@ void allocateStackFrameStorage() {
             printf("\tFrame %d allocated %2d bytes at %4X\n", frmNum, stackSizes[frmNum], newVarAlloc.addr);
         }
     }
+
+    ///---  Handle any stacks that didn't get allocated.
+    // -- This code is a work-in-progress.  The code tries to handle situations
+    //    where a stack frame didn't get allocated for some reason.
+
+    for (int stkIdx=1; stkIdx < MAX_STACK_FRAMES-1; stkIdx++) {
+        if ((stackSizes[stkIdx] == 0) && (stackSizes[stkIdx+1] > 0)) {
+            stackLocs[stkIdx] = stackLocs[stkIdx+1];
+            if (compilerOptions.showVarAllocations) {
+                printf("\tFrame %d allocated (shared) at %4X\n",
+                       stkIdx, stackLocs[stkIdx]);
+            }
+        }
+    }
 }
 
 /**
