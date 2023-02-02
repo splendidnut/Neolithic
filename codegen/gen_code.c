@@ -1316,8 +1316,11 @@ void GC_HandleCondExpr(const ListNode ifExprNode, enum SymbolType destType, Labe
     // check basic case of (identifier)
     if (ifExprNode.type == N_STR) {
         //printf("GC_HandleCondExpr: using basic case on line %d\n", lineNum);
-        ICG_LoadVar(lookupSymbolNode(ifExprNode, lineNum));
-        ICG_Branch(BEQ, skipLabel);
+        SymbolRecord *symRec = lookupSymbolNode(ifExprNode, lineNum);
+        if (symRec) {
+            ICG_LoadVar(symRec);
+            ICG_Branch(BEQ, skipLabel);
+        }
         return;
     }
 
