@@ -18,12 +18,12 @@
 // This header file defines the API for an OutputAdapter.
 //
 // To define a new output adapter:
-//   - create a C file including this header file
+//   - create a C file that #includes this header file
 //   - implement ALL functions for the OutputAdapter struct
 //   - define a variable based on the OutputAdapter struct with an initializer
 //       that includes all the functions you wrote
 //   - add an enum to OutputType and add an extern to your struct here
-//   -
+//   - wire your new enum / adapter into the WriteOutput function.
 //
 // Created by admin on 6/14/2020.
 //
