@@ -836,6 +836,7 @@ void ICG_Jump(const Label *label, const char *comment) {
 void ICG_Call(const char *funcName) {
     IL_AddInstrP(JSR, ADDR_ABS, funcName, PARAM_NORMAL);
     lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastUseForYReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_Return() {
