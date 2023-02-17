@@ -177,21 +177,19 @@ void OB_ArrangeBlocks() {
 
     printf("\n\nArranging blocks\n----------------\nInitial layout:\n");
     OB_PrintBlockList();
+    printf("\n");
 
     //--------------------------------------
     // Actually do the arrangement
 
     OutputBlock *block = (OutputBlock *)OB_getFirstBlock();
+    printSymbolHeader(stdout);
     while (block != NULL) {
-        if (block->blockType == BT_DATA) {
-            printSingleSymbol(stdout, block->dataSym);
+        switch (block->blockType) {
+            case BT_STRUCT:
+            case BT_DATA:  printSingleSymbol(stdout, block->dataSym);  break;
+            case BT_CODE:  printSingleSymbol(stdout, block->codeBlock->funcSym);  break;
         }
         block = block->nextBlock;
     }
-
-    //--------------------------------------
-    // TODO: Remove debug code
-
-    printf("\n\nNew Layout:\n");
-    OB_PrintBlockList();
 }

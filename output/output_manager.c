@@ -49,7 +49,7 @@ void initOutputGenerator(enum Machines targetMachine) {
 
     if (targetMachine == Atari2600) {
         // TEMP (2600-only .. F8 bank-switching
-        BL_addBank(bankSize, outputTargetMachine.startAddr + 0x2000, 0x1000);
+        //BL_addBank(bankSize, outputTargetMachine.startAddr + 0x2000, 0x1000);
     }
 
     BL_printBanks();

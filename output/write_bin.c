@@ -55,7 +55,7 @@ struct OutputAdapter BIN_OutputAdapter =
 //---------------------------------------------------------
 
 unsigned char *binData;
-unsigned int binSize;
+unsigned int outputSize;    //--- final output size of binary FILE
 
 void WriteBIN_Init(FILE *outFile, MachineInfo targetMachine, SymbolTable *mainSymTbl, struct BankLayout *bankLayout) {
     outputFile = outFile;
@@ -64,16 +64,19 @@ void WriteBIN_Init(FILE *outFile, MachineInfo targetMachine, SymbolTable *mainSy
     mainBankLayout = bankLayout;
     BIN_target = targetMachine;
 
-    int outputSize = mainBankLayout->banks[0].size;
-    printf("OutputSize for binary: %4X\n", outputSize);
+    // figure out the output size
+    outputSize = 0;
+    for (int b=0; b<mainBankLayout->banksUsed; b++) {
+        outputSize += mainBankLayout->banks[b].size;
+    }
+    printf("OutputSize for binary: %4X (%d banks)\n", outputSize, mainBankLayout->banksUsed);
 
+    // allocate and clear
     binData = allocMem(outputSize);
-    binSize = outputSize;
     for_range(i, 0, outputSize-1) { binData[i] = 0; }
 }
 
 void WriteBIN_Done() {
-    int outputSize = mainBankLayout->banks[0].size;
     fwrite(binData, outputSize, 1, outputFile);
     free(binData);
 }
@@ -82,6 +85,11 @@ char* WriteBIN_getExt() { return ".bin"; }
 
 void WriteBIN_StartOfBlock(const OutputBlock *block) {
 
+}
+
+void WriteBIN_WriteVector(int addr, int fileLoc) {
+    binData[fileLoc] = addr & 0xff;
+    binData[fileLoc+1] = (addr >> 8) & 0xff;
 }
 
 void WriteBIN_EndOfBlock(const OutputBlock *block) {
@@ -94,10 +102,16 @@ void WriteBIN_EndOfBlock(const OutputBlock *block) {
 
     switch (BIN_target.machine) {
         case Atari2600: {
-            binData[4092] = mainLabel->location & 0xff;
-            binData[4093] = (mainLabel->location >> 8) & 0xff;
-            binData[4094] = mainLabel->location & 0xff;
-            binData[4095] = (mainLabel->location >> 8) & 0xff;
+            for (int b=0; b<mainBankLayout->banksUsed; b++) {
+                int fileOfs = b * 4096;
+                WriteBIN_WriteVector(mainLabel->location, 0xFFC + fileOfs);
+                WriteBIN_WriteVector(mainLabel->location, 0xFFE + fileOfs);
+            }
+        } break;
+
+        case Atari5200: {
+            binData[0x7FFD] = 0xFF;     //-- disable BIOS screen
+            WriteBIN_WriteVector(mainLabel->location,  0x7FFE);
         } break;
 
         case Atari7800: {
@@ -106,12 +120,10 @@ void WriteBIN_EndOfBlock(const OutputBlock *block) {
 
             binData[32760] = 0xFF;
             binData[32761] = 0x87;
-            binData[32762] = nmiLabel->location & 0xff;
-            binData[32763] = (nmiLabel->location >> 8) & 0xff;
-            binData[32764] = mainLabel->location & 0xff;
-            binData[32765] = (mainLabel->location >> 8) & 0xff;
-            binData[32766] = irqLabel->location & 0xff;
-            binData[32767] = (irqLabel->location >> 8) & 0xff;
+
+            WriteBIN_WriteVector(nmiLabel->location,  0x7FFA);
+            WriteBIN_WriteVector(mainLabel->location, 0x7FFC);
+            WriteBIN_WriteVector(irqLabel->location,  0x7FFE);
         } break;
     }
 }
@@ -212,12 +224,26 @@ void WriteBIN_PreprocessLabels(const InstrBlock *instrBlock, int blockAddr) {
     }
 }
 
-void WriteBIN_FunctionBlock(const OutputBlock *block) {
+//---- Figure out where this block will be written
+int calcBlockWriteAddr(const OutputBlock *block) {
+    int writeAddr = block->blockAddr;
+    int writeBank = block->bankNum;
+
+    for (int b=0; b<writeBank; b++) {
+        writeAddr += mainBankLayout->banks[b].size;
+    }
+
 #ifdef DEBUG_WRITE_BIN
-    printf("Writing %s code to %4X\n", block->blockName, block->blockAddr);
+    printf("Writing %s to %4X (bank %d)\n", block->blockName, writeAddr, writeBank);
 #endif
 
-    int writeAddr = block->blockAddr;
+    return writeAddr;
+}
+
+void WriteBIN_FunctionBlock(const OutputBlock *block) {
+    int writeAddr = calcBlockWriteAddr(block);
+
+    //---------
 
     InstrBlock *instrBlock = block->codeBlock;
     if (instrBlock == NULL) return;
@@ -273,10 +299,7 @@ void WriteBIN_FunctionBlock(const OutputBlock *block) {
 }
 
 void WriteBIN_StaticArrayData(const OutputBlock *block) {
-#ifdef DEBUG_WRITE_BIN
-    printf("Writing %s array data to %4X\n", block->blockName, block->blockAddr);
-#endif
-    int writeAddr = block->blockAddr;
+    int writeAddr = calcBlockWriteAddr(block);
     bool isInt = getBaseVarSize(block->dataSym) > 1;
 
     for_range (vidx, 1, block->dataList->count) {
@@ -319,13 +342,11 @@ void WriteBIN_WriteStructRecordData(SymbolTable *structSymTbl, int writeAddr, co
 }
 
 void WriteBIN_StaticStructData(const OutputBlock *block) {
-#ifdef DEBUG_WRITE_BIN
-    printf("Writing %s struct data to %4X\n", block->blockName, block->blockAddr);
-#endif
+    int writeAddr = calcBlockWriteAddr(block);
+
     SymbolRecord *structSym = block->dataSym->userTypeDef;
     SymbolTable *structSymTbl = GET_STRUCT_SYMBOL_TABLE(structSym);
 
-    int writeAddr = block->blockAddr;
     List *dataList = block->dataList;
     if (isArray(block->dataSym)) {
         int structSize = calcVarSize(structSym);

@@ -223,6 +223,7 @@ extern const char *getVarName(const SymbolRecord *varSym);
 
 
 // USE ONLY FOR DEBUGGING!
+extern void printSymbolHeader(FILE *outputFile);
 extern void printSingleSymbol(FILE *outputFile, const SymbolRecord *curSymbol);
 
 #endif

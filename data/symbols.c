@@ -443,9 +443,7 @@ void printSymbolHeader(FILE *outputFile) {
 }
 
 void printSingleSymbol(FILE *outputFile, const SymbolRecord *curSymbol) {
-    printSymbolHeader(outputFile);
     printSymbol(outputFile, curSymbol, 0);
-    fprintf(outputFile, "\n");
 }
 
 void showSymbolTable(FILE *outputFile, SymbolTable *symbolTable) {

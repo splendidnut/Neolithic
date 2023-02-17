@@ -2240,9 +2240,15 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
         case ECHO:
             GC_HandleEcho(code);
             break;
-        case SET_BANK:
-            curBank = code->nodes[2].value.num;
-            break;
+        case SET_BANK: {
+            int bankNum = code->nodes[2].value.num;
+            int maxBanks = BL_getBankLayout()->banksUsed;
+            if (bankNum >= maxBanks) {
+                WarningMessage("Bank out of range", NULL, code->lineNum);
+            } else {
+                curBank = bankNum;
+            }
+        } break;
         case SET_ADDRESS:
             addr = code->nodes[2].value.num;
             OB_SetAddress(addr);
