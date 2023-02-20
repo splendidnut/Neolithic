@@ -417,7 +417,9 @@ void WriteDASM_StaticArrayData(const OutputBlock *block) {
             sepChar = '\n';
             accum = 0;
         }
-        fprintf(outputFile, fmtStr, block->dataList->nodes[vidx + 1].value.num, sepChar);
+        int outNum = block->dataList->nodes[vidx + 1].value.num;
+        if (!isInt) outNum = outNum & 0xff;
+        fprintf(outputFile, fmtStr, outNum, sepChar);
     }
     WriteDASM_WriteBlockFooter(block->blockName);
     fprintf(outputFile, "\n\n");
