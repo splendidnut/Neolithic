@@ -41,6 +41,7 @@ enum CompilerDirectiveTokens {
     INLINE,
 
     SET_BANK,
+    SET_BANKING,
     SET_ADDRESS,
 
     //---- size of list

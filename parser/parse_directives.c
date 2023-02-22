@@ -39,6 +39,7 @@ const char* CompilerDirectiveNames[NUM_COMPILER_DIRECTIVES] = {
         "inline",
 
         "set_bank",
+        "set_banking",
         "set_address"
 };
 
@@ -93,6 +94,20 @@ ListNode buildBankDirective(enum CompilerDirectiveTokens token) {
     return createListNode(bankDirList);
 }
 
+ListNode buildBankingDirective(enum CompilerDirectiveTokens token) {
+
+    char *bankingFlag = getToken()->tokenStr;
+    if (bankingFlag != NULL) {
+        List *bankDirList = createList(3);
+        addNode(bankDirList, createParseToken(PT_DIRECTIVE));
+        addNode(bankDirList, createIntNode(token));
+        addNode(bankDirList, createStrNode(bankingFlag));
+        return createListNode(bankDirList);
+    }
+    return createEmptyNode();
+}
+
+
 ListNode buildAddrDirective(enum CompilerDirectiveTokens token) {
     List *bankDirList = createList(3);
     addNode(bankDirList, createParseToken(PT_DIRECTIVE));
@@ -123,6 +138,9 @@ ListNode parse_compilerDirective(enum ParserScope parserScope) {
                 break;
             case SET_BANK:
                 node = buildBankDirective(directiveToken);
+                break;
+            case SET_BANKING:
+                node = buildBankingDirective(directiveToken);
                 break;
             case SET_ADDRESS:
                 node = buildAddrDirective(directiveToken);
