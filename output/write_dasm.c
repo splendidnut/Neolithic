@@ -23,6 +23,7 @@
 static FILE *outputFile;
 static SymbolTable *mainSymbolTable;
 static struct BankLayout *mainBankLayout;
+static MachineInfo DASM_target;
 
 //---------------------------------------------------------
 // Output Adapter API
@@ -77,19 +78,48 @@ void WriteDASM_StartOfBank() {
 }
 
 void WriteDASM_EndOfBank() {
+
+    // figure out how many bytes are needed to be reserved at the end of the bank
+    //  FOR CPU jump vectors and other reserved bytes
+    int footerSize = 0;
+    switch (DASM_target.machine) {
+        case Atari2600: footerSize = 4; break;
+        case Atari5200: footerSize = 2; break;
+        case Atari7800: footerSize = 8; break;
+        default:break;
+    }
+
     struct BankDef curBank = mainBankLayout->banks[0];
     int bankStart = curBank.memLoc;
-    int bankEnd = (bankStart + curBank.size) & 0xfff0 - 0x8;
+    int bankEnd = (bankStart + curBank.size);
 
     // print footer
     fprintf(outputFile, "\n;---------------------------------------------\n");
-    fprintf(outputFile, ";-- $%04X .. $%04x\n", bankStart, bankEnd);
-    fprintf(outputFile, "\n\tORG $%04X\n", (curBank.size - 0x8));       // TODO: NEED to fix
-    fprintf(outputFile,"\tRORG $%04X\n", bankEnd);
-    fprintf(outputFile, "\t.word  $87FF\n");
-    fprintf(outputFile, "\t.word  nmi\n");
-    fprintf(outputFile, "\t.word  main\n");
-    fprintf(outputFile, "\t.word  irq\n");
+    fprintf(outputFile, ";-- $%04X .. $%04X\n", bankStart, (bankEnd-1));
+    fprintf(outputFile, "\n\tORG $%04X\n", (curBank.size - footerSize));
+    fprintf(outputFile, "\tRORG $%04X\n", (bankEnd - footerSize));
+
+    // output machine specific data
+    switch (DASM_target.machine) {
+
+        case Atari2600: {
+            fprintf(outputFile, "\t.word  main\n");
+            fprintf(outputFile, "\t.word  main\n");
+        } break;
+
+        case Atari5200: {
+            fprintf(outputFile, "\t.word  main\n");
+        } break;
+
+        case Atari7800: {
+            fprintf(outputFile, "\t.word  $87FF\n");
+            fprintf(outputFile, "\t.word  nmi\n");
+            fprintf(outputFile, "\t.word  main\n");
+            fprintf(outputFile, "\t.word  irq\n");
+        } break;
+
+        default:break;
+    }
     fprintf(outputFile, "\n\n;--- END OF PROGRAM\n\n");
 }
 
@@ -349,6 +379,7 @@ void WriteDASM_Init(FILE *outFile, MachineInfo targetMachine, SymbolTable *mainS
     outputFile = outFile;
     mainSymbolTable = mainSymTbl;
     mainBankLayout = bankLayout;
+    DASM_target = targetMachine;
 
     // print preamble
     if (outputFile != stdout) {
