@@ -29,6 +29,7 @@
 #include "write_output.h"
 
 static MachineInfo outputTargetMachine;
+static int bankSize;
 
 void initOutputGenerator(enum Machines targetMachine) {
     // Configure output for specific machine
@@ -44,15 +45,15 @@ void initOutputGenerator(enum Machines targetMachine) {
     // Build a default bank that matches the binary memory space available in the machine
 
     // Create main bank
-    int bankSize = (outputTargetMachine.endAddr - outputTargetMachine.startAddr + 1);
+    bankSize = (outputTargetMachine.endAddr - outputTargetMachine.startAddr + 1);
     BL_addBank(bankSize, outputTargetMachine.startAddr, 0);
+}
 
-    if (targetMachine == Atari2600) {
+void addBankToOutputGenerator() {
+    if (outputTargetMachine.machine == Atari2600) {
         // TEMP (2600-only .. F8 bank-switching
-        //BL_addBank(bankSize, outputTargetMachine.startAddr + 0x2000, 0x1000);
+        BL_addBank(bankSize, outputTargetMachine.startAddr + 0x2000, 0x1000);
     }
-
-    BL_printBanks();
 }
 
 void generateOutput(char *projectName, SymbolTable *mainSymbolTable, OutputFlags outputFlags) {

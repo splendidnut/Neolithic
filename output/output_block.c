@@ -29,6 +29,8 @@
 #include <string.h>
 
 #include "output_block.h"
+#include "codegen/gen_common.h"
+#include "data/bank_layout.h"
 
 static OutputBlock *firstBlock;
 static OutputBlock *curBlock;
@@ -128,15 +130,16 @@ OutputBlock *OB_FindByName(char *blockNameToFind) {
 
 void OB_PrintBlockList() {
     OutputBlock *block = firstBlock;
-    printf("%-32s  addr   end    size  bank\n", "Block Name");
-    printf("-----------------------------------------------------------\n");
+    printf("%-32s  addr   end    size  bank  size (bytes)\n", "Block Name");
+    printf("--------------------------------------------------------------------------\n");
     while (block != NULL) {
-        printf("%-32s  %04X - %04X   %04X   %02X\n",
+        printf("%-32s  %04X - %04X   %04X   %02X  %5d bytes\n",
                 block->blockName,
                 block->blockAddr,
                (block->blockAddr + block->blockSize - 1),
                 block->blockSize,
-                block->bankNum);
+                block->bankNum,
+                block->blockSize);
         block = block->nextBlock;
     }
 }
@@ -164,6 +167,94 @@ void OB_WalkCodeBlocks(ProcessBlockFunc codeBlockFunc) {
     }
 }
 
+//-------------------------------------------------------------------
+//--- Track code address
+//-
+// TODO:  This is temporary functionality until the "relocatable code/data" blocks issue is solved
+// TODO: Figure out how to do this differently to make blocks magically movable
+// TODO:  This can probably be figured out later in the compile process (output layout step)
+
+bool checkIfBlockFits(const OutputBlock *outputBlock, const SymbolRecord *symRec) {
+    // check if code doesn't fit in bank
+
+    // information about bank to check
+    int bankNum = outputBlock->bankNum;
+    int bankEnd = (bankNum * 4096) + 0xFF7;
+
+    //---
+    int blockEndAddr = (outputBlock->blockAddr + outputBlock->blockSize) - 1;
+    if (blockEndAddr > bankEnd) {
+        char errStr[128];
+        sprintf(errStr, "Block %s ends at: %04X (bank %d)", symRec->name, blockEndAddr, outputBlock->bankNum);
+        ErrorMessage("Code block doesn't fit in bank\n\t", errStr, symRec->astList->lineNum);
+        return false;
+    }
+    return true;
+}
+
+void checkAndSaveBlockAddr(const OutputBlock *outputBlock, SymbolRecord *symRec) {
+
+    if (checkIfBlockFits(outputBlock, symRec)) {
+
+        // use bank number to lookup code offset within bank
+        int bankCodeAddr = BL_getMachineAddr(outputBlock->bankNum) + outputBlock->blockAddr;
+
+        setSymbolLocation(symRec, bankCodeAddr, SS_ROM);
+    }
+}
+
+bool locateBlockDuringGen = true;
+
+void GC_OB_AddCodeBlock(SymbolRecord *funcSym, int curBank) {
+    OutputBlock *result = OB_AddCode(funcSym->name, funcSym->instrBlock, curBank);
+
+    if (!locateBlockDuringGen) return;
+
+    checkAndSaveBlockAddr(result, funcSym);
+}
+
+
+void GC_OB_AddDataBlock(SymbolRecord *varSymRec, int curBank) {
+    OutputBlock *staticData = OB_AddData(varSymRec, varSymRec->astList, curBank);
+
+    if (!locateBlockDuringGen) return;
+
+    checkAndSaveBlockAddr(staticData, varSymRec);
+}
+
+
+void GC_OB_AddLookupTable(SymbolRecord *varSymRec, int curBank) {
+    OutputBlock *staticData = OB_AddData(varSymRec, varSymRec->astList, curBank);
+
+    if (!locateBlockDuringGen) return;
+
+    checkAndSaveBlockAddr(staticData, varSymRec);
+}
+
+
+void OB_BuildInitialLayout() {
+    OutputBlock *block = (OutputBlock *)OB_getFirstBlock();
+    while (block != NULL) {
+        SymbolRecord *symbolRecord;
+        switch (block->blockType) {
+            case BT_STRUCT:
+            case BT_DATA:  symbolRecord = block->dataSym;  break;
+            case BT_CODE:  symbolRecord = block->codeBlock->funcSym;  break;
+        }
+
+        if (symbolRecord != NULL && checkIfBlockFits(block, symbolRecord)) {
+            // NEW CODE: use bank number to lookup code offset within bank
+            int bankCodeAddr = BL_getMachineAddr(block->bankNum) + block->blockAddr;
+
+            setSymbolLocation(symbolRecord, bankCodeAddr, SS_ROM);
+        }
+        block = block->nextBlock;
+    }
+
+    printf("\n\nArranging blocks - Initial layout:\n");
+    OB_PrintBlockList();
+    printf("\n");
+}
 
 
 /**

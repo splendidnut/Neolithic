@@ -56,6 +56,11 @@ extern void OB_PrintBlockList();
 extern const OutputBlock *OB_getFirstBlock();
 
 extern void OB_WalkCodeBlocks(ProcessBlockFunc codeBlockFunc);
+extern void OB_BuildInitialLayout();
 extern void OB_ArrangeBlocks();
+
+extern void GC_OB_AddCodeBlock(SymbolRecord *funcSym, int curBank);
+extern void GC_OB_AddDataBlock(SymbolRecord *varSymRec, int curBank);
+extern void GC_OB_AddLookupTable(SymbolRecord *varSymRec, int curBank);
 
 #endif //MODULE_OUTPUT_BLOCK_H

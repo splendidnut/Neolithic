@@ -29,6 +29,7 @@ typedef struct {
 } OutputFlags;
 
 extern void initOutputGenerator(enum Machines targetMachine);
+extern void addBankToOutputGenerator();
 extern void generateOutput(char *projectName, SymbolTable *mainSymbolTable, OutputFlags outputFlags);
 
 #endif //NEOLITHIC_OUTPUT_MANAGER_H

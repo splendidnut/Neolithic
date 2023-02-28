@@ -36,6 +36,7 @@
 #include "type_checker.h"
 #include "data/bank_layout.h"
 #include "cpu_arch/instrs_opt.h"
+#include "output/output_manager.h"
 
 //-------------------------------------------
 //  Variables used in code generation
@@ -1920,6 +1921,7 @@ void GC_LocalVariable(const List *varDef, enum SymbolType destType) {
 
 static const char* INIT_VALUE_ERROR_MSG = "Initializer value cannot be evaluated";
 bool ppError = false;
+bool ppAllowBadNodes = false;
 
 /**
  * Preprocess an initializer expression by running it thru the evaluator
@@ -1933,7 +1935,7 @@ ListNode PreProcess_Node(ListNode initExpr, int lineNum) {
     if (result.hasResult) {
         value = result.value;
     } else {
-        ErrorMessageWithNode(INIT_VALUE_ERROR_MSG, initExpr, lineNum);
+        if (!ppAllowBadNodes) ErrorMessageWithNode(INIT_VALUE_ERROR_MSG, initExpr, lineNum);
         ppError = true;
     }
     return createIntNode(value & 0xffff);
@@ -2101,67 +2103,6 @@ void GC_Assignment(const List *stmt, enum SymbolType destType) {
     }
 }
 
-
-
-//-------------------------------------------------------------------
-//--- Track code address
-//-
-// TODO:  This is temporary functionality until the "relocatable code/data" blocks issue is solved
-// TODO: Figure out how to do this differently to make blocks magically movable
-// TODO:  This can probably be figured out later in the compile process (output layout step)
-
-bool checkIfBlockFits(const OutputBlock *outputBlock, const SymbolRecord *symRec) {// check if code doesn't fit in bank
-    int blockEndAddr = (outputBlock->blockAddr + outputBlock->blockSize) - 1;
-    if (blockEndAddr > 0xFF7) {
-        char errStr[128];
-        sprintf(errStr, "Block ends at: %04X", blockEndAddr);
-        ErrorMessage("Code block doesn't fit in bank", errStr, symRec->astList->lineNum);
-        return false;
-    }
-    return true;
-}
-
-
-void GC_OB_AddCodeBlock(SymbolRecord *funcSym) {
-    OutputBlock *result = OB_AddCode(funcSym->name, funcSym->instrBlock, curBank);
-
-    if (checkIfBlockFits(result, funcSym)) {
-
-        // NEW CODE: use bank number to lookup code offset within bank
-        int bankCodeAddr = BL_getMachineAddr(result->bankNum) + result->blockAddr;
-
-        //setSymbolLocation(funcSym, funcAddr, SS_ROM);
-        setSymbolLocation(funcSym, bankCodeAddr, SS_ROM);
-    }
-}
-
-
-void GC_OB_AddDataBlock(SymbolRecord *varSymRec) {
-    OutputBlock *staticData = OB_AddData(varSymRec, varSymRec->astList, curBank);
-    if (checkIfBlockFits(staticData, varSymRec)) {
-
-        // NEW CODE: use bank number to lookup code offset within bank
-        int bankCodeAddr = BL_getMachineAddr(staticData->bankNum) + staticData->blockAddr;
-
-        setSymbolLocation(varSymRec, bankCodeAddr, SS_ROM);
-    }
-}
-
-
-void GC_OB_AddLookupTable(SymbolRecord *varSymRec) {
-    OutputBlock *staticData = OB_AddData(varSymRec, varSymRec->astList, curBank);
-
-    if (checkIfBlockFits(staticData, varSymRec)) {
-
-        // NEW CODE: use bank number to lookup code offset within bank
-        int bankCodeAddr = BL_getMachineAddr(staticData->bankNum) + staticData->blockAddr;
-
-        setSymbolLocation(varSymRec, bankCodeAddr, SS_ROM);
-    }
-}
-
-
-
 //-------------------------------------------------------------------
 
 
@@ -2240,6 +2181,7 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
         case ECHO:
             GC_HandleEcho(code);
             break;
+
         case SET_BANK: {
             int bankNum = code->nodes[2].value.num;
             int maxBanks = BL_getBankLayout()->banksUsed;
@@ -2249,6 +2191,11 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
                 curBank = bankNum;
             }
         } break;
+
+        case SET_BANKING:
+            addBankToOutputGenerator();
+            break;
+
         case SET_ADDRESS:
             addr = code->nodes[2].value.num;
             OB_SetAddress(addr);
@@ -2382,7 +2329,7 @@ void GC_Variable(const List *varDef) {
         // only generate a multiplication lookup table if the multiplier is greater than 2 (not a primitive var)
         if (multiplier > 2) {
             SymbolRecord *lookupTable = ICG_Mul_AddLookupTable(multiplier);
-            GC_OB_AddLookupTable(lookupTable);
+            GC_OB_AddLookupTable(lookupTable, curBank);
 
         } else {
             printf("Warning: Cannot generate quick index table for %s\n", varName);
@@ -2412,10 +2359,11 @@ void GC_Variable(const List *varDef) {
         }
 
         // --- Process the initializer list! ---
+        ppAllowBadNodes = true; // ALLOW preprocessor to process things with bad addr_of(&) references
         List *valueNode = GC_ProcessInitializerList(varDef, initValueList);
         reverseData = false;
         varSymRec->astList = valueNode;
-        GC_OB_AddDataBlock(varSymRec);
+        GC_OB_AddDataBlock(varSymRec, curBank);
 
     }
 }
@@ -2514,7 +2462,7 @@ void GC_Function(const List *function, int codeNodeIndex) {
                 funcSym->flags |= MF_INLINE;
             } else {
                 GC_ProcessFunction(funcSym, codeNode.value.list);
-                GC_OB_AddCodeBlock(funcSym);
+                GC_OB_AddCodeBlock(funcSym, curBank);
             }
         } else {
 
