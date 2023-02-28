@@ -1040,8 +1040,21 @@ void GC_StoreToArray(const List *expr) {
 
     if (isArrayIndexConst(expr)) {
         // Array index is a constant value (either a const variable or a numeric literal)
+
         int ofs = GC_GetArrayIndex(arraySym, expr);
-        ICG_StoreVarOffset(arraySym, ofs, getBaseVarSize(arraySym));
+        int varSize;
+
+        // IF symbol is a pointer and NOT an array,
+        //    THEN we have a 'pointer accessed as array'
+
+        if (isPointer(arraySym) && !isArray(arraySym)) {
+            varSize = IS_INT(arraySym) ? 2 : 1;
+
+            if (varSize == 1) ofs = ofs >> 1;   // TODO - HACK:  need to adjust offset
+        } else {
+            varSize = getBaseVarSize(arraySym);
+        }
+        ICG_StoreVarOffset(arraySym, ofs, varSize);
         return;
 
     } else if (expr->nodes[2].type == N_STR) {
