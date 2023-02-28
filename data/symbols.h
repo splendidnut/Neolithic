@@ -25,6 +25,8 @@
 
 #define SYMBOL_NAME_LIMIT 32
 
+#define IS_INT(sym) ((sym->flags & ST_MASK) == ST_INT)
+
 //---  Macros for getting basic information about a SymbolRecord
 
 #define IS_ALIAS(sym) ((sym)->kind == SK_ALIAS)
