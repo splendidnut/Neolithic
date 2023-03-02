@@ -20,6 +20,7 @@
 //
 
 #include <stdio.h>
+#include <string.h>
 
 #include "gen_code.h"
 #include "common/common.h"
@@ -1041,20 +1042,26 @@ void GC_StoreToArray(const List *expr) {
     if (isArrayIndexConst(expr)) {
         // Array index is a constant value (either a const variable or a numeric literal)
 
+        bool isPointerAccessedAsArray = (isPointer(arraySym) && !isArray(arraySym));
+
         int ofs = GC_GetArrayIndex(arraySym, expr);
         int varSize;
 
         // IF symbol is a pointer and NOT an array,
         //    THEN we have a 'pointer accessed as array'
 
-        if (isPointer(arraySym) && !isArray(arraySym)) {
+        if (isPointerAccessedAsArray) {
             varSize = IS_INT(arraySym) ? 2 : 1;
 
             if (varSize == 1) ofs = ofs >> 1;   // TODO - HACK:  need to adjust offset
+
+            ICG_LoadRegConst('Y', ofs);
+            ICG_StoreVarIndexed(arraySym);
+
         } else {
             varSize = getBaseVarSize(arraySym);
+            ICG_StoreVarOffset(arraySym, ofs, varSize);
         }
-        ICG_StoreVarOffset(arraySym, ofs, varSize);
         return;
 
     } else if (expr->nodes[2].type == N_STR) {
@@ -1821,6 +1828,13 @@ void Debug_AliasEval(const List *varDef, EvalResult *evalResult) {
 #endif
 }
 
+enum NodeType getInitializerType(ListNode initDefNode) {
+    List *initDef = initDefNode.value.list;
+    if (initDef->nodes[0].value.parseToken != PT_INIT) return N_EMPTY;
+
+    ListNode valueNode = initDef->nodes[1];
+    return valueNode.type;
+}
 
 List* getInitializer(const ListNode initDefNode) {
     List *initDef = initDefNode.value.list;
@@ -2325,6 +2339,24 @@ List *GC_ProcessInitializerList(const List *varDef, List *initValueList) {
 }
 
 /**
+ * Process a string literal by turning it into a byte array
+ * @param varDef
+ * @param stringNode
+ * @return
+ */
+List *GC_ProcessStringLiteral(const List *varDef, ListNode stringNode) {
+    char *strLiteral = stringNode.value.list->nodes[1].value.str;
+    int strLen = strlen(strLiteral);
+    List *byteList = createList(strLen + 1);
+    addNode(byteList, createParseToken(PT_LIST));
+    for_range (idx, 0, strLen) {
+        ListNode byteNode = createIntNode(strLiteral[idx]);
+        addNode(byteList, byteNode);
+    }
+    return byteList;
+}
+
+/**
  * Generate Code for global variables that have initializers.
  * @param varDef
  */
@@ -2363,8 +2395,23 @@ void GC_Variable(const List *varDef) {
             return;
         }
 
+        enum NodeType initType = getInitializerType(varDef->nodes[4]);
+
+        // Handle strings
+        if (initType == N_STR_LITERAL) {
+            List *byteList = GC_ProcessStringLiteral(varDef, varDef->nodes[4]);
+            varSymRec->astList = byteList;
+            GC_OB_AddDataBlock(varSymRec, curBank);
+            return;
+        }
+
+        // Get Initializer list.
+
         List *initValueList = getInitializer(varDef->nodes[4]);
-        if (initValueList == NULL) return;
+        if (initValueList == NULL) {
+            WarningMessage("Skipping null initializer", "", varDef->lineNum);
+            return;
+        }
 
         if (varSymRec->userTypeDef != NULL && isEnum(varSymRec->userTypeDef)) {
             setEvalLocalSymbolTable(varSymRec->userTypeDef->symbolTbl);
