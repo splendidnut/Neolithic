@@ -2374,7 +2374,7 @@ void GC_Variable(const List *varDef) {
         // only generate a multiplication lookup table if the multiplier is greater than 2 (not a primitive var)
         if (multiplier > 2) {
             SymbolRecord *lookupTable = ICG_Mul_AddLookupTable(multiplier);
-            GC_OB_AddLookupTable(lookupTable, curBank);
+            GC_OB_AddDataBlock(lookupTable, curBank);
 
         } else {
             printf("Warning: Cannot generate quick index table for %s\n", varName);
