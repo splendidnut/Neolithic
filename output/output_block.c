@@ -223,14 +223,6 @@ void GC_OB_AddDataBlock(SymbolRecord *varSymRec, int curBank) {
 }
 
 
-void GC_OB_AddLookupTable(SymbolRecord *varSymRec, int curBank) {
-    OutputBlock *staticData = OB_AddData(varSymRec, varSymRec->astList, curBank);
-
-    if (!locateBlockDuringGen) return;
-
-    checkAndSaveBlockAddr(staticData, varSymRec);
-}
-
 
 void OB_BuildInitialLayout() {
     OutputBlock *block = (OutputBlock *)OB_getFirstBlock();

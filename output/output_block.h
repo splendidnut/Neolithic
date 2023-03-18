@@ -61,6 +61,5 @@ extern void OB_ArrangeBlocks();
 
 extern void GC_OB_AddCodeBlock(SymbolRecord *funcSym, int curBank);
 extern void GC_OB_AddDataBlock(SymbolRecord *varSymRec, int curBank);
-extern void GC_OB_AddLookupTable(SymbolRecord *varSymRec, int curBank);
 
 #endif //MODULE_OUTPUT_BLOCK_H
