@@ -56,6 +56,11 @@ void OB_Init() {
 
 void OB_AddBlock(OutputBlock *newBlock) {
 
+    // set location of block
+    newBlock->blockAddr = curAddr;
+    newBlock->bankNum = curBank;
+    curAddr += newBlock->blockSize;
+
     // add block to the linked list
     if (firstBlock == NULL) {
         firstBlock = newBlock;
@@ -65,26 +70,6 @@ void OB_AddBlock(OutputBlock *newBlock) {
     curBlock = newBlock;
     lastBlock = curBlock;
     blockCount++;
-}
-
-/**
- * Add a function / code block to the Output Block list
- * @param name
- * @param codeBlock - InstrBlock
- * @return
- */
-OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock, int suggestedBank) {
-    OutputBlock *newBlock = allocMem(sizeof(struct SOutputBlock));
-    newBlock->nextBlock = NULL;
-    newBlock->blockName = name;
-    newBlock->blockAddr = curAddr;
-    newBlock->blockSize = codeBlock->codeSize;
-    curAddr += codeBlock->codeSize;
-    newBlock->blockType = BT_CODE;
-    newBlock->codeBlock = codeBlock;
-    newBlock->bankNum = suggestedBank;
-    OB_AddBlock(newBlock);
-    return newBlock;
 }
 
 // TODO: this is a hack since the OutputBlock module maintains a separate address tracker
@@ -100,25 +85,39 @@ void OB_SetBank(int newBank) {
     curBank = newBank;
 }
 
-OutputBlock *OB_AddData(SymbolRecord *dataSym, List *dataList, int suggestedBank) {
+/**
+ * Add a function / code block to the Output Block list
+ * @param name
+ * @param codeBlock - InstrBlock
+ * @return
+ */
+OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock) {
+    OutputBlock *newBlock = allocMem(sizeof(struct SOutputBlock));
+    newBlock->nextBlock = NULL;
+    newBlock->blockName = name;
+    newBlock->blockSize = codeBlock->codeSize;
+    newBlock->blockType = BT_CODE;
+    newBlock->codeBlock = codeBlock;
+
+    OB_AddBlock(newBlock);
+    return newBlock;
+}
+
+OutputBlock *OB_AddData(SymbolRecord *dataSym, List *dataList) {
     bool isInt = getBaseVarSize(dataSym) > 1;
     OutputBlock *newBlock = allocMem(sizeof(struct SOutputBlock));
     newBlock->nextBlock = NULL;
     newBlock->blockName = dataSym->name;
-    newBlock->blockAddr = curAddr;
     newBlock->blockSize = (dataList->count - 1) * (isInt ? 2 : 1);
     newBlock->blockType = BT_DATA;
     newBlock->dataSym = dataSym;
     newBlock->dataList = dataList;
-    newBlock->bankNum = suggestedBank;
 
     // if this is a user-defined type (struct)
     if ((dataSym->userTypeDef != NULL) && (isStruct(dataSym->userTypeDef))) {
         newBlock->blockType = BT_STRUCT;
         newBlock->blockSize = dataSym->userTypeDef->numElements * dataSym->numElements;
     }
-    curAddr += newBlock->blockSize;
-
     OB_AddBlock(newBlock);
     return newBlock;
 }
@@ -213,7 +212,7 @@ void checkAndSaveBlockAddr(const OutputBlock *outputBlock, SymbolRecord *symRec)
 bool locateBlockDuringGen = true;
 
 void GC_OB_AddCodeBlock(SymbolRecord *funcSym) {
-    OutputBlock *result = OB_AddCode(funcSym->name, funcSym->instrBlock, curBank);
+    OutputBlock *result = OB_AddCode(funcSym->name, funcSym->instrBlock);
 
     if (!locateBlockDuringGen) return;
 
@@ -222,7 +221,7 @@ void GC_OB_AddCodeBlock(SymbolRecord *funcSym) {
 
 
 void GC_OB_AddDataBlock(SymbolRecord *varSymRec) {
-    OutputBlock *staticData = OB_AddData(varSymRec, varSymRec->astList, curBank);
+    OutputBlock *staticData = OB_AddData(varSymRec, varSymRec->astList);
 
     if (!locateBlockDuringGen) return;
 

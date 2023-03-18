@@ -51,8 +51,6 @@ extern void OB_MoveToNextPage();
 extern void OB_SetAddress(int newAddr);
 extern void OB_SetBank(int newBank);
 
-extern OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock, int suggestedBank);
-extern OutputBlock *OB_AddData(SymbolRecord *dataSym, List *dataList, int suggestedBank);
 extern OutputBlock *OB_FindByName(char *blockNameToFind);
 extern void OB_PrintBlockList();
 extern const OutputBlock *OB_getFirstBlock();
