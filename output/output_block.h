@@ -49,6 +49,8 @@ extern void OB_Init();
 extern void OB_AddBlock(OutputBlock *newBlock);
 extern void OB_MoveToNextPage();
 extern void OB_SetAddress(int newAddr);
+extern void OB_SetBank(int newBank);
+
 extern OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock, int suggestedBank);
 extern OutputBlock *OB_AddData(SymbolRecord *dataSym, List *dataList, int suggestedBank);
 extern OutputBlock *OB_FindByName(char *blockNameToFind);
@@ -59,7 +61,7 @@ extern void OB_WalkCodeBlocks(ProcessBlockFunc codeBlockFunc);
 extern void OB_BuildInitialLayout();
 extern void OB_ArrangeBlocks();
 
-extern void GC_OB_AddCodeBlock(SymbolRecord *funcSym, int curBank);
-extern void GC_OB_AddDataBlock(SymbolRecord *varSymRec, int curBank);
+extern void GC_OB_AddCodeBlock(SymbolRecord *funcSym);
+extern void GC_OB_AddDataBlock(SymbolRecord *varSymRec);
 
 #endif //MODULE_OUTPUT_BLOCK_H

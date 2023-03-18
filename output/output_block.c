@@ -37,6 +37,7 @@ static OutputBlock *curBlock;
 static OutputBlock *lastBlock;
 
 static int curAddr;
+static int curBank;
 static int blockCount;
 
 void DEBUG_printFirstBlockPtr(char *funcName) {
@@ -49,6 +50,7 @@ void OB_Init() {
     curBlock = NULL;
     lastBlock = NULL;
     curAddr = 0;
+    curBank = 0;
     blockCount = 0;
 }
 
@@ -94,6 +96,10 @@ void OB_SetAddress(int newAddr) {
     curAddr = newAddr;
 }
 
+void OB_SetBank(int newBank) {
+    curBank = newBank;
+}
+
 OutputBlock *OB_AddData(SymbolRecord *dataSym, List *dataList, int suggestedBank) {
     bool isInt = getBaseVarSize(dataSym) > 1;
     OutputBlock *newBlock = allocMem(sizeof(struct SOutputBlock));
@@ -130,16 +136,17 @@ OutputBlock *OB_FindByName(char *blockNameToFind) {
 
 void OB_PrintBlockList() {
     OutputBlock *block = firstBlock;
-    printf("%-32s  addr   end    size  bank  size (bytes)\n", "Block Name");
-    printf("--------------------------------------------------------------------------\n");
+    printf("%-32s  addr   end    size  bank  size (bytes) Type \n", "Block Name");
+    printf("------------------------------------------------------------------------------\n");
     while (block != NULL) {
-        printf("%-32s  %04X - %04X   %04X   %02X  %5d bytes\n",
+        printf("%-32s  %04X - %04X   %04X   %02X  %5d bytes   %s\n",
                 block->blockName,
                 block->blockAddr,
                (block->blockAddr + block->blockSize - 1),
                 block->blockSize,
                 block->bankNum,
-                block->blockSize);
+                block->blockSize,
+               (block->blockType == BT_CODE) ? "CODE" : "DATA" );
         block = block->nextBlock;
     }
 }
@@ -205,7 +212,7 @@ void checkAndSaveBlockAddr(const OutputBlock *outputBlock, SymbolRecord *symRec)
 
 bool locateBlockDuringGen = true;
 
-void GC_OB_AddCodeBlock(SymbolRecord *funcSym, int curBank) {
+void GC_OB_AddCodeBlock(SymbolRecord *funcSym) {
     OutputBlock *result = OB_AddCode(funcSym->name, funcSym->instrBlock, curBank);
 
     if (!locateBlockDuringGen) return;
@@ -214,7 +221,7 @@ void GC_OB_AddCodeBlock(SymbolRecord *funcSym, int curBank) {
 }
 
 
-void GC_OB_AddDataBlock(SymbolRecord *varSymRec, int curBank) {
+void GC_OB_AddDataBlock(SymbolRecord *varSymRec) {
     OutputBlock *staticData = OB_AddData(varSymRec, varSymRec->astList, curBank);
 
     if (!locateBlockDuringGen) return;

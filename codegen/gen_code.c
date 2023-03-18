@@ -44,7 +44,6 @@
 
 static bool reverseData;
 enum CompilerDirectiveTokens lastDirective;
-int curBank = 0;
 
 //--------------------------------------------------------
 //--- Forward References
@@ -2215,7 +2214,7 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
             if (bankNum >= maxBanks) {
                 WarningMessage("Bank out of range", NULL, code->lineNum);
             } else {
-                curBank = bankNum;
+                OB_SetBank(bankNum);
             }
         } break;
 
@@ -2374,7 +2373,7 @@ void GC_Variable(const List *varDef) {
         // only generate a multiplication lookup table if the multiplier is greater than 2 (not a primitive var)
         if (multiplier > 2) {
             SymbolRecord *lookupTable = ICG_Mul_AddLookupTable(multiplier);
-            GC_OB_AddDataBlock(lookupTable, curBank);
+            GC_OB_AddDataBlock(lookupTable);
 
         } else {
             printf("Warning: Cannot generate quick index table for %s\n", varName);
@@ -2401,7 +2400,7 @@ void GC_Variable(const List *varDef) {
         if (initType == N_STR_LITERAL) {
             List *byteList = GC_ProcessStringLiteral(varDef, varDef->nodes[4]);
             varSymRec->astList = byteList;
-            GC_OB_AddDataBlock(varSymRec, curBank);
+            GC_OB_AddDataBlock(varSymRec);
             return;
         }
 
@@ -2423,7 +2422,7 @@ void GC_Variable(const List *varDef) {
         List *valueNode = GC_ProcessInitializerList(varDef, initValueList);
         reverseData = false;
         varSymRec->astList = valueNode;
-        GC_OB_AddDataBlock(varSymRec, curBank);
+        GC_OB_AddDataBlock(varSymRec);
 
     }
 }
@@ -2522,7 +2521,7 @@ void GC_Function(const List *function, int codeNodeIndex) {
                 funcSym->flags |= MF_INLINE;
             } else {
                 GC_ProcessFunction(funcSym, codeNode.value.list);
-                GC_OB_AddCodeBlock(funcSym, curBank);
+                GC_OB_AddCodeBlock(funcSym);
             }
         } else {
 
@@ -2602,7 +2601,6 @@ void initCodeGenerator(SymbolTable *symbolTable, enum Machines machines) {
 void generate_code(char *name, ListNode node) {
     if (compilerOptions.showGeneralInfo) printf("Generating Code for %s\n", name);
 
-    curBank = 0;
     curFuncSymbolTable = NULL;
     reverseData = false;
 
