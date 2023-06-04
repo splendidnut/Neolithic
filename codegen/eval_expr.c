@@ -255,9 +255,7 @@ char* get_node(const ListNode node) {
     char *result;
     switch (node.type) {
         case N_INT:
-            result = allocMem(8);
-            sprintf(result, "%d", node.value.num);
-            break;
+            return intToStr(node.value.num);
         case N_LIST:
             return get_expression(node.value.list);
         case N_STR:
