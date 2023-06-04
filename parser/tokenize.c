@@ -191,7 +191,7 @@ void initTokenizer(char *theInputStr) {
 
 void killTokenizer() {
     /* dealloc currentToken */
-    free(currentToken);
+    free(tokenStorage);
 }
 
 int getProgLineNum() {
