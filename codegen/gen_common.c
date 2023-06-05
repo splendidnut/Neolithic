@@ -21,7 +21,7 @@
 #include <data/symbols.h>
 #include "gen_common.h"
 
-SymbolTable *mainSymbolTable;
+
 SymbolTable *curFuncSymbolTable;
 
 

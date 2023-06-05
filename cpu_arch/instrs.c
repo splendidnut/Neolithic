@@ -73,7 +73,7 @@ void ICG_SystemInitCode() {
 //-----------------------------------------------------------------------------
 //  Function support
 
-InstrBlock* curBlock;
+//static InstrBlock* curBlock;
 
 /**
  * ICG_StartOfFunction - Prepares the Instruction Code Generator for the start of a new function block
@@ -87,7 +87,7 @@ InstrBlock* curBlock;
  * @return address where function starts
  */
 void ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym) {
-    curBlock = IB_StartInstructionBlock(funcLabel->name);
+    InstrBlock *curBlock = IB_StartInstructionBlock(funcLabel->name);
     curBlock->funcSym = funcSym;
 
     IL_Label(funcLabel);
@@ -103,20 +103,21 @@ void ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym) {
 }
 
 InstrBlock* ICG_EndOfFunction() {
-    InstrBlock *funcInstrBlock = curBlock;
+    InstrBlock *funcInstrBlock = IB_GetCurrentBlock();//curBlock;
 
     // All functions except main() will need a RTS at the end.
     //    Add the RTS if it's not already there
-    if (!isMainFunction(curBlock->funcSym) != 0) {
-        if ((curBlock->curInstr == NULL) || (curBlock->curInstr->mne != RTS)) ICG_Return();
+    if (!isMainFunction(funcInstrBlock->funcSym) != 0) {
+        if ((funcInstrBlock->curInstr == NULL) || (funcInstrBlock->curInstr->mne != RTS)) ICG_Return();
     }
 
     // save code size of function (to allow arrangement)
-    int codeSize = IL_GetCodeSize(curBlock);
+    int codeSize = IL_GetCodeSize(funcInstrBlock);
     funcInstrBlock->codeSize = codeSize;
 
     // reset current block
-    curBlock = NULL;
+    IB_CloseBlock();
+    //curBlock = NULL;
 
     return funcInstrBlock;
 }

@@ -66,6 +66,8 @@ extern void printInstrListMemUsage();
 
 extern InstrBlock* IB_StartInstructionBlock(char *name);
 extern void IB_AddInstr(InstrBlock *curBlock, Instr *newInstr);
+extern InstrBlock* IB_GetCurrentBlock();
+extern void IB_CloseBlock();
 
 //----------------------------------------------
 //  Interface for Instruction List meta data

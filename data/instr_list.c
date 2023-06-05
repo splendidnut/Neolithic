@@ -50,6 +50,7 @@ void printInstrListMemUsage() {
 //--------------------------------------------------------
 
 static int instrCount = 0;
+static InstrBlock *curBlock;
 
 static char* curLineComment;
 
@@ -62,6 +63,7 @@ InstrBlock* IB_StartInstructionBlock(char *name) {
     newBlock->lastInstr = NULL;
 
     instrCount = 0;
+    curBlock = newBlock;
     return newBlock;
 }
 
@@ -101,9 +103,16 @@ void IB_Walk(InstrBlock *instrBlock) {
 //---------------------------------------------------
 //   Instruction List handling
 
-InstrBlock *curBlock;
 Label *curLabel;
 bool showCycles = false;
+
+InstrBlock* IB_GetCurrentBlock() {
+    return curBlock;
+}
+
+void IB_CloseBlock() {
+    curBlock = NULL;
+}
 
 Instr* startNewInstruction(enum MnemonicCode mne, enum AddrModes addrMode) {
     Instr *newInstr = INSTR_allocMem(sizeof(struct InstrStruct));
