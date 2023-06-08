@@ -147,6 +147,8 @@ void Dbg_IL_ClearOnUpdate(const char *varName, char *clearInfo) {
 void IL_ClearOnUpdate(const SymbolRecord *varSym) {
     char *clearInfo = allocMem(120);
     char *varName = varSym->name;
+
+    clearInfo[0] = 0;   // make sure it's initialized
 #ifdef DEBUG_INSTRS
     Dbg_IL_ClearOnUpdate(varName, clearInfo);
 #endif

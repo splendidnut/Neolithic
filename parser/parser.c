@@ -88,7 +88,7 @@ void printErrorWithSourceLine(const char* errorMsg) {
         char sourceLine[ERR_MSG_SIZE];
         SourceCodeLine sourceCodeLine = getProgramLineString();
 
-        snprintf(sourceLine, sourceCodeLine.len, sourceCodeLine.data);
+        snprintf(sourceLine, sourceCodeLine.len, "%s", sourceCodeLine.data);
 
         printf("ERROR on line %d:  %s\n\t%s\n", getProgLineNum(), errorMsg, sourceLine);
         errorCount++;
@@ -877,6 +877,7 @@ ListNode parse_parameter() {
         return parse_var_node(baseType, modList, regHint);
     } else {
         printError("Unknown or missing type: %s\n", token->tokenStr);
+        return createEmptyNode();
     }
 }
 
@@ -1299,36 +1300,42 @@ ListNode parse_program(char *sourceCode, const char *srcName) {
         TokenObject *token = peekToken();
         if ((token != NULL) && (token->tokenType != TT_NONE)) {
             strncpy(tokenStr, token->tokenStr, 99);
-        }
 
-        switch (getTokenSymbolType(token)) {
-            case TT_ENUM:     node = parse_enum(); break;
-            case TT_STRUCT:   node = parse_structOrUnion(PT_STRUCT); break;
-            case TT_UNION:    node = parse_structOrUnion(PT_UNION); break;
-            default:
-                if (isTypeToken(token) || isModifierToken(token)) {   // handle var list/initialization
-                    node = parse_variable();
-                } else if (isIdentifier(token)) {
-                    if (TypeList_find(token->tokenStr) != NULL) {   // handle user-defined type - var definition
+            switch (getTokenSymbolType(token)) {
+                case TT_ENUM:
+                    node = parse_enum();
+                    break;
+                case TT_STRUCT:
+                    node = parse_structOrUnion(PT_STRUCT);
+                    break;
+                case TT_UNION:
+                    node = parse_structOrUnion(PT_UNION);
+                    break;
+                default:
+                    if (isTypeToken(token) || isModifierToken(token)) {   // handle var list/initialization
                         node = parse_variable();
+                    } else if (isIdentifier(token)) {
+                        if (TypeList_find(token->tokenStr) != NULL) {   // handle user-defined type - var definition
+                            node = parse_variable();
+                        } else {
+                            printError("Unknown type or unexpected identifier: %s\n", tokenStr);
+                            getToken();
+                        }
+                    } else if (tokenStr[0] == '#') {
+                        node = parse_compilerDirective(SCOPE_PROGRAM);
                     } else {
-                        printError("Unknown type or unexpected identifier: %s\n", tokenStr);
+                        printError("Unexpected token: '%s'", tokenStr);
                         getToken();
+                        node = createEmptyNode();
                     }
-                } else if (tokenStr[0] == '#') {
-                    node = parse_compilerDirective(SCOPE_PROGRAM);
-                } else {
-                    printError("Unexpected token: %s", tokenStr);
-                    getToken();
-                    node = createEmptyNode();
-                }
+            }
+
+            // eat the semicolons, they are optional
+            acceptOptionalToken(TT_SEMICOLON);
+
+            // process compound stmt - mainly for multiple vars declared on a single line (comma separated list)
+            unwarpNodeList(prog, &node);
         }
-
-        // eat the semicolons, they are optional
-        acceptOptionalToken(TT_SEMICOLON);
-
-        // process compound stmt - mainly for multiple vars declared on a single line (comma separated list)
-        unwarpNodeList(prog, &node);
     }
     free(tokenStr);
 

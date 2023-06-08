@@ -206,11 +206,13 @@ int getProgLineNum() {
 SourceCodeLine getProgramLineString() {
     int col = 0;
 
-    if (progLineStart && progLineStart[0] != '\0') {
+    if (progLineStart && (progLineStart[0] != 0)) {
 
         if (progLineStart[0] == '\n') progLineStart++;  // skip first char if newline
 
-        while (progLineStart[col] != '\n' && col < (TOKEN_LINE_LIMIT - 2)) col++;
+        while ((progLineStart[col] != '\0')
+                && (progLineStart[col] != '\n')
+                && (col < (TOKEN_LINE_LIMIT - 2))) col++;
 
     }
 
