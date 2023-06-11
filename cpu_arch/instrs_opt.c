@@ -47,6 +47,7 @@ void ICG_CopyDataIntoStruct(ListNode listNode, SymbolRecord *destVar, bool useIn
     //----------------------------------------------------------------
     //--- build initializer list data here (and place before code)
 
+    IL_AddCommentToCode("Initializer data");
     IL_Label(initData);
 
     SymbolTable *structSymTbl = GET_STRUCT_SYMBOL_TABLE(destVar->userTypeDef);
@@ -77,6 +78,7 @@ initCopyLoop:
 	BPL		initCopyLoop
      */
 
+    IL_AddCommentToCode("Copy data to destination");
     IL_Label(lblInitCopy);
     ICG_LoadRegConst('Y', getStructVarSize(destVar));
     IL_Label(startOfLoop);
