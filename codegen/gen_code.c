@@ -1366,6 +1366,17 @@ void GC_HandleCondExpr(const ListNode ifExprNode, enum SymbolType destType, Labe
     if (opNode.value.parseToken == PT_BOOL_AND) {
         GC_HandleSubCondExpr(arg1, ST_NONE, skipLabel);
         GC_HandleSubCondExpr(arg2, ST_NONE, skipLabel);
+    } else if (opNode.value.parseToken == PT_BOOL_OR) {
+        Label *checkCond2Label = newGenericLabel(LBL_CODE);
+        Label *execLabel = newGenericLabel(LBL_CODE);
+
+        GC_HandleSubCondExpr(arg1, ST_NONE, checkCond2Label);
+        ICG_Jump(execLabel, "jump because if statement is true (shortcut)");
+        IL_Label(checkCond2Label);
+
+        GC_HandleSubCondExpr(arg2, ST_NONE, skipLabel);
+        IL_Label(execLabel);
+
     } else if (isComparisonToken(opNode.value.parseToken)) {
         GC_HandleBasicCompareOp(opNode, arg1, arg2, skipLabel, expr);
     } else {
