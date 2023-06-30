@@ -26,6 +26,8 @@
 
 #include "symbols.h"
 
+enum { MAX_DIFFERENT_FUNCS_CALLED = 32 };
+
 struct FuncCallMapEntryStruct;
 
 typedef struct FuncCallMapEntryStruct {
@@ -33,9 +35,10 @@ typedef struct FuncCallMapEntryStruct {
     SymbolRecord *funcSym;
     struct FuncCallMapEntryStruct *next;
 
-    int cntFuncsCalled;         // number of function calls this function makes...
-    int deepestSpotCalled;      // how deep in the stack will this function ever be called?
-    char *dstFuncName[32];      // list of destinations (functions this function calls)
+    int cntFuncsCalled;                                 // number of function calls this function makes...
+    int deepestSpotCalled;                              // how deep in the stack will this function ever be called?
+    char *dstFuncName[MAX_DIFFERENT_FUNCS_CALLED];      // list of destinations (functions this function calls)
+    int dstFuncCallCnt[MAX_DIFFERENT_FUNCS_CALLED];     // for each destination, provide the number of time it's called
 } FuncCallMapEntry;
 
 

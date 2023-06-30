@@ -60,7 +60,24 @@ void FM_addCallToMap(SymbolRecord *srcFuncSym, SymbolRecord *dstFuncSym) {
     }
     markFunctionUsed(dstFuncSym);
     if (dstFuncSym->name != NULL) {
-        funcCallMapEntry->dstFuncName[funcCallMapEntry->cntFuncsCalled++] = dstFuncSym->name;
+
+        // check if function already in list
+        int idx = 0;
+        int cnt = funcCallMapEntry->cntFuncsCalled;
+        while (idx < cnt) {
+            if (strcmp(funcCallMapEntry->dstFuncName[idx], dstFuncSym->name)==0) {
+                funcCallMapEntry->dstFuncCallCnt[idx]++;
+                break;
+            }
+            idx++;
+        }
+
+        // if we didn't find it, add it
+        if (idx == cnt) {
+            funcCallMapEntry->dstFuncCallCnt[cnt] = 1;
+            funcCallMapEntry->dstFuncName[cnt] = dstFuncSym->name;
+            funcCallMapEntry->cntFuncsCalled++;
+        }
     }
 }
 
@@ -145,7 +162,9 @@ void FM_displayCallTree() {
 
         int cntDestFunc;
         for (cntDestFunc = 0; cntDestFunc < funcMapEntry->cntFuncsCalled; cntDestFunc++) {
-            printf("    -  %s\n", funcMapEntry->dstFuncName[cntDestFunc]);
+            printf("    - %2dx - %s\n",
+                   funcMapEntry->dstFuncCallCnt[cntDestFunc],
+                   funcMapEntry->dstFuncName[cntDestFunc]);
         }
 
         funcMapEntry = funcMapEntry->next;
