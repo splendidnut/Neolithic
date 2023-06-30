@@ -22,6 +22,6 @@
 #include "data/symbols.h"
 #include "data/syntax_tree.h"
 
-extern void generate_callTree(ListNode node, SymbolTable *symbolTable);
+extern void generate_callTree(ListNode node, SymbolTable *symbolTable, bool isMain);
 
 #endif //MODULE_GEN_CALLTREE_H

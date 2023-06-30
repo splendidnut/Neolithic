@@ -113,7 +113,7 @@ void GCT_Program(List *list) {
 }
 
 bool hasWarnedAboutCallTreeDepth = false;
-void generate_callTree(ListNode node, SymbolTable *symbolTable) {
+void generate_callTree(ListNode node, SymbolTable *symbolTable, bool isMain) {
     if (node.type != N_LIST) return;
 
     mainSymTable = symbolTable;
@@ -131,7 +131,7 @@ void generate_callTree(ListNode node, SymbolTable *symbolTable) {
         hasWarnedAboutCallTreeDepth = true;
     }
 
-    if (compilerOptions.showCallTree) {
+    if (compilerOptions.showCallTree && isMain) {
         FM_displayCallTree();
     }
 }

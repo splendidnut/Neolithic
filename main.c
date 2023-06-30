@@ -214,7 +214,7 @@ void generateCallTreeForDependencies() {
     for_range(curFileIdx, 0, preProcessInfo->numFiles) {
         char *curFileName = preProcessInfo->includedFiles[curFileIdx];
         ListNode progNode = SourceFileList_lookupAST(curFileName);
-        generate_callTree(progNode, mainSymbolTable);
+        generate_callTree(progNode, mainSymbolTable, false);
     }
 }
 
@@ -282,7 +282,7 @@ int mainCompiler() {
     if (hasDependencies) {
         generateCallTreeForDependencies();
     }
-    generate_callTree(mainProgNode, mainSymbolTable);
+    generate_callTree(mainProgNode, mainSymbolTable, true);
     generate_var_allocations(mainSymbolTable);
 
     if (compilerOptions.showGeneralInfo) printf("Analysis of %s Complete\n", inFileName);
