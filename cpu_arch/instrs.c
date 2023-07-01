@@ -245,6 +245,11 @@ bool ICG_IsCurrentTag(char regName, SymbolRecord *varSym) {
     return (registerUse.varSym == varSym);
 }
 
+bool ICG_isLastInstrReturn() {
+    Instr *lastInstr = IL_GetCurrentInstr();
+    return (lastInstr->mne == RTS);
+}
+
 
 //==============================================================================
 //  Instruction Code Generators

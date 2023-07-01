@@ -1404,7 +1404,9 @@ void GC_If(const List *stmt, enum SymbolType destType) {
 
     // handle else:
     if (hasElse) {
-        ICG_Jump(skipElseLabel, "skip else case");
+        if (!ICG_isLastInstrReturn()) {
+            ICG_Jump(skipElseLabel, "skip else case");
+        }
         IL_Label(skipThenLabel);
 
         GC_CodeBlock(stmt->nodes[3].value.list);

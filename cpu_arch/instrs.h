@@ -40,7 +40,7 @@ typedef struct {
 
 extern void ICG_Tag(char regName, SymbolRecord *varSym);
 extern bool ICG_IsCurrentTag(char regName, SymbolRecord *varSym);
-
+extern bool ICG_isLastInstrReturn();
 
 
 //----------------------------------------------------------------
