@@ -1022,7 +1022,7 @@ void GC_StoreToStructProperty(const List *expr) {
         enum ParseToken aliasType = GC_LoadAlias(expr, structSym);
         SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSym, aliasType);
         if (aliasType == PT_LOOKUP) {
-            ICG_StoreIndexedWithOffset(baseSymbol, propertyOffset);
+            ICG_StoreIndexedWithOffset(baseSymbol, propertyOffset, getBaseVarSize(propertySym));
         } else if (aliasType == PT_INIT) {
             ICG_StoreVarOffset(baseSymbol, propertyOffset, getBaseVarSize(propertySym));
         }
@@ -1091,11 +1091,11 @@ void GC_StoreToArray(const List *expr) {
 
             switch (arrayIndexExpr->nodes[0].value.parseToken) {
                 case PT_ADD:
-                    ICG_StoreIndexedWithOffset(arraySym, ofs);
+                    ICG_StoreIndexedWithOffset(arraySym, ofs, 1);
                     return;
 
                 case PT_SUB:
-                    ICG_StoreIndexedWithOffset(arraySym, -ofs);
+                    ICG_StoreIndexedWithOffset(arraySym, -ofs, 1);
                     return;
 
                 default:

@@ -550,11 +550,15 @@ void ICG_StoreVarSym(const SymbolRecord *varSym) {
     }
 }
 
-void ICG_StoreIndexedWithOffset(const SymbolRecord *varSym, int ofs) {
+void ICG_StoreIndexedWithOffset(const SymbolRecord *varSym, int ofs, int varSize) {
     const char *varName = getVarName(varSym);
     IL_AddComment(
             IL_AddInstrS(STA, ADDR_ABY, varName, numToStr(ofs), PARAM_NORMAL + PARAM_ADD),
             "store to array using index with offset");
+    if (varSize == 2) {
+        IL_AddInstrB(TXA);
+        IL_AddInstrS(STA, ADDR_ABY, varName, numToStr(ofs), PARAM_PLUS_ONE + PARAM_ADD);
+    }
 }
 
 //---------------------------------------------------------
