@@ -2557,37 +2557,6 @@ void GC_Function(const List *function, int codeNodeIndex) {
 //--------------------------------------------------------------
 //  Walk the program
 
-void GC_ProcessProgramNode(ListNode opNode, const List *statement) {
-    if (opNode.type == N_TOKEN) {
-        // Only need to process functions since variables were already processed in the symbol generator module
-        switch (opNode.value.parseToken) {
-            case PT_DEFUN:    GC_Function(statement, 5); break;
-            case PT_FUNCTION: GC_Function(statement, 3); break;
-            case PT_DEFINE:   GC_Variable(statement); break;
-            case PT_STRUCT: break;
-            case PT_UNION:  break;
-            case PT_ENUM:   break;
-            case PT_DIRECTIVE:
-                GC_HandleDirective(statement, 0);
-                break;
-            default:
-                ErrorMessageWithList("Program code found outside code block", statement);
-        }
-    }
-    curFuncSymbolTable = NULL;
-}
-
-void WalkProgram(List *program, ProcessNodeFunc procNode) {
-    for_range (stmtNum, 1, program->count) {
-        ListNode stmt = program->nodes[stmtNum];
-        if (stmt.type == N_LIST) {
-            List *statement = stmt.value.list;
-            ListNode opNode = statement->nodes[0];
-            procNode(opNode, statement);
-        }
-    }
-}
-
 void GC_ProcessProgram(ListNode node) {
 
     // make sure to reset error count
@@ -2598,7 +2567,28 @@ void GC_ProcessProgram(ListNode node) {
     if (program->nodes[0].value.parseToken != PT_PROGRAM) return;
 
     // generate all the code for the program
-    WalkProgram(program, &GC_ProcessProgramNode);
+    for_range (stmtNum, 1, program->count) {
+        ListNode stmt = program->nodes[stmtNum];
+        if (stmt.type == N_LIST) {
+            List *statement = stmt.value.list;
+            ListNode opNode = statement->nodes[0];
+            if (opNode.type == N_TOKEN) {
+                // Only need to process functions since variables were already processed in the symbol generator module
+                switch (opNode.value.parseToken) {
+                    case PT_DEFUN:    GC_Function(statement, 5); break;
+                    case PT_FUNCTION: GC_Function(statement, 3); break;
+                    case PT_DEFINE:   GC_Variable(statement);    break;
+                    case PT_STRUCT:   break;
+                    case PT_UNION:    break;
+                    case PT_ENUM:     break;
+                    case PT_DIRECTIVE: GC_HandleDirective(statement, 0); break;
+                    default:
+                        ErrorMessageWithList("Program code found outside code block", statement);
+                }
+            }
+            curFuncSymbolTable = NULL;
+        }
+    }
 }
 
 //-------------------------------------------------------------------
