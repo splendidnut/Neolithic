@@ -43,6 +43,8 @@
 //-------------------------------
 // Module variables
 
+static int globalSize;
+static int globalAddr;
 static int stackSizes[MAX_STACK_FRAMES];       // Track the sizes of 8 stack frames
 static int stackLocs[MAX_STACK_FRAMES];        // Location of each stack frame
 
@@ -136,10 +138,12 @@ int calcStorageNeeded(const SymbolTable *symbolTable) {
  * @param curMemloc
  * @return
  */
-void allocateVarStorage(const SymbolTable *symbolTable) {
+int allocateVarStorage(const SymbolTable *symbolTable) {
     if (compilerOptions.showVarAllocations) {
         printf("\nVariables for %s\n", (symbolTable->name != NULL ? symbolTable->name : "(none)"));
     }
+
+    int totalSize = 0;
     SymbolRecord *curSymbol = symbolTable->firstSymbol;
     while (curSymbol != NULL) {
 
@@ -161,9 +165,11 @@ void allocateVarStorage(const SymbolTable *symbolTable) {
                 printf("\t%-32s allocated at %4X\n", curSymbol->name, newVarAlloc.addr);
             }
 
+            totalSize += varSize;
         }
         curSymbol = curSymbol->next;
     }
+    return totalSize;
 }
 
 /**
@@ -197,6 +203,23 @@ void allocateStackFrameStorage() {
             }
         }
     }
+}
+
+void showVariableAllocations() {
+    printf("\nSummary of Variable Allocation:\n");
+    printf("\tGlobal Frame   allocated %2d bytes at %4X\n", globalSize, globalAddr);
+
+    int stackAddr = globalAddr + globalSize;
+    for_range(frmNum, 1, MAX_STACK_FRAMES-1) if (stackSizes[frmNum] > 0) {
+        printf("\t Local Frame %d allocated %2d bytes at %4X\n", frmNum, stackSizes[frmNum], stackLocs[frmNum]);
+        stackAddr = stackSizes[frmNum] + stackLocs[frmNum];
+    }
+
+    // TODO: This is currently Atari 2600 specific (where Stack and Zero Page share memory)
+    int remainingBytes = 0x100 - stackAddr;
+    //printf("\t Stack Frame   has       %2d bytes at %4X\n", 0x100-stackAddr, stackAddr);
+    printf("\n\t\t%d bytes remaining\n", remainingBytes);
+    printf("\n");
 }
 
 /**
@@ -335,11 +358,15 @@ void generate_var_allocations(SymbolTable *symbolTable) {
     collectFunctionsInOrder(symbolTable);
 
     // allocate global variables
-    allocateVarStorage(symbolTable);
+    globalAddr = 0x82;
+    globalSize = allocateVarStorage(symbolTable);
 
     // now process all function local variables
     initStackFrames();
     calcLocalVarAllocs();
     allocateStackFrameStorage();
     allocateLocalVars();
+
+    if (compilerOptions.showVarAllocations)
+        showVariableAllocations();
 }
