@@ -2440,20 +2440,6 @@ void GC_Variable(const List *varDef) {
     }
 }
 
-void GC_StatementList(const List *code) {
-    for_range(stmtNum, 1, code->count) {
-        ListNode stmtNode = code->nodes[stmtNum];
-        if (stmtNode.type == N_LIST) {
-            List *stmt = stmtNode.value.list;
-            IL_AddCommentToCode(buildSourceCodeLine(&stmt->progLine));
-            GC_Statement(stmt);
-        } else if (isToken(stmtNode, PT_BREAK)) {
-            // Need to add code to exit block for break statement
-        } else {
-            printf("Unknown command: %s\n", stmtNode.value.str);
-        }
-    }
-}
 
 void GC_CodeBlock(List *code) {
     if (code->count < 1) return;     // Exit if empty function
@@ -2461,7 +2447,20 @@ void GC_CodeBlock(List *code) {
     if (code->nodes[0].value.parseToken == PT_ASM) {
         GC_AsmBlock(code, ST_NONE);
     } else {
-        GC_StatementList(code);
+        // -- Process a list of statements
+
+        for_range(stmtNum, 1, code->count) {
+            ListNode stmtNode = code->nodes[stmtNum];
+            if (stmtNode.type == N_LIST) {
+                List *stmt = stmtNode.value.list;
+                IL_AddCommentToCode(buildSourceCodeLine(&stmt->progLine));
+                GC_Statement(stmt);
+            } else if (isToken(stmtNode, PT_BREAK)) {
+                // Need to add code to exit block for break statement
+            } else {
+                printf("Unknown command: %s\n", stmtNode.value.str);
+            }
+        }
     }
 }
 
