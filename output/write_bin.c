@@ -300,7 +300,7 @@ void WriteBIN_FunctionBlock(const OutputBlock *block) {
 
 void WriteBIN_StaticArrayData(const OutputBlock *block) {
     int writeAddr = calcBlockWriteAddr(block);
-    bool isInt = getBaseVarSize(block->dataSym) > 1;
+    bool isInt = getBaseVarSize(block->symbol) > 1;
 
     for_range (vidx, 1, block->dataList->count) {
         int value = block->dataList->nodes[vidx].value.num;
@@ -344,11 +344,11 @@ void WriteBIN_WriteStructRecordData(SymbolTable *structSymTbl, int writeAddr, co
 void WriteBIN_StaticStructData(const OutputBlock *block) {
     int writeAddr = calcBlockWriteAddr(block);
 
-    SymbolRecord *structSym = block->dataSym->userTypeDef;
+    SymbolRecord *structSym = block->symbol->userTypeDef;
     SymbolTable *structSymTbl = GET_STRUCT_SYMBOL_TABLE(structSym);
 
     List *dataList = block->dataList;
-    if (isArray(block->dataSym)) {
+    if (isArray(block->symbol)) {
         int structSize = calcVarSize(structSym);
         for_range(index, 1, block->dataList->count) {
             WriteBIN_WriteStructRecordData(structSymTbl, writeAddr, dataList->nodes[index].value.list);

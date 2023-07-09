@@ -430,7 +430,7 @@ void WriteDASM_StaticArrayData(const OutputBlock *block) {
     //-------------------------------------------------
     //  print out data, putting 8 bytes on a line
 
-    bool isInt = getBaseVarSize(block->dataSym) > 1;
+    bool isInt = getBaseVarSize(block->symbol) > 1;
     const char *dataTypeStr = isInt ? "word" : "byte";
     const char *fmtStr = isInt ? "$%04X%c" : "%d%c";
     int vend = block->dataList->count - 1;
@@ -457,8 +457,7 @@ void WriteDASM_StaticArrayData(const OutputBlock *block) {
 }
 
 void WriteDASM_StaticStructData(const OutputBlock *block) {
-    SymbolRecord *baseSymbol = block->dataSym;
-    SymbolRecord *structSym = block->dataSym->userTypeDef;
+    SymbolRecord *structSym = block->symbol->userTypeDef;
     SymbolTable *structSymTbl = GET_STRUCT_SYMBOL_TABLE(structSym);
 
     WriteDASM_WriteBlockHeader(block, true);

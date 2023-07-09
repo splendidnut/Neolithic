@@ -25,16 +25,16 @@
 #include "data/instr_list.h"
 #include "data/syntax_tree.h"
 
-typedef enum {BT_CODE, BT_DATA, BT_STRUCT} BlockType;
+typedef enum {BT_FREE, BT_CODE, BT_DATA, BT_STRUCT} BlockType;
 
 typedef struct SOutputBlock {
+    BlockType blockType;
     int blockAddr;
     int blockSize;
     char *blockName;
     int bankNum;            // which bank it's in
 
-    BlockType blockType;
-    SymbolRecord *dataSym;   // symbol that this block represents... (need to rename)
+    SymbolRecord *symbol;   // symbol that this block represents... (need to rename)
     union {
         InstrBlock *codeBlock;
         List *dataList;          // if data list

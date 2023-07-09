@@ -22,6 +22,10 @@
 //   - re-arrange and align code/data to avoid page-crossing penalties
 //   - arrange linked code in appropriate banks to minimize bank-switching.
 //
+//  TODO:  Currently, the block allocation is linear, which is generally what
+//         will happen.  BUT, the block allocator needs to support block
+//         placement / space preservation.
+//
 // Created by admin on 6/15/2020.
 //
 
@@ -56,7 +60,7 @@ void OB_Init() {
 
 void OB_AddBlock(OutputBlock *newBlock) {
 
-    // set location of block
+    // set location of block (NOTE: linear allocation)
     newBlock->blockAddr = curAddr;
     newBlock->bankNum = curBank;
     curAddr += newBlock->blockSize;
@@ -87,30 +91,33 @@ void OB_SetBank(int newBank) {
 
 /**
  * Add a function / code block to the Output Block list
- * @param name
- * @param codeBlock - InstrBlock
  * @return
  */
-OutputBlock *OB_AddCode(char *name, InstrBlock *codeBlock) {
+OutputBlock *OB_AddCode(SymbolRecord *symbol) {
     OutputBlock *newBlock = allocMem(sizeof(struct SOutputBlock));
     newBlock->nextBlock = NULL;
-    newBlock->blockName = name;
-    newBlock->blockSize = codeBlock->codeSize;
+    newBlock->blockName = symbol->name;
+
+    // Code specific:
     newBlock->blockType = BT_CODE;
-    newBlock->codeBlock = codeBlock;
+    newBlock->codeBlock = symbol->instrBlock;
+    newBlock->blockSize = symbol->instrBlock->codeSize;
 
     OB_AddBlock(newBlock);
     return newBlock;
 }
 
-OutputBlock *OB_AddData(SymbolRecord *dataSym, List *dataList) {
+OutputBlock *OB_AddData(SymbolRecord *dataSym) {
     bool isInt = getBaseVarSize(dataSym) > 1;
     OutputBlock *newBlock = allocMem(sizeof(struct SOutputBlock));
     newBlock->nextBlock = NULL;
     newBlock->blockName = dataSym->name;
+
+    // Data specific:
+    List *dataList = dataSym->astList;
     newBlock->blockSize = (dataList->count - 1) * (isInt ? 2 : 1);
     newBlock->blockType = BT_DATA;
-    newBlock->dataSym = dataSym;
+    newBlock->symbol = dataSym;
     newBlock->dataList = dataList;
 
     // if this is a user-defined type (struct)
@@ -212,7 +219,7 @@ void checkAndSaveBlockAddr(const OutputBlock *outputBlock, SymbolRecord *symRec)
 bool locateBlockDuringGen = true;
 
 void GC_OB_AddCodeBlock(SymbolRecord *funcSym) {
-    OutputBlock *result = OB_AddCode(funcSym->name, funcSym->instrBlock);
+    OutputBlock *result = OB_AddCode(funcSym);
 
     if (!locateBlockDuringGen) return;
 
@@ -221,7 +228,7 @@ void GC_OB_AddCodeBlock(SymbolRecord *funcSym) {
 
 
 void GC_OB_AddDataBlock(SymbolRecord *varSymRec) {
-    OutputBlock *staticData = OB_AddData(varSymRec, varSymRec->astList);
+    OutputBlock *staticData = OB_AddData(varSymRec);
 
     if (!locateBlockDuringGen) return;
 
@@ -236,7 +243,7 @@ void OB_BuildInitialLayout() {
         SymbolRecord *symbolRecord;
         switch (block->blockType) {
             case BT_STRUCT:
-            case BT_DATA:  symbolRecord = block->dataSym;  break;
+            case BT_DATA:  symbolRecord = block->symbol;  break;
             case BT_CODE:  symbolRecord = block->codeBlock->funcSym;  break;
         }
 
@@ -276,7 +283,7 @@ void OB_ArrangeBlocks() {
     while (block != NULL) {
         switch (block->blockType) {
             case BT_STRUCT:
-            case BT_DATA:  printSingleSymbol(stdout, block->dataSym);  break;
+            case BT_DATA:  printSingleSymbol(stdout, block->symbol);  break;
             case BT_CODE:  printSingleSymbol(stdout, block->codeBlock->funcSym);  break;
         }
         block = block->nextBlock;
