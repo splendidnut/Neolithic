@@ -80,7 +80,11 @@ SymbolRecord *lookupSymbolNode(const ListNode symbolNode, int lineNum) {
 
 SymbolRecord *lookupFunctionSymbolByNameNode(ListNode funcNameNode, int lineNum) {
     char *funcName = funcNameNode.value.str;
-    SymbolRecord *funcSym = findSymbol(mainSymbolTable, funcName);
+    SymbolRecord *funcSym = NULL;
+    if (curFuncSymbolTable != NULL)
+        funcSym = findSymbol(curFuncSymbolTable, funcName);
+    if (funcSym == NULL)
+        funcSym = findSymbol(mainSymbolTable, funcName);
     if (funcSym == NULL) {
         ErrorMessageWithNode("Function not defined", funcNameNode, lineNum);
     }
