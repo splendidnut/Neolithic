@@ -38,9 +38,11 @@ const char* CompilerDirectiveNames[NUM_COMPILER_DIRECTIVES] = {
         "echo",
         "inline",
 
+        // Banking / Address overrides
         "set_bank",
         "set_banking",
-        "set_address"
+        "set_address",
+        "always_include"
 };
 
 enum CompilerDirectiveTokens lookupDirectiveToken(char *tokenName) {

@@ -2503,6 +2503,7 @@ void GC_ProcessFunction(SymbolRecord *funcSym, List *code) {
 
 void GC_Function(const List *function, int codeNodeIndex) {
     bool hasCode, isFuncUsed=false;
+    bool forcedInclude = false;
     char *funcName = function->nodes[1].value.str;
 
     if (function->count < codeNodeIndex) {
@@ -2519,13 +2520,20 @@ void GC_Function(const List *function, int codeNodeIndex) {
         lastDirective = 0;
     }
 
+    // check if function is forced to be included (NOTE:  cannot be marked as inline)
+    else if (lastDirective == ALWAYS_INCLUDE) {
+        /*if (compilerOptions.reportFunctionProcessing) */printf("Forcing inclusion of function %s\n", funcName);
+        forcedInclude = true;
+        lastDirective = 0;
+    }
+
     ListNode codeNode = function->nodes[codeNodeIndex];
     hasCode = (codeNode.type == N_LIST);
 
     // only process function code, if it exists, and the function is used
     if (hasCode) {
         SymbolRecord *funcSym = findSymbol(mainSymbolTable, funcName);
-        isFuncUsed = isMainFunction(funcSym) || isSystemFunction(funcSym) || IS_FUNC_USED(funcSym);
+        isFuncUsed = isMainFunction(funcSym) || isSystemFunction(funcSym) || IS_FUNC_USED(funcSym) || forcedInclude;
         if (isFuncUsed) {
             if (isInlineFunction) {
                 // save a pointer to the part of the AST containing the code list and mark as INLINE.

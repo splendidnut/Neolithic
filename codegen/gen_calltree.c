@@ -46,7 +46,9 @@ void GCT_FindFuncCalls(List *stmt, SymbolRecord *srcFunc) {
         if (destFuncSym) {
             FM_addCallToMap(srcFunc, destFuncSym);
         } else {
-            printf("ERROR: Unable to find function '%s'\n", destFuncName);
+            // TODO: figure out better error handling here
+            //        This warning can be caused by local function pointer variable usage.
+            printf("WARNING: GCT Module - Unable to find function '%s'\n", destFuncName);
         }
     }
 }

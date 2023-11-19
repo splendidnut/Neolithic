@@ -92,7 +92,7 @@ char * GC_Asm_EvalExpression(const List *paramExpr) {
     if (evalResult.hasResult) {
         int ofs = evalResult.value;
         IL_SetLineComment(get_expression(paramExpr));
-        paramStr = intToStr(ofs);
+        paramStr = numToStr(ofs);
         paramAddrMode = (ofs < 256) ? ADDR_ZP : ADDR_ABS;
     } else {
 
@@ -125,7 +125,7 @@ const char *GC_Asm_getParamStr(ListNode instrParamNode, List *instr) {
             paramStr = GC_Asm_ParamExpr(instrParamNode.value.list);
             break;
         case N_INT:
-            paramStr = intToStr(instrParamNode.value.num);
+            paramStr = numToStr(instrParamNode.value.num);
             //sprintf(paramStr, "%d", instrParamNode.value.num);
             break;
         case N_STR: {

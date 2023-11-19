@@ -43,6 +43,7 @@ enum CompilerDirectiveTokens {
     SET_BANK,
     SET_BANKING,
     SET_ADDRESS,
+    ALWAYS_INCLUDE,
 
     //---- size of list
     NUM_COMPILER_DIRECTIVES
