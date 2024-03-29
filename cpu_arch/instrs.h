@@ -30,7 +30,7 @@
 //----------------------------------------------
 //  Register-Use Tracking
 
-enum LastRegisterUseType { LW_NONE, LW_CONST, LW_VAR };
+enum LastRegisterUseType { LW_NONE, LW_CONST, LW_VAR, LW_VAR_X2 };
 
 typedef struct {
     enum LastRegisterUseType loadedWith;

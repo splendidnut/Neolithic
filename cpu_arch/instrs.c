@@ -136,7 +136,7 @@ void Dbg_IL_ClearOnUpdate(const char *varName, char *clearInfo) {
         strcat(clearInfo, "\tX: ");
         strcat(clearInfo, lastUseForXReg.varSym->name);
     }
-    if (lastUseForYReg.loadedWith == LW_VAR) {
+    if ((lastUseForYReg.loadedWith == LW_VAR) || (lastUseForYReg.loadedWith == LW_VAR_X2)) {
         strcat(clearInfo, "\tY: ");
         strcat(clearInfo, lastUseForYReg.varSym->name);
     }
@@ -165,7 +165,7 @@ void IL_ClearOnUpdate(const SymbolRecord *varSym) {
         strcat(clearInfo, "\tX Cleared");
     }
 
-    if ((lastUseForYReg.loadedWith == LW_VAR)
+    if (((lastUseForYReg.loadedWith == LW_VAR) || (lastUseForYReg.loadedWith == LW_VAR_X2))
         && (strncmp(varName, lastUseForYReg.varSym->name, SYMBOL_NAME_LIMIT) == 0)) {
         lastUseForYReg = REG_USED_FOR_NOTHING;
         strcat(clearInfo, "\tY Cleared");
@@ -340,15 +340,16 @@ void ICG_LoadVar(const SymbolRecord *varRec) {
     lastUseForAReg.varSym = varRec;
 }
 
-bool isLastYUse(const SymbolRecord *varSym) {
-    return ((lastUseForYReg.loadedWith == LW_VAR)
+bool isLastYUse(const SymbolRecord *varSym, int size) {
+    enum LastRegisterUseType regUseType = size == 2 ? LW_VAR_X2 : LW_VAR;
+    return ((lastUseForYReg.loadedWith == regUseType)
             && (strncmp(lastUseForYReg.varSym->name, varSym->name, SYMBOL_NAME_LIMIT) == 0));
 }
 
 void ICG_LoadIndexVar(const SymbolRecord *varSym, int size) {
     const char *varName = getVarName(varSym);
 
-    bool needToLoad = !isLastYUse(varSym);
+    bool needToLoad = !isLastYUse(varSym, size);
 
     if (needToLoad) {
         if (size == 2) {
@@ -356,7 +357,7 @@ void ICG_LoadIndexVar(const SymbolRecord *varSym, int size) {
                     IL_AddInstrP(LDA, ADDR_ZP, varName, PARAM_NORMAL), "load array index");
             IL_AddInstrN(ASL, ADDR_ACC, 0);
             IL_AddInstrB(TAY);
-
+            lastUseForYReg.loadedWith = LW_VAR_X2;
             lastUseForAReg = REG_USED_FOR_NOTHING;
         } else {
             if (IS_PARAM_VAR(varSym)) {
@@ -365,8 +366,8 @@ void ICG_LoadIndexVar(const SymbolRecord *varSym, int size) {
                 IL_AddComment(
                         IL_AddInstrP(LDY, ADDR_ZP, varName, PARAM_NORMAL), "load array index");
             }
+            lastUseForYReg.loadedWith = LW_VAR;
         }
-        lastUseForYReg.loadedWith = LW_VAR;
         lastUseForYReg.varSym = varSym;
     }
 #ifdef DEBUG_INSTRS
