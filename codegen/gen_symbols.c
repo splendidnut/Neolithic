@@ -68,7 +68,7 @@ void GS_processInitializer(const List *varDef, SymbolRecord *varSymRec) {
         else if (valueNode.type == N_LIST) {
             List *initExpr = valueNode.value.list;
 
-            if (initExpr->hasNestedList && isToken(initExpr->nodes[0], PT_LIST)) {
+            if (initExpr->hasNestedList || isToken(initExpr->nodes[0], PT_LIST)) {
                 varSymRec->numElements = initExpr->count - 1;
             } else {
                 varSymRec->numElements = initExpr->count;
@@ -536,6 +536,7 @@ void GS_Program(List *list, SymbolTable *workingSymTbl) {
                     case PT_ENUM:
                         GS_Enumeration(statement, workingSymTbl);
                         break;
+                    default:break;
                 }
             }
         }
