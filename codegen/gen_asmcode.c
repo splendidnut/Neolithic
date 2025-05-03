@@ -201,7 +201,7 @@ void GC_AsmInstr(List *instr) {
         addrMode = ADDR_ABY;
     }
 
-
+    IL_SetLineComment(buildSourceCodeLine(&instr->progLine));
     if (paramStr != NULL) {
         IL_AddInstrS(mne, addrMode, paramStr, param2, paramExt);
     } else {
