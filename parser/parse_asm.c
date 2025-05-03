@@ -193,7 +193,8 @@ ListNode PA_create_equate(char *piece) {
             addNode(label, createIntNode(copyTokenInt(getToken())));
             break;
         default:
-            addNode(label, createStrNode(copyTokenStr(getToken())));
+            //addNode(label, createStrNode(copyTokenStr(getToken())));
+            addNode(label, parse_expr());
     }
     return createListNode(label);
 }

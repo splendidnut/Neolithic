@@ -104,6 +104,18 @@ char * GC_Asm_EvalExpression(const List *paramExpr) {
     return paramStr;
 }
 
+int GC_Asm_EvalExpressionForEquate(const List *paramExpr) {
+    int ofs = -1;
+    setEvalExpressionMode(true);
+    EvalResult evalResult = evaluate_expression(paramExpr);
+    if (evalResult.hasResult) {
+        ofs = evalResult.value;
+    }
+    IL_SetLineComment(get_expression(paramExpr));
+    setEvalExpressionMode(false);
+    return ofs;
+}
+
 char* GC_Asm_ParamExpr(List *paramExpr) {
     switch (paramExpr->nodes[0].value.parseToken) {
         case PT_PROPERTY_REF:
@@ -244,8 +256,10 @@ void GC_AsmBlock(const List *code, enum SymbolType destType) {
             } else if (instrNode.value.parseToken == PT_EQUATE) {
                 // handle const def
                 char *equName = statement->nodes[1].value.str;
-                int value = statement->nodes[2].value.num;
+
+                //int value = statement->nodes[2].value.num;
                 //WO_Variable(equName, value);
+                int value = GC_Asm_EvalExpressionForEquate(statement->nodes[2].value.list);
 
                 // Add as constant to local function scope
                 // TODO: Check this feature
