@@ -144,15 +144,35 @@ void OB_PrintBlockList() {
     OutputBlock *block = firstBlock;
     printf("%-32s  addr   end    size  bank  size (bytes) Type \n", "Block Name");
     printf("------------------------------------------------------------------------------\n");
+    int startAddr = 0;
+    int endAddr = 0;
+    int lastBank = 0;
     while (block != NULL) {
+        // get start address of this new block
+        startAddr = block->blockAddr;
+
+        // check if there was a gap between blocks
+        if (startAddr - 1 > endAddr) {
+            int gapSize = startAddr - endAddr - 1;
+            printf("%-32s  %04X - %04X   %04X   %02X  %5d bytes   %s\n",
+                   "  (gap)",
+                   (endAddr + 1), (startAddr - 1), gapSize, lastBank, gapSize, "GAP" );
+        }
+
+        // calculate new end address
+        endAddr = (block->blockAddr + block->blockSize - 1);
+        lastBank = block->bankNum;
+
+        // print the block information
         printf("%-32s  %04X - %04X   %04X   %02X  %5d bytes   %s\n",
                 block->blockName,
-                block->blockAddr,
-               (block->blockAddr + block->blockSize - 1),
+                startAddr,
+                endAddr,
                 block->blockSize,
                 block->bankNum,
                 block->blockSize,
                (block->blockType == BT_CODE) ? "CODE" : "DATA" );
+
         block = block->nextBlock;
     }
 }
