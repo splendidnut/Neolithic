@@ -191,6 +191,8 @@ EvalResult evaluate_expression(const List *expr) {
                     case PT_BIT_OR:   result.value = leftResult.value | rightResult.value; break;
                     case PT_BIT_EOR:  result.value = leftResult.value ^ rightResult.value; break;
                     case PT_LOOKUP:   result.value = leftResult.value + rightResult.value; break;
+                    case PT_SHIFT_LEFT:  result.value = leftResult.value << rightResult.value; break;
+                    case PT_SHIFT_RIGHT: result.value = leftResult.value >> rightResult.value; break;
                     default:
                         result.hasResult = false;
                 }
@@ -324,6 +326,14 @@ char* get_expression(const List *expr) {
                 break;
             case PT_PROPERTY_REF:
                 strcat(result, ".");
+                strcat(result, rightResult);
+                break;
+            case PT_SHIFT_LEFT:
+                strcat(result, " << ");
+                strcat(result, rightResult);
+                break;
+            case PT_SHIFT_RIGHT:
+                strcat(result, " >> ");
                 strcat(result, rightResult);
                 break;
             default:
