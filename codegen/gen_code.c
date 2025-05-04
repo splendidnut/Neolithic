@@ -2431,7 +2431,7 @@ void GC_Variable(const List *varDef) {
         }
 
         // --- Process the initializer list! ---
-        ppAllowBadNodes = true; // ALLOW preprocessor to process things with bad addr_of(&) references
+        //ppAllowBadNodes = true; // ALLOW preprocessor to process things with bad addr_of(&) references
         List *valueNode = GC_ProcessInitializerList(varDef, initValueList);
         reverseData = false;
         varSymRec->astList = valueNode;
