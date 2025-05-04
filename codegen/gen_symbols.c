@@ -49,6 +49,19 @@ char* getDefName(List *def) {
 //-----------------------------------------------------
 
 /**
+ * Lookup a symbol in the provided symbol table (and also parent, if necessary).
+ */
+SymbolRecord * GS_findSymbol(SymbolTable *symbolTable, const char* name) {
+    SymbolRecord *symbolRecord = findSymbol(symbolTable, name);
+    if ((symbolRecord == NULL) && (symbolTable->parentTable != NULL)) {
+        symbolRecord = findSymbol(symbolTable->parentTable, name);
+    }
+    return symbolRecord;
+}
+
+
+
+/**
  * Process Initializer portion of variable definition statement
  *
  * @param varDef
@@ -138,10 +151,7 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
     if (symbolType == ST_NONE) {
 
         // look up user defined type
-        userTypeSymbol = findSymbol(symbolTable, baseType);
-        if (userTypeSymbol == NULL && symbolTable->parentTable != NULL) {
-            userTypeSymbol = findSymbol(symbolTable->parentTable, baseType);
-        }
+        userTypeSymbol = GS_findSymbol(symbolTable, baseType);
 
         if ((userTypeSymbol != NULL) &&
                 (isStruct(userTypeSymbol) || isUnion(userTypeSymbol) || isEnum(userTypeSymbol))) {
@@ -173,7 +183,7 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
                 // need to save array size in symbol table
                 arraySize = node.value.num;
             } else if (node.type == N_STR) {
-                SymbolRecord *arraySizeConst = findSymbol(symbolTable, node.value.str);
+                SymbolRecord *arraySizeConst = GS_findSymbol(symbolTable, node.value.str);
                 if (arraySizeConst && isSimpleConst(arraySizeConst)) {
                     arraySize = arraySizeConst->constValue;
                 } else {
