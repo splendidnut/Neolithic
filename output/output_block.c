@@ -174,11 +174,15 @@ void OB_PrintBlockList() {
         endAddr = (block->blockAddr + block->blockSize - 1);
         lastBank = block->bankNum;
 
+        // check if crosses page boundary
+        bool crossedPage = ((startAddr >> 8) != (endAddr >> 8));
+
         // print the block information
-        printf("%-32s  %04X - %04X   %04X   %02X  %5d bytes   %s\n",
+        printf("%-32s  %04X - %04X%c  %04X   %02X  %5d bytes   %s\n",
                 block->blockName,
                 startAddr,
                 endAddr,
+                crossedPage ? '*' : ' ',
                 block->blockSize,
                 block->bankNum,
                 block->blockSize,
