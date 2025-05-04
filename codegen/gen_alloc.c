@@ -147,8 +147,10 @@ int allocateVarStorage(const SymbolTable *symbolTable) {
     SymbolRecord *curSymbol = symbolTable->firstSymbol;
     while (curSymbol != NULL) {
 
-        // only vars need allocation storage
-        if (isVariable(curSymbol) && (curSymbol->location != 0xffff)) {
+        bool hasHint = ((curSymbol->flags & MF_HINT) != 0) && (curSymbol->location >= 0);
+
+        // only vars need allocation storage (and only when they don't already have a location assigned via hint)
+        if (isVariable(curSymbol) && (curSymbol->location != 0xffff) && (!hasHint)) {
             int varSize = calcVarSize(curSymbol);
 
             // allocate memory

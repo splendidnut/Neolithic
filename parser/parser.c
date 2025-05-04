@@ -15,7 +15,7 @@
 /*
  *   Neolithic Parser
  *
- *   Recursive Decent style parser
+ *   Recursive-descent style parser
  *
  *   TODO: Fix issues with unary style operators.
  *          Unary ops should be parsed right before primitives.
@@ -831,6 +831,10 @@ List *parse_mod_list() {// Process all modifiers
         if (parseToken != PT_EMPTY) {
             addNode(modList, createParseToken(parseToken));
         }
+    }
+    if (modList->count == 0) {
+        destroyList(modList);
+        return NULL;
     }
     return modList;
 }
