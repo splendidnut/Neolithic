@@ -24,6 +24,7 @@
 
 #include "data/instr_list.h"
 #include "data/syntax_tree.h"
+#include "machine/machine.h"
 
 typedef enum {BT_FREE, BT_CODE, BT_DATA, BT_STRUCT} BlockType;
 
@@ -50,6 +51,7 @@ extern void OB_AddBlock(OutputBlock *newBlock);
 extern void OB_MoveToNextPage();
 extern void OB_SetAddress(int newAddr);
 extern void OB_SetBank(int newBank);
+extern void OB_SetMachine(enum Machines machine);
 
 extern OutputBlock *OB_FindByName(char *blockNameToFind);
 extern void OB_PrintBlockList();

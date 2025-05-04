@@ -48,7 +48,7 @@
 #include "output/write_output.h"
 #include "optimizer/optimizer.h"
 
-const char *verStr = "0.4(alpha)";
+const char *verStr = "0.4(beta)";
 
 //-------------------------------------------
 //  Global Variables

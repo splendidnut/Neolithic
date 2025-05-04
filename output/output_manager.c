@@ -39,6 +39,7 @@ void initOutputGenerator(enum Machines targetMachine) {
 
     BL_init();
     OB_Init();
+    OB_SetMachine(targetMachine);
 
     //-------------------------------------------------------------------------------------------
     // TODO: this is initial code to start incorporating code/data banks... need to flesh out

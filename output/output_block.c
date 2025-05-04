@@ -35,10 +35,13 @@
 #include "output_block.h"
 #include "codegen/gen_common.h"
 #include "data/bank_layout.h"
+#include "machine/machine.h"
 
 static OutputBlock *firstBlock;
 static OutputBlock *curBlock;
 static OutputBlock *lastBlock;
+
+enum Machines curMachine;
 
 static int curAddr;
 static int curBank;
@@ -87,6 +90,10 @@ void OB_SetAddress(int newAddr) {
 
 void OB_SetBank(int newBank) {
     curBank = newBank;
+}
+
+void OB_SetMachine(enum Machines machine) {
+    curMachine = machine;
 }
 
 /**
@@ -141,12 +148,15 @@ OutputBlock *OB_FindByName(char *blockNameToFind) {
 }
 
 void OB_PrintBlockList() {
-    OutputBlock *block = firstBlock;
-    printf("%-32s  addr   end    size  bank  size (bytes) Type \n", "Block Name");
-    printf("------------------------------------------------------------------------------\n");
     int startAddr = 0;
     int endAddr = 0;
     int lastBank = 0;
+    int totalGapSize = 0;
+
+    OutputBlock *block = firstBlock;
+
+    printf("%-32s  addr   end    size  bank  size (bytes) Type \n", "Block Name");
+    printf("------------------------------------------------------------------------------\n");
     while (block != NULL) {
         // get start address of this new block
         startAddr = block->blockAddr;
@@ -157,6 +167,7 @@ void OB_PrintBlockList() {
             printf("%-32s  %04X - %04X   %04X   %02X  %5d bytes   %s\n",
                    "  (gap)",
                    (endAddr + 1), (startAddr - 1), gapSize, lastBank, gapSize, "GAP" );
+            totalGapSize += gapSize;
         }
 
         // calculate new end address
@@ -175,6 +186,20 @@ void OB_PrintBlockList() {
 
         block = block->nextBlock;
     }
+
+    // figure out how much space is remaining before bank end
+    int bankNum = lastBlock->bankNum;
+    int bankEnd = (bankNum * 4096) + 0xFF7;
+    int lastBlockEnd = lastBlock->blockAddr + lastBlock->blockSize - 1;
+
+    int lastGapSize = bankEnd - lastBlockEnd;
+    totalGapSize += lastGapSize;
+
+    printf("%-32s  %04X - %04X   %04X   %02X  %5d bytes   %s\n",
+           "  (gap)",
+           lastBlockEnd, bankEnd, lastGapSize, bankNum, lastGapSize, "GAP" );
+    printf("\n");
+    printf("Total space available (sum of gaps):   %d bytes\n", totalGapSize);
 }
 
 const OutputBlock *OB_getFirstBlock() {
