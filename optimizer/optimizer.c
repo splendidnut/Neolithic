@@ -332,15 +332,19 @@ void OptimizeDecCmpZero(Instr *curInstr) {
         && ((instr3->mne == BNE) || (instr3->mne == BEQ))) {
         // we can skip the LDA since DEC has set the flags already
         curInstr->nextInstr = instr3;
+        printf("Optimizing DEC/CMP at %4X\n", 0);
     }
 }
 
 static int instrLocation = 0;
 void OptimizeBranchJumps(Instr *curInstr) {
     Instr *instr2 = curInstr->nextInstr;
-    if (instr2 == NULL) return;
-    Instr *instr3 = instr2->nextInstr;
-    if (instr3 == NULL) return;
+    Instr *instr3 = (instr2 != NULL) ? instr2->nextInstr : NULL;
+
+    if ((instr2 == NULL) || (instr3 == NULL)) {
+        instrLocation += getInstrSize(curInstr->mne, curInstr->addrMode);
+        return;
+    }
 
     // check for sequence
     //     BRx label
@@ -355,10 +359,24 @@ void OptimizeBranchJumps(Instr *curInstr) {
         && (curInstr->paramName != NULL) && (instr3->label != NULL)
             && (strcmp(curInstr->paramName, instr3->label->name)==0)) {
 
-        printf("Optimizing branch at %4X\n", instrLocation);
-        curInstr->mne = invertBranch(curInstr->mne);
-        curInstr->paramName = instr2->paramName;
-        curInstr->nextInstr = instr3;
+        const char *label = curInstr->paramName;
+        const char *label2 = instr2->paramName;
+
+        LabelInfo *jmpLabel = findLabelInfo(label2);
+        LabelInfo *outLabel = findLabelInfo(label);
+
+        int jmpLocation = jmpLabel->label->location;
+        int curLocation = outLabel->label->location - 2;
+
+        if (abs(jmpLocation - curLocation) < 126) {
+            printf("Optimizing branch at %4X\n", instrLocation);
+            curInstr->mne = invertBranch(curInstr->mne);
+            curInstr->paramName = instr2->paramName;
+            curInstr->nextInstr = instr3;
+
+        } else {
+            printf("Can't optimize branch at %4X\n", instrLocation);
+        }
     }
 
     instrLocation += getInstrSize(curInstr->mne, curInstr->addrMode);
@@ -367,6 +385,26 @@ void OptimizeBranchJumps(Instr *curInstr) {
 void OPT_Loops(OutputBlock *curBlock) {
     instrLocation = curBlock->codeBlock->funcSym->location;
     WalkInstructions(&OptimizeBranchJumps, curBlock->codeBlock);
+}
+
+/**
+ * Recalculate the size of a block
+ */
+
+void RecalcBlockSize(Instr *curInstr) {
+    instrLocation += getInstrSize(curInstr->mne, curInstr->addrMode);
+}
+
+void OPT_Finalize(OutputBlock *curBlock) {
+    instrLocation = curBlock->codeBlock->funcSym->location;
+    int origEnd = (instrLocation + curBlock->blockSize);
+    WalkInstructions(&RecalcBlockSize, curBlock->codeBlock);
+
+    if (origEnd != instrLocation) {
+        int delta = origEnd - instrLocation;
+        printf("Optimized from:  %4X -> %4X\n", origEnd, instrLocation);
+        OB_UpdateBlockSize(curBlock, delta);
+    }
 }
 
 
@@ -389,6 +427,8 @@ void OPT_CodeBlock(OutputBlock *curBlock) {
     //--- TODO: remove the following as they don't really do anything of value
     //          now that OPT_RemapLabelsInBlock has been fixed
     //OPT_RemoveUnusedLabels(instrBlock);
+
+    OPT_Finalize(curBlock);
 }
 
 void OPT_DecCmp(OutputBlock *curBlock) {
@@ -403,7 +443,7 @@ void OPT_DecCmp(OutputBlock *curBlock) {
 
 static int recalcAddr = 0;
 static int blockSize = 0;
-static OutputBlock *lastBlock = NULL;
+static OutputBlock *lastRecalcBlock = NULL;
 
 void RECALC_CodeBlockSize(Instr *curInstr) {
 
@@ -411,19 +451,21 @@ void RECALC_CodeBlockSize(Instr *curInstr) {
 
 void OPT_RecalcCodeBlockSpace(OutputBlock *curBlock) {
 
-    if (lastBlock != NULL) {
+    if (lastRecalcBlock != NULL) {
         // recalculate location based on last block
-        if (lastBlock->blockSize != blockSize) {
+        if (lastRecalcBlock->blockSize != blockSize) {
 
         }
-    }
-    if (blockSize + recalcAddr > 0) {
-        recalcAddr = lastBlock + blockSize;
-    } else {
-        recalcAddr = curBlock->blockAddr;
+        if (blockSize + recalcAddr > 0) {
+            recalcAddr = (int) (lastRecalcBlock->blockAddr + blockSize);
+        } else {
+            recalcAddr = curBlock->blockAddr;
+        }
     }
 
+
     WalkInstructions(&RECALC_CodeBlockSize, curBlock->codeBlock);
+    lastRecalcBlock = curBlock;
 }
 
 //================================================
@@ -438,6 +480,6 @@ void OPT_RunOptimizer() {
     //----------
     OB_WalkCodeBlocks(&OPT_DecCmp);
 
-    OB_WalkCodeBlocks(&OPT_RecalcCodeBlockSpace);
+    //OB_WalkCodeBlocks(&OPT_RecalcCodeBlockSpace);
 }
 

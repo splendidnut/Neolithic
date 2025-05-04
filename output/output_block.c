@@ -109,6 +109,7 @@ OutputBlock *OB_AddCode(SymbolRecord *symbol) {
     newBlock->blockType = BT_CODE;
     newBlock->codeBlock = symbol->instrBlock;
     newBlock->blockSize = symbol->instrBlock->codeSize;
+    newBlock->symbol = symbol;
 
     OB_AddBlock(newBlock);
     return newBlock;
@@ -267,21 +268,40 @@ void checkAndSaveBlockAddr(const OutputBlock *outputBlock, SymbolRecord *symRec)
 
 bool locateBlockDuringGen = true;
 
-void GC_OB_AddCodeBlock(SymbolRecord *funcSym) {
+OutputBlock* GC_OB_AddCodeBlock(SymbolRecord *funcSym) {
     OutputBlock *result = OB_AddCode(funcSym);
 
-    if (!locateBlockDuringGen) return;
+    if (!locateBlockDuringGen) return NULL;
 
     checkAndSaveBlockAddr(result, funcSym);
+
+    return result;
 }
 
 
-void GC_OB_AddDataBlock(SymbolRecord *varSymRec) {
+OutputBlock* GC_OB_AddDataBlock(SymbolRecord *varSymRec) {
     OutputBlock *staticData = OB_AddData(varSymRec);
 
-    if (!locateBlockDuringGen) return;
+    if (!locateBlockDuringGen) return NULL;
 
     checkAndSaveBlockAddr(staticData, varSymRec);
+
+    return staticData;
+}
+
+
+
+void OB_UpdateBlockSize(OutputBlock *blockToChange, int delta) {
+    blockToChange->blockSize -= delta;
+    blockToChange->symbol->instrBlock->codeSize -= delta;
+    blockToChange->codeBlock->codeSize -= delta;
+
+    if (blockToChange->nextBlock != NULL) {
+        blockToChange->nextBlock->blockAddr -= delta;
+        blockToChange->symbol->location -= delta;
+    }
+
+    curAddr -= delta;
 }
 
 

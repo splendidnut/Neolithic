@@ -38,6 +38,7 @@
 #include "data/bank_layout.h"
 #include "cpu_arch/instrs_opt.h"
 #include "output/output_manager.h"
+#include "optimizer/optimizer.h"
 
 //-------------------------------------------
 //  Variables used in code generation
@@ -2541,7 +2542,10 @@ void GC_Function(const List *function, int codeNodeIndex) {
                 funcSym->flags |= MF_INLINE;
             } else {
                 GC_ProcessFunction(funcSym, codeNode.value.list);
-                GC_OB_AddCodeBlock(funcSym);
+                OutputBlock *outputBlock = GC_OB_AddCodeBlock(funcSym);
+                if ((outputBlock != NULL) && compilerOptions.runOptimizer) {
+                    OPT_CodeBlock(outputBlock);
+                }
             }
         } else {
 
@@ -2552,7 +2556,9 @@ void GC_Function(const List *function, int codeNodeIndex) {
 
     if (compilerOptions.reportFunctionProcessing) {
         if (hasCode && isFuncUsed) {
-            printf("Processed function: %s\n", funcName);
+            SymbolRecord *funcSym = findSymbol(mainSymbolTable, funcName);
+            int funcAddr = funcSym->location;
+            printf("Processed function: %s  - @%4X\n", funcName, funcAddr);
         } else if (hasCode) {
             printf("Skipped unused function %s\n", funcName);
         } else {

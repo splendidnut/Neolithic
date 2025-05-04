@@ -308,7 +308,7 @@ int mainCompiler() {
 
     //----- IF Compiled successfully, THEN do post-processing and output.
     if (GC_ErrorCount == 0) {
-        if (compilerOptions.runOptimizer) OPT_RunOptimizer();
+        //if (compilerOptions.runOptimizer) OPT_RunOptimizer();
 
         //OB_BuildInitialLayout();
         //OB_ArrangeBlocks();

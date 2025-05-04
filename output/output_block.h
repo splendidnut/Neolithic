@@ -61,7 +61,9 @@ extern void OB_WalkCodeBlocks(ProcessBlockFunc codeBlockFunc);
 extern void OB_BuildInitialLayout();
 extern void OB_ArrangeBlocks();
 
-extern void GC_OB_AddCodeBlock(SymbolRecord *funcSym);
-extern void GC_OB_AddDataBlock(SymbolRecord *varSymRec);
+extern OutputBlock* GC_OB_AddCodeBlock(SymbolRecord *funcSym);
+extern OutputBlock* GC_OB_AddDataBlock(SymbolRecord *varSymRec);
+
+extern void OB_UpdateBlockSize(OutputBlock *blockToChange, int delta);
 
 #endif //MODULE_OUTPUT_BLOCK_H
