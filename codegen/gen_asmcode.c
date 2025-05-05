@@ -46,6 +46,17 @@ char* GC_Asm_HandlePropertyRef(List *propertyRef) {
         return NULL;
     }
 
+    // Handle enumeration reference
+    if (isEnum(structSym)) {
+        EvalResult evalResult = evaluate_expression(propertyRef);
+        if (evalResult.hasResult) {
+            return intToStr(evalResult.value);
+        } else {
+            ErrorMessageWithList("Unable to process enumeration reference", propertyRef);
+            return NULL;
+        }
+    }
+
     SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propertyRef->nodes[2].value.str);
     if (!propertySym) {
         ErrorMessageWithList("GC_Asm_HandlePropertyRef: Invalid property reference", propertyRef);
