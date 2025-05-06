@@ -302,19 +302,6 @@ void OPT_Jumps(InstrBlock *instrBlock) {
     WalkInstructions(&ReplaceDoubleJMP, instrBlock);
 }
 
-
-/**
- *  Fit program code blocks into pages to avoid branch issues
- *
- */
-void OPT_FitInPages() {
-    const OutputBlock *block = OB_getFirstBlock();
-    while (block != NULL) {
-
-        block = block->nextBlock;
-    }
-}
-
 void OptimizeDecCmpZero(Instr *curInstr) {
     Instr *instr2 = curInstr->nextInstr;
     if (instr2 == NULL) return;
@@ -333,6 +320,32 @@ void OptimizeDecCmpZero(Instr *curInstr) {
         // we can skip the LDA since DEC has set the flags already
         curInstr->nextInstr = instr3;
         printf("Optimizing DEC/CMP at %4X\n", 0);
+    }
+}
+
+void OptimizePosNegCmp(Instr *curInstr) {
+    Instr *instr2 = curInstr->nextInstr;
+    if (instr2 == NULL) return;
+    Instr *instr3 = instr2->nextInstr;
+    if (instr3 == NULL) return;
+
+    // check for sequence
+    //    LDA paramName
+    //    AND #$80
+    //    BNE/BEQ loc
+    //  change to:
+    //    LDA paramName
+    //    BPL/BMI loc
+
+    if ((curInstr->mne == LDA) && (curInstr->paramName != NULL)
+        && ((instr3->mne == BNE) || (instr3->mne == BEQ))
+        && (instr2->mne == AND) && (instr2->addrMode == ADDR_IMM)
+        && (instr2->offset == 128)) {
+        // we can skip the AND since the LDA set the negative flag
+        //   and so the BMI/BPL instructions can be used instead
+        curInstr->nextInstr = instr3;
+        instr3->mne = (instr3->mne == BNE) ? BMI : BPL;
+        printf("Optimizing AND (sign) comparison at %4X\n", 0);
     }
 }
 
@@ -408,6 +421,14 @@ void OPT_Finalize(OutputBlock *curBlock) {
 }
 
 
+void OPT_Compares(OutputBlock *curBlock) {
+    InstrBlock *instrBlock = curBlock->codeBlock;
+
+    WalkInstructions(&OptimizeDecCmpZero, instrBlock);
+    WalkInstructions(&OptimizePosNegCmp, instrBlock);
+}
+
+
 /**
  * MAIN OPTIMIZER
  */
@@ -417,9 +438,10 @@ void OPT_CodeBlock(OutputBlock *curBlock) {
 
     OPT_FindAllLabels(instrBlock);
     OPT_RecalcAllLabelLocations(instrBlock);
-    print_labelList(curBlock->blockName);
+    //print_labelList(curBlock->blockName);         // NOTE: this is only useful for debugging
 
     OPT_Loops(curBlock);
+    OPT_Compares(curBlock);
 
     OPT_Jumps(instrBlock);
     OPT_RemapLabelsInBlock(instrBlock);
@@ -430,56 +452,3 @@ void OPT_CodeBlock(OutputBlock *curBlock) {
 
     OPT_Finalize(curBlock);
 }
-
-void OPT_DecCmp(OutputBlock *curBlock) {
-    InstrBlock *instrBlock = curBlock->codeBlock;
-
-    WalkInstructions(&OptimizeDecCmpZero, instrBlock);
-}
-
-/**
- * Resize / relocate code blocks after optimizations have been performed
- */
-
-static int recalcAddr = 0;
-static int blockSize = 0;
-static OutputBlock *lastRecalcBlock = NULL;
-
-void RECALC_CodeBlockSize(Instr *curInstr) {
-
-}
-
-void OPT_RecalcCodeBlockSpace(OutputBlock *curBlock) {
-
-    if (lastRecalcBlock != NULL) {
-        // recalculate location based on last block
-        if (lastRecalcBlock->blockSize != blockSize) {
-
-        }
-        if (blockSize + recalcAddr > 0) {
-            recalcAddr = (int) (lastRecalcBlock->blockAddr + blockSize);
-        } else {
-            recalcAddr = curBlock->blockAddr;
-        }
-    }
-
-
-    WalkInstructions(&RECALC_CodeBlockSize, curBlock->codeBlock);
-    lastRecalcBlock = curBlock;
-}
-
-//================================================
-
-void OPT_RunOptimizer() {
-    printf("Running optimizer...\n");
-
-    // optimize labels - currently done twice to catch what's missed on the first go-round
-    OB_WalkCodeBlocks(&OPT_CodeBlock);
-    //OB_WalkCodeBlocks(&OPT_CodeBlock);
-
-    //----------
-    OB_WalkCodeBlocks(&OPT_DecCmp);
-
-    //OB_WalkCodeBlocks(&OPT_RecalcCodeBlockSpace);
-}
-

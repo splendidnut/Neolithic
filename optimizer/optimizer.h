@@ -22,8 +22,5 @@
 #include "output/output_block.h"
 
 extern void OPT_CodeBlock(OutputBlock *curBlock);
-extern void OPT_FitInPages();
-
-extern void OPT_RunOptimizer();
 
 #endif //MODULE_OPTIMIZER_H
