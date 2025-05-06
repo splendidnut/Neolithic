@@ -34,6 +34,7 @@
 #include "codegen/eval_expr.h"
 #include "data/func_map.h"
 
+//#define DEBUG_GEN_SYMBOLS
 
 /**
  * Get definition name from a definition list
@@ -131,10 +132,6 @@ void GS_processAliasInitializer(List *varDef, SymbolRecord *varSymRec) {
 SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierFlags modFlags) {
     char *varName = varDef->nodes[1].value.str;
 
-#ifdef DEBUG_GEN_SYMBOLS
-    printf("Variable: %s  ", varName);
-#endif
-
     // figure out basic type/kind information
     List *typeList = varDef->nodes[2].value.list;
     char *baseType = typeList->nodes[0].value.str;
@@ -142,7 +139,7 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
     enum SymbolType symbolType = getSymbolType(baseType);
 
 #ifdef DEBUG_GEN_SYMBOLS
-    printf("  type: %s  ", baseType);
+    printf("Variable: %40s    type: %s\n", varName, baseType);
 #endif
 
     // check for user defined type and process it
@@ -176,9 +173,13 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
             if (typeList->count > 2) node = typeList->nodes[2];
         }
 
-        bool isArray = isToken(node, PT_ARRAY) || (node.type == N_INT) || (node.type == N_STR);
+        bool isArray = isToken(node, PT_ARRAY) || (node.type == N_INT) || (node.type == N_STR) || (node.type == N_LIST);
         if (isArray) {
             modFlags |= MF_ARRAY;
+#ifdef DEBUG_GEN_SYMBOLS
+            showList(stdout, typeList, 3);
+            printf("\n");
+#endif
             if (node.type == N_INT) {
                 // need to save array size in symbol table
                 arraySize = node.value.num;
@@ -188,6 +189,13 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
                     arraySize = arraySizeConst->constValue;
                 } else {
                     printf("Unknown array size: %s\n", node.value.str);
+                }
+            } else if (node.type == N_LIST) {
+                EvalResult result = evaluate_expression(node.value.list);
+                if (result.hasResult) {
+                    arraySize = result.value;
+                } else {
+                    ErrorMessageWithList("Unable to resolve array size: ", node.value.list);
                 }
             }
             if (typeList->count > 3) node = typeList->nodes[3];
@@ -224,8 +232,10 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
     }
 
 #ifdef DEBUG_GEN_SYMBOLS
-    showList(varDef->nodes[3].value.list, 1);
-    printf("\n");
+    if (modList != NULL) {
+        showList(stdout, modList, 1);
+        printf("\n");
+    }
 #endif
 
     // create the new variable

@@ -1,6 +1,10 @@
 //--- Test array functionality
 char a,b,i;
-char array[8]
+char array[8];
+
+const byte SIZE = 7;
+char arraySizeTest[SIZE];
+const char arraySizeTest2[SIZE - 1] = {1,2,3,4,5,6};
 
 
 void fill_array() {
@@ -61,7 +65,7 @@ void test_array_with_var_index() {
 }
 
 void main() {
-	array[0] = 0		// quick basic test
+	array[0] = 0;		// quick basic test
 	
 	fill_array();
 	test_array_with_const_index();

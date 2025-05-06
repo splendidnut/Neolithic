@@ -730,12 +730,12 @@ ListNode parse_array_node() {
     if (peekToken()->tokenType == TT_OPEN_BRACKET) {
         acceptToken(TT_OPEN_BRACKET);
         if (peekToken()->tokenType != TT_CLOSE_BRACKET) {
-            TokenObject *token = getToken();
+            TokenObject *token = peekToken();
             if (token->tokenType == TT_NUMBER) {
-                int arraySize = copyTokenInt(token);
+                int arraySize = copyTokenInt(getToken());
                 arrayNode = createIntNode(arraySize);
             } else {
-                arrayNode = createStrNode(copyTokenStr(token));
+                arrayNode = parse_expr();
             }
         } else {
             arrayNode = createParseToken(PT_ARRAY);
