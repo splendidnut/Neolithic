@@ -121,6 +121,11 @@ void GS_processAliasInitializer(List *varDef, SymbolRecord *varSymRec) {
     }
 }
 
+bool isHintNode(ListNode node) {
+    bool hasHint = (node.type == N_LIST && node.value.list->nodes[0].value.parseToken == PT_HINT);
+    return hasHint;
+}
+
 /**
  * Process Variable definition statement
  *
@@ -173,7 +178,7 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
             if (typeList->count > 2) node = typeList->nodes[2];
         }
 
-        bool isArray = isToken(node, PT_ARRAY) || (node.type == N_INT) || (node.type == N_STR) || (node.type == N_LIST);
+        bool isArray = isToken(node, PT_ARRAY) || !isHintNode(node);
         if (isArray) {
             modFlags |= MF_ARRAY;
 #ifdef DEBUG_GEN_SYMBOLS
@@ -201,7 +206,7 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
             if (typeList->count > 3) node = typeList->nodes[3];
         }
 
-        bool hasHint = (node.type == N_LIST && node.value.list->nodes[0].value.parseToken == PT_HINT);
+        bool hasHint = isHintNode(node);
         if (hasHint) {
             hint = node.value.list->nodes[1].value.str[0];
         }
