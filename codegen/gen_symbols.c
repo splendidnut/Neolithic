@@ -126,6 +126,10 @@ bool isHintNode(ListNode node) {
     return hasHint;
 }
 
+bool isArrayNode(ListNode node) {
+    return (node.type == N_LIST && node.value.list->nodes[0].value.parseToken == PT_ARRAY);
+}
+
 /**
  * Process Variable definition statement
  *
@@ -178,31 +182,45 @@ SymbolRecord *GS_Variable(List *varDef, SymbolTable *symbolTable, enum ModifierF
             if (typeList->count > 2) node = typeList->nodes[2];
         }
 
-        bool isArray = isToken(node, PT_ARRAY) || !isHintNode(node);
+        bool isArray = isArrayNode(node);
         if (isArray) {
             modFlags |= MF_ARRAY;
 #ifdef DEBUG_GEN_SYMBOLS
             showList(stdout, typeList, 3);
             printf("\n");
 #endif
-            if (node.type == N_INT) {
-                // need to save array size in symbol table
-                arraySize = node.value.num;
-            } else if (node.type == N_STR) {
-                SymbolRecord *arraySizeConst = GS_findSymbol(symbolTable, node.value.str);
-                if (arraySizeConst && isSimpleConst(arraySizeConst)) {
-                    arraySize = arraySizeConst->constValue;
-                } else {
-                    printf("Unknown array size: %s\n", node.value.str);
-                }
-            } else if (node.type == N_LIST) {
-                EvalResult result = evaluate_expression(node.value.list);
-                if (result.hasResult) {
-                    arraySize = result.value;
-                } else {
-                    ErrorMessageWithList("Unable to resolve array size: ", node.value.list);
-                }
+            // Process the array node to get the actual array size (if defined)
+
+            SymbolRecord *arraySizeConst;
+            EvalResult arrayEvalResult;
+            ListNode arrayNode = node.value.list->nodes[1];
+            switch (arrayNode.type) {
+                case N_INT:
+                    arraySize = arrayNode.value.num;
+                    break;
+
+                case N_STR:
+                    arraySizeConst = GS_findSymbol(symbolTable, arrayNode.value.str);
+                    if (arraySizeConst && isSimpleConst(arraySizeConst)) {
+                        arraySize = arraySizeConst->constValue;
+                    } else {
+                        printf("Unknown array size: %s\n", arrayNode.value.str);
+                    }
+                    break;
+
+                case N_LIST:
+                    arrayEvalResult = evaluate_expression(arrayNode.value.list);
+                    if (arrayEvalResult.hasResult) {
+                        arraySize = arrayEvalResult.value;
+                    } else {
+                        ErrorMessageWithList("Unable to resolve array size: ", arrayNode.value.list);
+                    }
+                    break;
+
+                default: break;
             }
+
+            // move on to next type node
             if (typeList->count > 3) node = typeList->nodes[3];
         }
 

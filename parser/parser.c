@@ -726,23 +726,28 @@ ListNode parse_var_assignment() {
 ListNode parse_func_parameters(void);
 
 ListNode parse_array_node() {
+
+    // exit early if there are no brackets.
+    if (peekToken()->tokenType != TT_OPEN_BRACKET) return createEmptyNode();
+
     ListNode arrayNode = createEmptyNode();
-    if (peekToken()->tokenType == TT_OPEN_BRACKET) {
-        acceptToken(TT_OPEN_BRACKET);
-        if (peekToken()->tokenType != TT_CLOSE_BRACKET) {
-            TokenObject *token = peekToken();
-            if (token->tokenType == TT_NUMBER) {
-                int arraySize = copyTokenInt(getToken());
-                arrayNode = createIntNode(arraySize);
-            } else {
-                arrayNode = parse_expr();
-            }
+    acceptToken(TT_OPEN_BRACKET);
+    if (peekToken()->tokenType != TT_CLOSE_BRACKET) {
+        TokenObject *token = peekToken();
+        if (token->tokenType == TT_NUMBER) {
+            int arraySize = copyTokenInt(getToken());
+            arrayNode = createIntNode(arraySize);
         } else {
-            arrayNode = createParseToken(PT_ARRAY);
+            arrayNode = parse_expr();
         }
-        acceptToken(TT_CLOSE_BRACKET);
     }
-    return arrayNode;
+    acceptToken(TT_CLOSE_BRACKET);
+
+    // create array node as a list:  (array, *size*)
+    List *arrayList = createList(2);
+    addNode(arrayList, createParseToken(PT_ARRAY));
+    addNode(arrayList, arrayNode);
+    return createListNode(arrayList);
 }
 
 ListNode parse_var_node(const char *baseType, const List *modList, const char *regHint) {
