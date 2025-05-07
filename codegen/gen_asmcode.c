@@ -159,11 +159,7 @@ const char *GC_Asm_getParamStr(ListNode instrParamNode, List *instr) {
             } else {
                 SymbolRecord *varSym = lookupSymbolNode(instrParamNode, instr->lineNum);
                 if (varSym != NULL) {
-                    if (isConst(varSym)) {
-                        paramAddrMode = (varSym->constValue < 256) ? ADDR_ZP : ADDR_ABS;
-                    } else {
-                        paramAddrMode = CALC_SYMBOL_ADDR_MODE(varSym);
-                    }
+                    paramAddrMode = CALC_SYMBOL_ADDR_MODE(varSym);
                     paramStr = getVarName(varSym);
                 } else {
                     paramStr = "";
@@ -278,7 +274,9 @@ void GC_AsmBlock(const List *code, enum SymbolType destType) {
 
                 // Add as constant to local function scope
                 // TODO: Check this feature
-                addConst(curFuncSymbolTable, equName, value, ST_CHAR, MF_LOCAL);
+                enum ModifierFlags flags = MF_LOCAL;
+                if (value < 256) flags |= SS_ZEROPAGE;
+                addConst(curFuncSymbolTable, equName, value, ST_CHAR, flags);
             } else if (instrNode.value.parseToken == PT_LABEL) {
                 // handle label def
                 char *labelName = statement->nodes[1].value.str;
