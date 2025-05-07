@@ -345,6 +345,11 @@ struct StOpcodeTable opcodeTable[] = {
         {LSR, ADDR_ABX, 0x5E, 7},
         //
         {NOP, ADDR_NONE,0xEA, 2},
+        {NOP, ADDR_IMM, 0x80, 2},
+        {NOP, ADDR_ZP,  0x04, 3},
+        {NOP, ADDR_ABS, 0x0C, 4},
+        {NOP, ADDR_ZPX, 0x14, 3},
+        {NOP, ADDR_ABX, 0x1C, 4},
         //
         {ORA, ADDR_IMM, 0x09, 2},
         {ORA, ADDR_ZP,  0x05, 3},
