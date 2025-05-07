@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include "syntax_tree.h"
 
-#define SYMBOL_NAME_LIMIT 32
+#define SYMBOL_NAME_LIMIT 64
 
 #define IS_INT(sym) ((sym->flags & ST_MASK) == ST_INT)
 

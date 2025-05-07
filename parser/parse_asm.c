@@ -24,7 +24,7 @@
 #include "parse_asm.h"
 #include "parser.h"
 
-#define MAX_ASSEMBLY_STATEMENTS 300
+#define MAX_ASSEMBLY_STATEMENTS 4000
 
 //-----------------------------------------------------------------
 

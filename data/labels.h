@@ -21,7 +21,7 @@
 
 #include <stdbool.h>
 
-#define LABEL_NAME_LIMIT 32
+#define LABEL_NAME_LIMIT 64
 
 enum LabelType { LBL_CODE, LBL_LOOP_START, LBL_DATA };
 
