@@ -159,7 +159,11 @@ const char *GC_Asm_getParamStr(ListNode instrParamNode, List *instr) {
             } else {
                 SymbolRecord *varSym = lookupSymbolNode(instrParamNode, instr->lineNum);
                 if (varSym != NULL) {
-                    paramAddrMode = CALC_SYMBOL_ADDR_MODE(varSym);
+                    if (isConst(varSym)) {
+                        paramAddrMode = (varSym->constValue < 256) ? ADDR_ZP : ADDR_ABS;
+                    } else {
+                        paramAddrMode = CALC_SYMBOL_ADDR_MODE(varSym);
+                    }
                     paramStr = getVarName(varSym);
                 } else {
                     paramStr = "";
