@@ -261,6 +261,12 @@ void OPT_RemoveUnusedLabels(InstrBlock *instrBlock) {
 }
 
 
+//----------------------------------------------------------------
+//----- Code Walking routines
+//----------------------------------------------------------------
+static int instrLocation = 0;
+
+
 /**
  * Optimize jumps to RTS instructions
  */
@@ -319,7 +325,7 @@ void OptimizeDecCmpZero(Instr *curInstr) {
         && ((instr3->mne == BNE) || (instr3->mne == BEQ))) {
         // we can skip the LDA since DEC has set the flags already
         curInstr->nextInstr = instr3;
-        printf("Optimizing DEC/CMP at %4X\n", 0);
+        printf("\tOptimizing DEC/CMP at %4X\n", 0);
     }
 }
 
@@ -345,11 +351,10 @@ void OptimizePosNegCmp(Instr *curInstr) {
         //   and so the BMI/BPL instructions can be used instead
         curInstr->nextInstr = instr3;
         instr3->mne = (instr3->mne == BNE) ? BMI : BPL;
-        printf("Optimizing AND (sign) comparison at %4X\n", 0);
+        printf("\tOptimizing AND (sign) comparison at %4X\n", 0);
     }
 }
 
-static int instrLocation = 0;
 void OptimizeBranchJumps(Instr *curInstr) {
     Instr *instr2 = curInstr->nextInstr;
     Instr *instr3 = (instr2 != NULL) ? instr2->nextInstr : NULL;
@@ -367,10 +372,12 @@ void OptimizeBranchJumps(Instr *curInstr) {
     // REPLACE with:
     //     BRx label2
 
-    if (isBranch(curInstr->mne) && (curInstr->paramName != NULL)
-        && (instr2->mne == JMP) && (instr2->paramName != NULL)
-        && (curInstr->paramName != NULL) && (instr3->label != NULL)
-            && (strcmp(curInstr->paramName, instr3->label->name)==0)) {
+    if (isBranch(curInstr->mne)
+        && (instr2->mne == JMP)
+        && (curInstr->paramName != NULL)
+        && (instr2->paramName != NULL)
+        && (instr3->label != NULL)
+        && (strcmp(curInstr->paramName, instr3->label->name)==0)) {
 
         const char *label = curInstr->paramName;
         const char *label2 = instr2->paramName;
@@ -382,7 +389,7 @@ void OptimizeBranchJumps(Instr *curInstr) {
         int curLocation = outLabel->label->location - 2;
 
         if (abs(jmpLocation - curLocation) < 126) {
-            printf("Optimizing branch at %4X\n", instrLocation);
+            printf("\tOptimizing branch at %4X\n", instrLocation);
             curInstr->mne = invertBranch(curInstr->mne);
             curInstr->paramName = instr2->paramName;
             curInstr->nextInstr = instr3;
@@ -415,7 +422,7 @@ void OPT_Finalize(OutputBlock *curBlock) {
 
     if (origEnd != instrLocation) {
         int delta = origEnd - instrLocation;
-        printf("Optimized from:  %4X -> %4X\n", origEnd, instrLocation);
+        printf("\tOptimized from:  %4X -> %4X\n", origEnd, instrLocation);
         OB_UpdateBlockSize(curBlock, delta);
     }
 }
@@ -429,12 +436,44 @@ void OPT_Compares(OutputBlock *curBlock) {
 }
 
 
+
+
+void CheckBranchJumps(Instr *curInstr) {
+    if (curInstr->addrMode == ADDR_REL) {
+        const char *branchLabel = curInstr->paramName;
+        LabelInfo *branchLabelInfo = findLabelInfo(branchLabel);
+        int branchLocation = branchLabelInfo->label->location;
+
+        int curPage = instrLocation >> 8;
+        int branchToPage = branchLocation >> 8;
+
+        if (curPage != branchToPage) {
+            printf(" WARNING: Page crossing branch @%4X - branching to %s @%4X\n",
+                   instrLocation, branchLabel, branchLocation);
+        }
+    }
+    instrLocation += getInstrSize(curInstr->mne, curInstr->addrMode);
+}
+
+/**
+ * CheckBranchAlignment - check branch alignment for a chunk of code
+ */
+
+void OPT_CheckBranchAlignment(OutputBlock *curBlock) {
+    InstrBlock *instrBlock = curBlock->codeBlock;
+    instrLocation = curBlock->codeBlock->funcSym->location;
+    WalkInstructions(&CheckBranchJumps, instrBlock);
+}
+
+
 /**
  * MAIN OPTIMIZER
  */
 
 void OPT_CodeBlock(OutputBlock *curBlock) {
     InstrBlock *instrBlock = curBlock->codeBlock;
+
+    printf("Optimizing %s...\n", instrBlock->funcSym->name);
 
     OPT_FindAllLabels(instrBlock);
     OPT_RecalcAllLabelLocations(instrBlock);

@@ -2546,6 +2546,7 @@ void GC_Function(const List *function, int codeNodeIndex) {
                 if ((outputBlock != NULL) && compilerOptions.runOptimizer) {
                     OPT_CodeBlock(outputBlock);
                 }
+                OPT_CheckBranchAlignment(outputBlock);
             }
         } else {
 

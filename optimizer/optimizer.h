@@ -22,5 +22,6 @@
 #include "output/output_block.h"
 
 extern void OPT_CodeBlock(OutputBlock *curBlock);
+extern void OPT_CheckBranchAlignment(OutputBlock *curBlock);
 
 #endif //MODULE_OPTIMIZER_H
