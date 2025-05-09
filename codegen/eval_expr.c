@@ -57,6 +57,30 @@ SymbolRecord *getEvalSymbolRecord(const char *varName) {
     return varSym;
 }
 
+EvalResult evaluate_variable(ListNode node) {
+    EvalResult result;
+    SymbolRecord *varSym = getEvalSymbolRecord(node.value.str);
+
+    // when evaluating things for inline assembly code,
+//   symbols always return their location...
+//   unless they are simple consts (don't take RAM/ROM)
+    if (varSym && isEvalForAsm) {
+        if (HAS_SYMBOL_LOCATION(varSym)) {
+            result.hasResult = true;
+            result.value = varSym->location;
+        } else {
+            result.hasResult = varSym->hasValue;
+            result.value = varSym->constValue;
+        }
+    } else if (varSym && isConst(varSym)) {
+        result.hasResult = varSym->hasValue;
+        result.value = varSym->constValue;
+    } else {
+        result.hasResult = false;
+    }
+    return result;
+}
+
 EvalResult eval_node(ListNode node) {
     EvalResult result;
     switch (node.type) {
@@ -67,25 +91,8 @@ EvalResult eval_node(ListNode node) {
         case N_LIST:
             return evaluate_expression(node.value.list);
         case N_STR: {
-            SymbolRecord *varSym = getEvalSymbolRecord(node.value.str);
+            result = evaluate_variable(node);
 
-            // when evaluating things for inline assembly code,
-            //   symbols always return their location...
-            //   unless they are simple consts (don't take RAM/ROM)
-            if (varSym && isEvalForAsm) {
-                if (HAS_SYMBOL_LOCATION(varSym)) {
-                    result.hasResult = true;
-                    result.value = varSym->location;
-                } else {
-                    result.hasResult = varSym->hasValue;
-                    result.value = varSym->constValue;
-                }
-            } else if (varSym && isConst(varSym)) {
-                result.hasResult = varSym->hasValue;
-                result.value = varSym->constValue;
-            } else {
-                result.hasResult = false;
-            }
         } break;
         default:
             result.hasResult = false;

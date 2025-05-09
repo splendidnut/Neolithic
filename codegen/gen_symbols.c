@@ -79,6 +79,17 @@ void GS_processInitializer(const List *varDef, SymbolRecord *varSymRec) {
             varSymRec->hasValue = true;
         }
 
+        else if (valueNode.type == N_STR) {
+            EvalResult result = evaluate_variable(valueNode);
+            if (result.hasResult) {
+                varSymRec->constValue = result.value;
+                varSymRec->hasValue = true;
+                varSymRec->constEvalNotes = strdup(valueNode.value.str);
+            } else {
+                ErrorMessageWithList("Unable to resolve", initList);
+            }
+        }
+
         else if (valueNode.type == N_LIST) {
             List *initExpr = valueNode.value.list;
 

@@ -31,6 +31,7 @@ typedef struct {
 extern void initEvaluator(SymbolTable *symbolTable);
 extern void setEvalLocalSymbolTable(SymbolTable *symbolTable);
 extern void setEvalExpressionMode(bool forASM);
+extern EvalResult evaluate_variable(ListNode node);
 extern EvalResult evaluate_node(const ListNode node);
 extern EvalResult evaluate_enumeration(SymbolRecord *enumSymbol, ListNode propNode);
 extern EvalResult evaluate_expression(const List *expr);
