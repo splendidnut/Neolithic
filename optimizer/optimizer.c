@@ -464,9 +464,10 @@ void OPT_CheckBranchAlignment(OutputBlock *curBlock) {
 
     // IMPORTANT:
     //  If optimizer has not been run, we need to build the label list
-    //   here using OPT_FindAllLabels... otherwise the compiler will crash
+    //   here... otherwise the compiler will crash
     if (!compilerOptions.runOptimizer) {
         OPT_FindAllLabels(instrBlock);
+        OPT_RecalcAllLabelLocations(instrBlock);
     }
     instrLocation = curBlock->codeBlock->funcSym->location;
     WalkInstructions(&CheckBranchJumps, instrBlock);
