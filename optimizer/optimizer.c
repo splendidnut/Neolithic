@@ -439,17 +439,21 @@ void OPT_Compares(OutputBlock *curBlock) {
 
 
 void CheckBranchJumps(Instr *curInstr) {
-    if (curInstr->addrMode == ADDR_REL) {
+    if ((curInstr->addrMode == ADDR_REL) && (curInstr->paramName != NULL)) {
         const char *branchLabel = curInstr->paramName;
         LabelInfo *branchLabelInfo = findLabelInfo(branchLabel);
-        int branchLocation = branchLabelInfo->label->location;
+        if (branchLabelInfo != NULL) {
+            int branchLocation = branchLabelInfo->label->location;
 
-        int curPage = instrLocation >> 8;
-        int branchToPage = branchLocation >> 8;
+            int curPage = (instrLocation + 2) >> 8;     // need to use instruction after branch as reference point
+            int branchToPage = branchLocation >> 8;
 
-        if (curPage != branchToPage) {
-            printf(" WARNING: Page crossing branch @%4X - branching to %s @%4X\n",
-                   instrLocation, branchLabel, branchLocation);
+            if (curPage != branchToPage) {
+                printf(" WARNING: Page crossing branch @%4X - branching to %s @%4X\n",
+                       instrLocation, branchLabel, branchLocation);
+            }
+        } else {
+            fprintf(stderr, " COMPILER BUG: Unable to find branch destination %s @%4X", branchLabel, instrLocation);
         }
     }
     instrLocation += getInstrSize(curInstr->mne, curInstr->addrMode);
