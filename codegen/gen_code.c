@@ -1865,11 +1865,33 @@ void convertAliasToVariable(SymbolRecord *varSymRec, int loc) {
     varSymRec->kind = SK_VAR;
 }
 
+
+bool isSimpleAlias(const List *aliasInitList) {
+    return ((aliasInitList->count == 2)
+            && (isToken(aliasInitList->nodes[0], PT_INIT))
+            && (aliasInitList->nodes[1].type == N_STR));
+}
+
 void GC_LocalVarAliasInitializer(const List *varDef, SymbolRecord *varSymRec, List *initList, enum SymbolType destType) {
     // We're aliasing something, we need to link the definition to the symbol record
     List *alias;
 
-    List *aliasInitExpr = getInitializer(varDef->nodes[4]);
+    ListNode aliasInit = varDef->nodes[4];
+    if (aliasInit.type != N_LIST) return;
+
+    // first check if this is a simple variable alias
+    List *aliasInitList = aliasInit.value.list;
+    if (isSimpleAlias(aliasInitList)) {
+
+        // simple variable alias... make them share the same address
+        SymbolRecord *srcVar = lookupSymbolNode(aliasInitList->nodes[1], aliasInitList->lineNum);
+        if (srcVar != NULL) {
+            convertAliasToVariable(varSymRec, srcVar->location);
+        }
+        return;
+    }
+
+    List *aliasInitExpr = getInitializer(aliasInit);
     if (aliasInitExpr != NULL) {
         alias = aliasInitExpr;
 
@@ -1897,8 +1919,24 @@ void GC_LocalVarAliasInitializer(const List *varDef, SymbolRecord *varSymRec, Li
 
 
 void GC_HandleGlobalAliasInitializer(const List *varDef, SymbolRecord *varSymRec) {
+
+    ListNode aliasInit = varDef->nodes[4];
+    if (aliasInit.type != N_LIST) return;
+
+    // first check if this is a simple variable alias
+    List *aliasInitList = aliasInit.value.list;
+    if (isSimpleAlias(aliasInitList)) {
+
+        // simple variable alias... make them share the same address
+        SymbolRecord *srcVar = lookupSymbolNode(aliasInitList->nodes[1], aliasInitList->lineNum);
+        if (srcVar != NULL) {
+            convertAliasToVariable(varSymRec, srcVar->location);
+        }
+        return;
+    }
+
     // handle global alias - since it's global, it must be const
-    List *aliasExpr = getInitializer(varDef->nodes[4]);
+    List *aliasExpr = getInitializer(aliasInit);
     EvalResult evalResult = evalAsAddrLookup(aliasExpr);
     if (evalResult.hasResult) {
 
