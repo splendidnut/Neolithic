@@ -140,10 +140,19 @@ ListNode parse_list() {
     List *items = createList(MAX_ITEMS_IN_LIST);
     addNode(items, createParseToken(PT_LIST));
 
-    while (!isClosingListToken(peekToken())) {
+    int itemCount = 0;
+    while (!isClosingListToken(peekToken()) && itemCount < MAX_ITEMS_IN_LIST) {
+
+        // handle commas in list, and gracefully handle a trailing comma
+        if (itemCount > 0) acceptToken(TT_COMMA);
+        if (isClosingListToken(peekToken())) break;
+
         ListNode node = parse_expr();
         addNode(items, node);
-        acceptOptionalToken(TT_COMMA);
+        itemCount++;
+
+        // if a couple of errors have happened, abandon ship.
+        if (errorCount > 2) break;
     }
     getToken(); // -- eat closing token
 
