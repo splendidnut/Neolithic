@@ -442,6 +442,10 @@ void GC_OpWithPropertyRef(enum MnemonicCode mne, const List *expr, enum SymbolTy
         // Not an enumeration, process as regular struct access
 
         const char *propName = expr->nodes[2].value.str;
+        if (isStruct(structSym)) {
+            ErrorMessage("Expected variable but found struct:", structSym->name, expr->lineNum);
+            return;
+        }
         SymbolRecord *propSym = findSymbol(getStructSymbolSet(structSym), propName);
         if (propSym == NULL) {
             ErrorMessage("Property symbol not found" , propName, expr->lineNum);
