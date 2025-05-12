@@ -36,6 +36,13 @@ void test_array_with_const_index() {
 	array[5] = array[b] + a;
 	array[6] = array[a] + array[b];
 	array[7]++;
+
+    //--- read from array using a variety of indexes
+    a = array[0];
+    a = array[b];
+    a = array[b+5];
+    a = array[b-5];
+    a = array[a+b];
 }
 
 /**
@@ -61,6 +68,7 @@ void test_array_with_var_index() {
 	
 	//--- test index var arithmetic
 	array[b + 1] = array[a + 1] + 3;
+    array[b - 1] = array[a - 1] - 2;
 	//array[a - b] = 6;
 }
 
