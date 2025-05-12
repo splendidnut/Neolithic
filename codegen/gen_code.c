@@ -126,12 +126,14 @@ void GC_LoadFromArray(const SymbolRecord *srcSym, enum SymbolType destType) {
 void GC_ArrayLookupWithExpr(const List *expr, const SymbolRecord *arraySymbol, ListNode indexNode, int destSize) {
     List *indexExpr = indexNode.value.list;
 
-    // detect if simple expression:  (varName+int)
-    bool isAddSub = isToken(indexExpr->nodes[0], PT_ADD) || isToken(indexExpr->nodes[0], PT_SUB);
+    // detect if simple expression:  (varName+int) or (varName-int)
+    bool isAdd = isToken(indexExpr->nodes[0], PT_ADD);
+    bool isSub = isToken(indexExpr->nodes[0], PT_SUB);
     bool isSecondParamInt = (indexExpr->nodes[2].type == N_INT);
 
-    if (isAddSub && isSecondParamInt) {
+    if ((isAdd || isSub) && isSecondParamInt) {
         int ofs = indexExpr->nodes[2].value.num;
+        if (isSub) ofs = -ofs;
         SymbolRecord *arrayIndexSymbol = lookupSymbolNode(indexExpr->nodes[1], expr->lineNum);
         if (arrayIndexSymbol != NULL) {
             ICG_LoadIndexVar(arrayIndexSymbol, destSize);
