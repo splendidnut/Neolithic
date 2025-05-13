@@ -81,8 +81,27 @@ void OB_AddBlock(OutputBlock *newBlock) {
 
 // TODO: this is a hack since the OutputBlock module maintains a separate address tracker
 void OB_MoveToNextPage() {
-    curAddr = (curAddr + 256) & 0xff00;
+
+    // Only move to next page if we're not already aligned to a page.
+    if ((curAddr & 0xFF) != 0) {
+        curAddr = (curAddr & 0xff00) + 0x100;
+    }
 }
+
+void OB_AlignToPageOffset(int ofs) {
+    int newAddr = curAddr;
+    if ((curAddr & 0xFF) != 0) {
+        newAddr = (curAddr & 0xff00) + 0x100;
+    }
+    newAddr = newAddr + ofs;
+
+    if (newAddr > curAddr) {
+        curAddr = newAddr;
+    } else {
+        printf("WARNING:  Unable to do page_align offset from %4X to %4X.\n", curAddr, newAddr);
+    }
+}
+
 
 void OB_SetAddress(int newAddr) {
     curAddr = newAddr;

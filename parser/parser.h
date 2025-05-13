@@ -40,6 +40,7 @@ extern ListNode parse_stmt_function(char *funcType);
 extern ListNode parse_expr_assignment(void);
 extern ListNode parse_var_assignment(void);
 extern ListNode parse_expr(void);
+extern ListNode parse_numeric();
 extern ListNode parse_primary_expr(bool isLValue, bool isExprAllowed, int allowNestedExpr);
 extern ListNode parse_variable(void);
 extern ListNode parse_stmt_block(void);

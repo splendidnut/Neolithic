@@ -217,6 +217,26 @@ ListNode parse_nested_primary(int allowNestedExpr, TokenType tokenType) {
     return node;
 }
 
+ListNode parse_numeric() {
+    TokenObject *token = getToken();
+
+    //  eat/handle unary +/- tokens
+    bool isNegative = false;
+    if ((token->tokenType == TT_MINUS) || (token->tokenType == TT_PLUS)) {
+        isNegative = (token->tokenType == TT_MINUS);
+        token = getToken();
+    }
+
+    if (token->tokenType == TT_NUMBER) {
+        int number = copyTokenInt(token);
+        if (isNegative) number = -number;
+        return createIntNode(number);
+    } else {
+        printError("Expected number but found: ", token->tokenStr);
+        return createEmptyNode();
+    }
+}
+
 /**
  * Parse primitive (both simple and more complex like list of values) or nested expression
  * @param isLValue

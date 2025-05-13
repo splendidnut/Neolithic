@@ -2253,7 +2253,13 @@ void GC_HandleDirective(const List *code, enum SymbolType destType) {
             IL_HideCycles();
             break;
         case PAGE_ALIGN:
-            OB_MoveToNextPage();
+            // if there's a number with the page_align directive, use it as an offset.
+            if (code->count > 2) {
+                int alignment = code->nodes[2].value.num;
+                OB_AlignToPageOffset(alignment);
+            } else {
+                OB_MoveToNextPage();
+            }
             break;
 
         case INVERT:

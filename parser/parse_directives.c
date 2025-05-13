@@ -118,6 +118,19 @@ ListNode buildAddrDirective(enum CompilerDirectiveTokens token) {
     return createListNode(bankDirList);
 }
 
+ListNode buildDirectiveWithOptionalNumeric(enum CompilerDirectiveTokens token) {
+    int directiveLineNum = getProgLineNum();
+    List *bankDirList = createList(3);
+    addNode(bankDirList, createParseToken(PT_DIRECTIVE));
+    addNode(bankDirList, createIntNode(token));
+    TokenObject *nxtToken = peekToken();
+    int nxtTokenLineNum = getProgLineNum();
+    if (nxtTokenLineNum == directiveLineNum) {
+        addNode(bankDirList, parse_numeric());
+    }
+    return createListNode(bankDirList);
+}
+
 
 ListNode parse_compilerDirective(enum ParserScope parserScope) {
     ListNode node;
@@ -146,6 +159,9 @@ ListNode parse_compilerDirective(enum ParserScope parserScope) {
                 break;
             case SET_ADDRESS:
                 node = buildAddrDirective(directiveToken);
+                break;
+            case PAGE_ALIGN:
+                node = buildDirectiveWithOptionalNumeric(directiveToken);
                 break;
 
                 // Preprocessor Cases:  These directives have already been processed, so skip them

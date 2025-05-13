@@ -49,6 +49,7 @@ typedef void (*ProcessBlockFunc)(OutputBlock *);    // pointer to block processi
 extern void OB_Init();
 extern void OB_AddBlock(OutputBlock *newBlock);
 extern void OB_MoveToNextPage();
+extern void OB_AlignToPageOffset(int ofs);
 extern void OB_SetAddress(int newAddr);
 extern void OB_SetBank(int newBank);
 extern void OB_SetMachine(enum Machines machine);
