@@ -37,9 +37,10 @@ static FILE *outputFile;
 
 void WO_WriteAllBlocks() {
     const OutputBlock *block = OB_getFirstBlock();
+    const OutputBlock *lastBlock = NULL;
 
     while (block != NULL) {
-        outputAdapter->startWriteBlock(block);
+        outputAdapter->startWriteBlock(block, lastBlock);
         switch (block->blockType) {
             case BT_CODE:
                 outputAdapter->writeFunctionBlock(block);
@@ -52,6 +53,7 @@ void WO_WriteAllBlocks() {
                 break;
         }
         outputAdapter->endWriteBlock(block);
+        lastBlock = block;
         block = block->nextBlock;
     }
 }

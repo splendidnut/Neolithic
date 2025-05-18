@@ -48,7 +48,7 @@ struct OutputAdapter {
     void (*writeStaticArrayData)(const OutputBlock *block);
     void (*writeStaticStructData)(const OutputBlock *block);
 
-    void (*startWriteBlock)(const OutputBlock *block);
+    void (*startWriteBlock)(const OutputBlock *block, const OutputBlock *lastBlock);
     void (*endWriteBlock)(const OutputBlock *block);
 };
 

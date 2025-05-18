@@ -79,7 +79,9 @@ void OB_AddBlock(OutputBlock *newBlock) {
     blockCount++;
 }
 
-// TODO: this is a hack since the OutputBlock module maintains a separate address tracker
+//----------------------------------------------------------
+//  Handle page alignment, address changes, and banking
+
 void OB_MoveToNextPage() {
 
     // Only move to next page if we're not already aligned to a page.

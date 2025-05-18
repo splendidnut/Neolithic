@@ -34,7 +34,7 @@ char* WriteDASM_getExt();
 void WriteDASM_FunctionBlock(const OutputBlock *block);
 void WriteDASM_StaticArrayData(const OutputBlock *block);
 void WriteDASM_StaticStructData(const OutputBlock *block);
-void WriteDASM_StartOfBlock(const OutputBlock *block);
+void WriteDASM_StartOfBlock(const OutputBlock *block, const OutputBlock *lastBlock);
 void WriteDASM_EndOfBlock(const OutputBlock *block);
 
 struct OutputAdapter DASM_Adapter =
@@ -408,9 +408,20 @@ void WriteDASM_FunctionBlock(const OutputBlock *block) {
     WriteDASM_WriteBlockFooter(funcName);
 }
 
-void WriteDASM_StartOfBlock(const OutputBlock *block) {
+void WriteDASM_StartOfBlock(const OutputBlock *block, const OutputBlock *lastBlock) {
+    int endOfLastBlock = 0;
+    if (lastBlock != NULL) {
+        endOfLastBlock = lastBlock->blockAddr + lastBlock->blockSize;
+    }
     if ((block->blockAddr & 0xff) == 0) {
         fprintf(outputFile,"\talign 256\n");
+    } else if(endOfLastBlock < block->blockAddr) {
+        // For DEBUG:
+        //fprintf(outputFile, "\n\techo $%04X", block->blockAddr);
+
+        // TODO: This is a bit hacky... Find a better way to deal with #page_align offsets.
+        int delta = block->blockAddr - endOfLastBlock;
+        fprintf(outputFile, "\n\tds %d\t\t;--- padding to fill gap between blocks\n\n", delta);
     }
 }
 

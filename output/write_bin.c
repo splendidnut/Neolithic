@@ -37,7 +37,7 @@ char* WriteBIN_getExt();
 void WriteBIN_FunctionBlock(const OutputBlock *block);
 void WriteBIN_StaticArrayData(const OutputBlock *block);
 void WriteBIN_StaticStructData(const OutputBlock *block);
-void WriteBIN_StartOfBlock(const OutputBlock *block);
+void WriteBIN_StartOfBlock(const OutputBlock *block, const OutputBlock *lastBlock);
 void WriteBIN_EndOfBlock(const OutputBlock *block);
 
 struct OutputAdapter BIN_OutputAdapter =
@@ -83,7 +83,7 @@ void WriteBIN_Done() {
 
 char* WriteBIN_getExt() { return ".bin"; }
 
-void WriteBIN_StartOfBlock(const OutputBlock *block) {
+void WriteBIN_StartOfBlock(const OutputBlock *block, const OutputBlock *lastBlock) {
 
 }
 
