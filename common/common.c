@@ -54,19 +54,23 @@ char *intToStr(int num) {
 
 int strToInt(const char *str) {
     int resultInt;
-    if (str[1] == 'x' && str[0] == '0') {
-        resultInt = (int)strtol(str + 2, NULL, 16);    // hexadecimal
-    } else if (str[1] == 'b' && str[0] == '0') {
-        resultInt = (int)strtol(str + 2, NULL, 2);    // binary
-    } else if (str[0] == '$') {
-        resultInt = (int)strtol(str + 1, NULL, 16);    // ASM style hex
-    } else if (str[0] == '%') {
-        resultInt = (int)strtol(str + 1, NULL, 2);   // ASM style binary
-    } else if (str[0] == '-') {
-        resultInt = -((int)strtol(str + 1, NULL, 10));
+    char *lstr = (const char *)str;
+
+    bool isNeg = (str[0] == '-');
+    if (isNeg) lstr++;
+
+    if (lstr[1] == 'x' && lstr[0] == '0') {
+        resultInt = (int)strtol(lstr + 2, NULL, 16);    // hexadecimal
+    } else if (lstr[1] == 'b' && lstr[0] == '0') {
+        resultInt = (int)strtol(lstr + 2, NULL, 2);    // binary
+    } else if (lstr[0] == '$') {
+        resultInt = (int)strtol(lstr + 1, NULL, 16);    // ASM style hex
+    } else if (lstr[0] == '%') {
+        resultInt = (int)strtol(lstr + 1, NULL, 2);   // ASM style binary
     } else {
-        resultInt = (int)strtol(str, NULL, 10);
+        resultInt = (int)strtol(lstr, NULL, 10);
     }
+    if (isNeg) resultInt = -resultInt;
     return resultInt;
 }
 
