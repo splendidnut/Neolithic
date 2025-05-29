@@ -312,7 +312,7 @@ int mainCompiler() {
         //OB_ArrangeBlocks();
 
         if (compilerOptions.showOutputBlockList) {
-            printf("Output layout:\n");
+            printf("\nOutput layout:\n");
             OB_PrintBlockList();
         }
 
@@ -380,6 +380,7 @@ void setDefaultCompilerParameters() {
     compilerOptions.showOutputBlockList = false;
 
     compilerOptions.runOptimizer = false;
+    compilerOptions.showOptimizerSteps = false;
 }
 
 /**
@@ -421,6 +422,8 @@ const char *help[] = {
         "  -i  Include file",
         "  -m  Select machine target",
         "  -o  Run Optimizer on generated machine code",
+        "        -o   Run optimizer without logging",
+        "        -ov  Show log of optimizations",
         "  -v  View details about:",
         "        -va  Show variable allocations",
         "        -vc  Show call tree",
@@ -479,6 +482,9 @@ void parseCommandLineParameters(int argc, char *argv[]) {
             } break;
 
             case 'o':
+                if (cmdParam[2] == 'v') {
+                    compilerOptions.showOptimizerSteps = true;
+                }
                 compilerOptions.runOptimizer = true;
                 break;
 
@@ -512,7 +518,7 @@ void parseCommandLineParameters(int argc, char *argv[]) {
 //------------------------------------------------------
 
 int main(int argc, char *argv[]) {
-    printf("\nNeolithic Compiler v%s - Simplified C Cross-compiler for the 6502\n", verStr);
+    printf("\nNeolithic Compiler v%s - Simplified C Cross-compiler for the 6502\n\n", verStr);
 
     if (argc < 2) {
         printf("Usage:\tneolithic (infile) (options)\n");

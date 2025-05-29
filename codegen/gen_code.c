@@ -2666,7 +2666,13 @@ void initCodeGenerator(SymbolTable *symbolTable, enum Machines machines) {
 }
 
 void generate_code(char *name, ListNode node) {
-    if (compilerOptions.showGeneralInfo) printf("Generating Code for %s\n", name);
+    if (compilerOptions.showGeneralInfo) {
+        if (compilerOptions.runOptimizer) {
+            printf("Generating Code for %s with optimizations\n", name);
+        } else {
+            printf("Generating Code for %s\n", name);
+        }
+    }
 
     curFuncSymbolTable = NULL;
     reverseData = false;
