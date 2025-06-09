@@ -106,10 +106,11 @@ char * GC_Asm_EvalExpression(const List *paramExpr) {
         paramStr = numToStr(ofs);
         paramAddrMode = (ofs < 256) ? ADDR_ZP : ADDR_ABS;
     } else {
-
         // evaluate the expression and use the string result
         paramStr = get_expression(paramExpr);
         paramAddrMode = ADDR_ABS;
+
+        ErrorMessage("Evaluator failed to fully process expression", paramStr, paramExpr->lineNum);
     }
     setEvalExpressionMode(false);
     return paramStr;
