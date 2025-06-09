@@ -32,9 +32,11 @@ void afunc() {
     alias char b = a;
 
     // test array based alias
-    byte c = a + b
+    byte c = a + ab.b;
+    byte d = a + abStruct.b;
 }
 
 void main() {
     afunc()
+    char c = tmp0 + tmp9
 }
