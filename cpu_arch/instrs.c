@@ -292,7 +292,7 @@ void ICG_LoadConst(int constValue, int size) {
 //-------------------------------------------------------------------
 //  Consolidate any accesses to Param variables here
 
-void ICG_OpWithParamVar(enum MnemonicCode mne, const SymbolRecord *varRec, const char *varName) {
+void ICG_OpWithParamVar(enum MnemonicCode mne, const SymbolRecord *varRec) {
     IL_AddComment(
             IL_AddInstrB(TSX),
             "prepare to read param var");
@@ -327,7 +327,7 @@ void ICG_LoadVar(const SymbolRecord *varRec) {
                 IL_AddInstrB(TYA);
                 break;
             default:
-                ICG_OpWithParamVar(LDA, varRec, varName);
+                ICG_OpWithParamVar(LDA, varRec);
         }
     } else {
         IL_AddInstrP(LDA, ADDR_ZP, varName, PARAM_NORMAL);
@@ -361,7 +361,7 @@ void ICG_LoadIndexVar(const SymbolRecord *varSym, int size) {
             lastUseForAReg = REG_USED_FOR_NOTHING;
         } else {
             if (IS_PARAM_VAR(varSym)) {
-                ICG_OpWithParamVar(LDY, varSym, varName);
+                ICG_OpWithParamVar(LDY, varSym);
             } else {
                 IL_AddComment(
                         IL_AddInstrP(LDY, ADDR_ZP, varName, PARAM_NORMAL), "load array index");
@@ -630,7 +630,7 @@ void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym, int dataSi
     if (isConst(varSym)) {
         IL_AddInstrP(mne, ADDR_IMM, varName, PARAM_NORMAL);
     } else if (IS_PARAM_VAR(varSym)) {
-        ICG_OpWithParamVar(mne, varSym, varName);
+        ICG_OpWithParamVar(mne, varSym);
     } else {
         IL_AddInstrP(mne, ADDR_ZP, varName, PARAM_NORMAL);
 
@@ -793,7 +793,7 @@ void ICG_AddToInt(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);
     IL_AddInstrB(CLC);
     if (IS_PARAM_VAR(varSym)) {
-        ICG_OpWithParamVar(ADC, varSym, varName);
+        ICG_OpWithParamVar(ADC, varSym);
     } else {
         IL_AddInstrP(ADC, ADDR_ZP, varName, PARAM_NORMAL);
     }
