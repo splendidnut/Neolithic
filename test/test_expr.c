@@ -21,15 +21,15 @@ void testMixed816() {
 }
 
 void testMul8() {
-	c = 2 * 3	// test eval
+	c = 2 * 3;	// test eval
 	
-	c = x * 7	// test var/const symetry
-	c = 7 * x
+	c = x * 7;	// test var/const symmetry
+	c = 7 * x;
 	
-	c = x * y	// test var/var
+	c = x * y;	// test var/var
 	
-	c = (x + y) * 2
-	c = (x + y) * x
+	c = (x + y) * 2;
+	c = (x + y) * x;
 }
 
 //--------------------------
@@ -47,19 +47,19 @@ void test16() {
 //  Test complicated 8-bit expressions
 
 void testComplex8bit() {
-	x = 4
-	y = 3
-	z = (x * 2) + y
-	z = (x * 2) + (y * 3)
+	x = 4;
+	y = 3;
+	z = (x * 2) + y;
+	z = (x * 2) + (y * 3);
 	
-	y = 7
-	z = (x * 2) + ((y-7) * 3)
+	y = 7;
+	z = (x * 2) + ((y-7) * 3);
 }
 
 void NEED_TO_FIX_testComplex8bit() {
-	x = 5
-	y = 7
-	z = (x + 2) * y
+	x = 5;
+	y = 7;
+	z = (x + 2) * y;
 }
 
 //=============================

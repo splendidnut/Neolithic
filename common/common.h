@@ -49,6 +49,7 @@ typedef struct {
     bool reportFunctionProcessing;
     char maxFuncCallDepth;
     bool runOptimizer;
+    bool showOptimizerSteps;
 } CompilerOptions;
 
 extern CompilerOptions compilerOptions;

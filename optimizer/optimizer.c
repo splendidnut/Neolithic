@@ -325,7 +325,7 @@ void OptimizeDecCmpZero(Instr *curInstr) {
         && ((instr3->mne == BNE) || (instr3->mne == BEQ))) {
         // we can skip the LDA since DEC has set the flags already
         curInstr->nextInstr = instr3;
-        printf("\tOptimizing DEC/CMP at %4X\n", 0);
+        if (compilerOptions.showOptimizerSteps) printf("\tOptimizing DEC/CMP at %4X\n", 0);
     }
 }
 
@@ -351,7 +351,7 @@ void OptimizePosNegCmp(Instr *curInstr) {
         //   and so the BMI/BPL instructions can be used instead
         curInstr->nextInstr = instr3;
         instr3->mne = (instr3->mne == BNE) ? BMI : BPL;
-        printf("\tOptimizing AND (sign) comparison at %4X\n", 0);
+        if (compilerOptions.showOptimizerSteps) printf("\tOptimizing AND (sign) comparison at %4X\n", 0);
     }
 }
 
@@ -389,13 +389,13 @@ void OptimizeBranchJumps(Instr *curInstr) {
         int curLocation = outLabel->label->location - 2;
 
         if (abs(jmpLocation - curLocation) < 126) {
-            printf("\tOptimizing branch at %4X\n", instrLocation);
+            if (compilerOptions.showOptimizerSteps) printf("\tOptimizing branch at %4X\n", instrLocation);
             curInstr->mne = invertBranch(curInstr->mne);
             curInstr->paramName = instr2->paramName;
             curInstr->nextInstr = instr3;
 
         } else {
-            printf("Can't optimize branch at %4X\n", instrLocation);
+            if (compilerOptions.showOptimizerSteps) printf("Can't optimize branch at %4X\n", instrLocation);
         }
     }
 
@@ -422,7 +422,7 @@ void OPT_Finalize(OutputBlock *curBlock) {
 
     if (origEnd != instrLocation) {
         int delta = origEnd - instrLocation;
-        printf("\tOptimized from:  %4X -> %4X\n", origEnd, instrLocation);
+        if (compilerOptions.showOptimizerSteps) printf("\tOptimized from:  %4X -> %4X\n", origEnd, instrLocation);
         OB_UpdateBlockSize(curBlock, delta);
     }
 }
@@ -435,8 +435,11 @@ void OPT_Compares(OutputBlock *curBlock) {
     WalkInstructions(&OptimizePosNegCmp, instrBlock);
 }
 
+//===============================================================================
+//---- Branch Checking code... checks for page-crossing branches.
+//-------------------------------------------------------------------------------
 
-
+char *checkingFuncName;
 
 void CheckBranchJumps(Instr *curInstr) {
     if ((curInstr->addrMode == ADDR_REL) && (curInstr->paramName != NULL)) {
@@ -449,6 +452,10 @@ void CheckBranchJumps(Instr *curInstr) {
             int branchToPage = branchLocation >> 8;
 
             if (curPage != branchToPage) {
+                if (checkingFuncName != NULL && !compilerOptions.showOptimizerSteps) {
+                    printf("Checking %s...\n", checkingFuncName);
+                    checkingFuncName = NULL;
+                }
                 printf(" WARNING: Page crossing branch @%4X - branching to %s @%4X\n",
                        instrLocation, branchLabel, branchLocation);
             }
@@ -465,6 +472,7 @@ void CheckBranchJumps(Instr *curInstr) {
 
 void OPT_CheckBranchAlignment(OutputBlock *curBlock) {
     InstrBlock *instrBlock = curBlock->codeBlock;
+    checkingFuncName = curBlock->codeBlock->funcSym->name;
 
     // IMPORTANT:
     //  If optimizer has not been run, we need to build the label list
@@ -485,7 +493,9 @@ void OPT_CheckBranchAlignment(OutputBlock *curBlock) {
 void OPT_CodeBlock(OutputBlock *curBlock) {
     InstrBlock *instrBlock = curBlock->codeBlock;
 
-    printf("Optimizing %s...\n", instrBlock->funcSym->name);
+    if (compilerOptions.showOptimizerSteps) {
+        printf("Optimizing %s...\n", instrBlock->funcSym->name);
+    }
 
     OPT_FindAllLabels(instrBlock);
     OPT_RecalcAllLabelLocations(instrBlock);
