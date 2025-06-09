@@ -308,7 +308,7 @@ void ICG_LoadByteVar(const SymbolRecord *varRec, int ofs) {
 }
 
 void ICG_LoadVar(const SymbolRecord *varRec) {
-    //if ((lastUseForAReg.loadedWith == LW_VAR) && (lastUseForAReg.varSym == varRec)) return;
+    if ((lastUseForAReg.loadedWith == LW_VAR) && (lastUseForAReg.varSym == varRec)) return;
 
     const char *varName = getVarName(varRec);
     if (isConst(varRec)) {
@@ -554,6 +554,9 @@ void ICG_StoreVarSym(const SymbolRecord *varSym) {
     if (getBaseVarSize(varSym) == 2) {
         IL_AddInstrP(STX, ADDR_ZP, varName, PARAM_PLUS_ONE);
     }
+
+    lastUseForAReg.loadedWith = LW_VAR;
+    lastUseForAReg.varSym = varSym;
 }
 
 void ICG_StoreIndexedWithOffset(const SymbolRecord *varSym, int ofs, int varSize) {
