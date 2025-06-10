@@ -38,8 +38,7 @@ const LastRegisterUse REG_USED_FOR_NOTHING = {LW_NONE, 0, NULL};
 LastRegisterUse lastUseForAReg;
 LastRegisterUse lastUseForXReg;
 LastRegisterUse lastUseForYReg;
-
-
+LastRegisterUse lastStoredAReg;
 
 //------------------------------------------------------------------------------
 //--- Initialization of Instruction List / Instruction Code Generator
@@ -48,6 +47,7 @@ LastRegisterUse lastUseForYReg;
 
 void IL_Init() {
     lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
     lastUseForXReg = REG_USED_FOR_NOTHING;
     lastUseForYReg = REG_USED_FOR_NOTHING;
 
@@ -94,6 +94,7 @@ void ICG_StartOfFunction(Label *funcLabel, SymbolRecord *funcSym) {
 
     // reset register trackers
     lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
     lastUseForYReg = REG_USED_FOR_NOTHING;
 
     // main function needs to run init code
@@ -158,6 +159,11 @@ void IL_ClearOnUpdate(const SymbolRecord *varSym) {
         lastUseForAReg = REG_USED_FOR_NOTHING;
         strcat(clearInfo, "\tA Cleared");
     }
+    if ((lastStoredAReg.loadedWith == LW_VAR)
+        && (strncmp(varName, lastStoredAReg.varSym->name, SYMBOL_NAME_LIMIT) == 0)) {
+        lastStoredAReg = REG_USED_FOR_NOTHING;
+        strcat(clearInfo, "\tA (stored) Cleared");
+    }
 
     if ((lastUseForXReg.loadedWith == LW_VAR)
         && (strncmp(varName, lastUseForXReg.varSym->name, SYMBOL_NAME_LIMIT) == 0)) {
@@ -218,6 +224,7 @@ void IL_Label(Label *label) {
 
     // labels kill any knowledge of what's in the registers
     lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
     lastUseForYReg = REG_USED_FOR_NOTHING;
 }
 
@@ -305,10 +312,16 @@ void ICG_LoadByteVar(const SymbolRecord *varRec, int ofs) {
     const char *varName = getVarName(varRec);
     enum AddrModes addrMode = (ofs < 0x100 ? ADDR_ZP : ADDR_ABS);
     IL_AddInstrS(LDA, addrMode, varName, numToStr(ofs), PARAM_ADD);
+    lastUseForAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_LoadVar(const SymbolRecord *varRec) {
+    // Check contents of A reg.
     if ((lastUseForAReg.loadedWith == LW_VAR) && (lastUseForAReg.varSym == varRec)) return;
+    if ((lastStoredAReg.loadedWith == LW_VAR) && (lastStoredAReg.varSym == varRec)) {
+        lastUseForAReg = lastStoredAReg;
+        return;
+    }
 
     const char *varName = getVarName(varRec);
     if (isConst(varRec)) {
@@ -336,6 +349,7 @@ void ICG_LoadVar(const SymbolRecord *varRec) {
         }
     }
 
+    lastStoredAReg.loadedWith = LW_NONE;
     lastUseForAReg.loadedWith = LW_VAR;
     lastUseForAReg.varSym = varRec;
 }
@@ -392,6 +406,7 @@ void ICG_LoadAddrPlusIndex(const SymbolRecord *varSym, unsigned char index) {
     const char *varName = getVarName(varSym);
     IL_AddInstrS(LDA, ADDR_IMM, varName, numToStr(index), PARAM_ADD + PARAM_LO);
     IL_AddInstrS(LDX, ADDR_IMM, varName, numToStr(index), PARAM_ADD + PARAM_HI);
+    lastUseForAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_LoadIndirect(const SymbolRecord *varSym, int destSize) {
@@ -409,6 +424,7 @@ void ICG_LoadIndirect(const SymbolRecord *varSym, int destSize) {
     IL_AddComment(
             IL_AddInstrP(LDA, ADDR_IY, varName, PARAM_NORMAL),
             "load from pointer location using index");
+    lastUseForAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_LoadIndexed(const SymbolRecord *varSym) {
@@ -419,6 +435,7 @@ void ICG_LoadIndexed(const SymbolRecord *varSym) {
     if (getBaseVarSize(varSym) > 1) {
         IL_AddInstrP(LDX, ADDR_ABY, varName, PARAM_NORMAL + PARAM_PLUS_ONE);
     }
+    lastUseForAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_LoadIndexedWithOffset(const SymbolRecord *varSym, int ofs, int varSize) {
@@ -430,6 +447,7 @@ void ICG_LoadIndexedWithOffset(const SymbolRecord *varSym, int ofs, int varSize)
     if (varSize == 2) {
         IL_AddInstrS(LDX, ADDR_ABY, varName, numToStr(ofs+1), PARAM_NORMAL + PARAM_ADD);
     }
+    lastUseForAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_LoadPropertyVar(const SymbolRecord *structSym, const SymbolRecord *propertySym) {
@@ -444,12 +462,26 @@ void ICG_LoadPropertyVar(const SymbolRecord *structSym, const SymbolRecord *prop
     if (getBaseVarSize(propertySym) == 2) {
         IL_AddInstrS(LDX, addrMode, structName, numToStr(propertyOfs+1), PARAM_NORMAL + PARAM_ADD);
     }
+    lastUseForAReg = REG_USED_FOR_NOTHING;
 }
 
+/**
+ * Load register with const value (used for function arguments - HINT system)
+ * @param destReg
+ * @param ofs
+ */
 void ICG_LoadRegConst(const char destReg, int ofs) {
     switch (destReg) {
-        case 'A': IL_AddInstrN(LDA, ADDR_IMM, ofs); break;
-        case 'X': IL_AddInstrN(LDX, ADDR_IMM, ofs); break;
+        case 'A':
+            if (!((lastUseForAReg.loadedWith == LW_CONST) && (lastUseForAReg.constValue == ofs))) {
+                IL_AddInstrN(LDA, ADDR_IMM, ofs);
+                lastUseForAReg.loadedWith = LW_CONST;
+                lastUseForAReg.constValue = ofs;
+            }
+            break;
+        case 'X':
+            IL_AddInstrN(LDX, ADDR_IMM, ofs);
+            break;
         case 'Y':
             if (!((lastUseForYReg.loadedWith == LW_CONST) && (lastUseForYReg.constValue == ofs))) {
                 IL_AddInstrN(LDY, ADDR_IMM, ofs);
@@ -471,6 +503,10 @@ void ICG_LoadRegVar(const SymbolRecord *varSym, char destReg) {
     }
     enum AddrModes addrMode = isConst(varSym) ? ADDR_IMM : CALC_SYMBOL_ADDR_MODE(varSym);
     IL_AddInstrP(mne, addrMode, varName, PARAM_NORMAL);
+
+    if (destReg == 'A') {
+        lastUseForAReg = REG_USED_FOR_NOTHING;
+    }
 }
 
 void ICG_LoadPointerAddr(const SymbolRecord *varSym) {
@@ -549,14 +585,21 @@ void ICG_StoreVarIndexed(const SymbolRecord *varSym) {
 
 void ICG_StoreVarSym(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);
+
+    bool isAregUnknown = (lastUseForAReg.loadedWith == LW_NONE);
+
     IL_ClearOnUpdate(varSym);
     IL_AddInstrP(STA, ADDR_ZP, varName, PARAM_NORMAL);
     if (getBaseVarSize(varSym) == 2) {
         IL_AddInstrP(STX, ADDR_ZP, varName, PARAM_PLUS_ONE);
     }
 
-    lastUseForAReg.loadedWith = LW_VAR;
-    lastUseForAReg.varSym = varSym;
+    if (isAregUnknown) {
+        lastUseForAReg.loadedWith = LW_VAR;
+        lastUseForAReg.varSym = varSym;
+    }
+    lastStoredAReg.loadedWith = LW_VAR;
+    lastStoredAReg.varSym = varSym;
 }
 
 void ICG_StoreIndexedWithOffset(const SymbolRecord *varSym, int ofs, int varSize) {
@@ -623,6 +666,9 @@ void ICG_OpHighByte(enum MnemonicCode mne, const char *varName) {
 void ICG_OpWithConst(enum MnemonicCode mne, int num, int dataSize) {
     IL_AddInstrN(mne, ADDR_IMM, num);
     if (dataSize > 1) ICG_OpHighByte(mne, NULL);
+
+    lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym, int dataSize) {
@@ -651,6 +697,7 @@ void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym, int dataSi
             // all other instructions will change the accumulator
         default:
             lastUseForAReg = REG_USED_FOR_NOTHING;
+            lastStoredAReg = REG_USED_FOR_NOTHING;
             break;
     }
 }
@@ -664,6 +711,9 @@ void ICG_OpPropertyVar(enum MnemonicCode mne, const SymbolRecord *structSym, con
     IL_AddComment(
             IL_AddInstrS(mne, addrMode, structName, numToStr(propertyOfs), PARAM_NORMAL + PARAM_ADD),
             getStructRefComment("structure ref", structName, propertySym->name));
+
+    lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_OpPropertyVarIndexed(enum MnemonicCode mne, const SymbolRecord *structSym, const SymbolRecord *propertySym) {
@@ -689,6 +739,9 @@ void ICG_OpPropertyVarIndexed(enum MnemonicCode mne, const SymbolRecord *structS
                 IL_AddInstrS(mne, ADDR_ABY, structName, propOfsParam, PARAM_NORMAL + PARAM_ADD),
                 getStructRefComment("structure ref", structName, propertySym->name));
     }
+
+    lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_OpIndexed(enum MnemonicCode mne, const SymbolRecord *varSym, const SymbolRecord *indexSym) {
@@ -699,6 +752,9 @@ void ICG_OpIndexed(enum MnemonicCode mne, const SymbolRecord *varSym, const Symb
     IL_AddComment(
             IL_AddInstrP(mne, CALC_SYMBOL_ADDR_MODE(varSym) + ADDR_X, varName, PARAM_NORMAL),
             "op with data from array using index");
+
+    lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
 }
 
 
@@ -707,6 +763,9 @@ void ICG_OpIndexedWithOffset(enum MnemonicCode mne, const SymbolRecord *varSym, 
     IL_AddComment(
             IL_AddInstrS(mne, ADDR_ABY, varName, numToStr(ofs), PARAM_NORMAL + PARAM_ADD),
             "op with data from array using index with offset");
+
+    lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_OpWithStack(enum MnemonicCode mne) {
@@ -717,6 +776,9 @@ void ICG_OpWithStack(enum MnemonicCode mne) {
     // Remove value from stack and fix stack pointer
     IL_AddInstrN(INX, ADDR_NONE, 0);
     IL_AddInstrN(TXS, ADDR_NONE, 0);
+
+    lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_MoveAccToIndex(const char destReg) {
@@ -779,6 +841,8 @@ void ICG_ShiftLeft(const SymbolRecord *varSym, int count) {
     for (int c = 0; c < count; c++) {
         IL_AddInstrN(ASL, ADDR_ACC, 0);
     }
+    lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_ShiftRight(const SymbolRecord *varSym, int count) {
@@ -786,6 +850,8 @@ void ICG_ShiftRight(const SymbolRecord *varSym, int count) {
     for (int c = 0; c < count; c++) {
         IL_AddInstrN(LSR, ADDR_ACC, 0);
     }
+    lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
 }
 
 
@@ -799,6 +865,9 @@ void ICG_AddToInt(const SymbolRecord *varSym) {
     }
     IL_AddInstrN(BCC, ADDR_REL, +3);
     IL_AddInstrB(INX);
+
+    lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_AddOffsetToInt(int ofs) {
@@ -806,6 +875,9 @@ void ICG_AddOffsetToInt(int ofs) {
     IL_AddInstrN(ADC, ADDR_IMM, ofs);
     IL_AddInstrN(BCC, ADDR_REL, +3);
     IL_AddInstrB(INX);
+
+    lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_AddTempVarToInt(int addr) {
@@ -813,6 +885,9 @@ void ICG_AddTempVarToInt(int addr) {
     IL_AddInstrN(ADC, ADDR_ZP, addr);
     IL_AddInstrN(BCC, ADDR_REL, +3);
     IL_AddInstrB(INX);
+
+    lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_AddAddr(const SymbolRecord *varSym) {
@@ -822,6 +897,8 @@ void ICG_AddAddr(const SymbolRecord *varSym) {
     IL_AddInstrP(LDX, ADDR_IMM, varName, PARAM_HI);
     IL_AddInstrN(BCC, ADDR_REL, +3);
     IL_AddInstrB(INX);
+    lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_CompareConstName(const char *constName) {
@@ -852,6 +929,7 @@ void ICG_Jump(const Label *label, const char *comment) {
 void ICG_Call(const char *funcName) {
     IL_AddInstrP(JSR, ADDR_ABS, funcName, PARAM_NORMAL);
     lastUseForAReg = REG_USED_FOR_NOTHING;
+    lastStoredAReg = REG_USED_FOR_NOTHING;
     lastUseForYReg = REG_USED_FOR_NOTHING;
 }
 
