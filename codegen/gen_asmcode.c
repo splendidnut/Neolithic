@@ -269,9 +269,12 @@ void GC_AsmBlock(const List *code, enum SymbolType destType) {
                 // handle const def
                 char *equName = statement->nodes[1].value.str;
 
-                //int value = statement->nodes[2].value.num;
-                //WO_Variable(equName, value);
-                int value = GC_Asm_EvalExpressionForEquate(statement->nodes[2].value.list);
+                int value = 0;
+                if (statement->nodes[2].type == N_INT) {
+                    value = statement->nodes[2].value.num;
+                } else if (statement->nodes[2].type == N_LIST) {
+                    value = GC_Asm_EvalExpressionForEquate(statement->nodes[2].value.list);
+                }
 
                 // Add as constant to local function scope
                 // TODO: Check this feature
