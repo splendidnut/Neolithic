@@ -1276,7 +1276,7 @@ void GC_Compare(ListNode arg, int lineNum) {
 
 
 
-void GC_HandleSubCondExpr(const ListNode ifExprNode, enum SymbolType destType, Label *skipLabel) {
+void GC_HandleSubCondExpr(const ListNode ifExprNode, enum SymbolType destType, Label *skipLabel, int lineNum) {
     if (ifExprNode.type == N_LIST) {
         List *expr = ifExprNode.value.list;
         ListNode opNode = expr->nodes[0];
@@ -1314,6 +1314,8 @@ void GC_HandleSubCondExpr(const ListNode ifExprNode, enum SymbolType destType, L
             ErrorMessageWithList("IfExpr: not implemented", expr);
         }
     } else if (ifExprNode.type == N_STR) {
+        // Need to load ARG!
+        GC_HandleLoad(ifExprNode, ST_NONE, lineNum);
         ICG_Branch(BEQ, skipLabel);
     }
 }
@@ -1371,17 +1373,17 @@ void GC_HandleCondExpr(const ListNode ifExprNode, enum SymbolType destType, Labe
 
     // optimizations for booleans
     if (opNode.value.parseToken == PT_BOOL_AND) {
-        GC_HandleSubCondExpr(arg1, ST_NONE, skipLabel);
-        GC_HandleSubCondExpr(arg2, ST_NONE, skipLabel);
+        GC_HandleSubCondExpr(arg1, ST_NONE, skipLabel, expr->lineNum);
+        GC_HandleSubCondExpr(arg2, ST_NONE, skipLabel, expr->lineNum);
     } else if (opNode.value.parseToken == PT_BOOL_OR) {
         Label *checkCond2Label = newGenericLabel(LBL_CODE);
         Label *execLabel = newGenericLabel(LBL_CODE);
 
-        GC_HandleSubCondExpr(arg1, ST_NONE, checkCond2Label);
+        GC_HandleSubCondExpr(arg1, ST_NONE, checkCond2Label, expr->lineNum);
         ICG_Jump(execLabel, "jump because if statement is true (shortcut)");
         IL_Label(checkCond2Label);
 
-        GC_HandleSubCondExpr(arg2, ST_NONE, skipLabel);
+        GC_HandleSubCondExpr(arg2, ST_NONE, skipLabel, expr->lineNum);
         IL_Label(execLabel);
 
     } else if (isComparisonToken(opNode.value.parseToken)) {
