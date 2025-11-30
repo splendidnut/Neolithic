@@ -326,9 +326,11 @@ void WriteBIN_WriteStructRecordData(SymbolTable *structSymTbl, int writeAddr, co
         char *dataTypeStr = (varSize > 1) ? "word" : "byte";
 
         int value = dataList->nodes[symIndex].value.num;
+        int lineNum = dataList->lineNum;
 
         if ((varSize == 1) && (value & 0xff00)) {
-            printf("ERROR: The value %d exceeds the size of %s (type: %s)\n", value, structVar->name, dataTypeStr);
+            printf("ERROR Line #%d: The value %d exceeds the size of %s (type: %s)\n",
+                   lineNum, value, structVar->name, dataTypeStr);
         }
 
         binData[writeAddr++] = value & 0xff;

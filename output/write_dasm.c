@@ -360,10 +360,12 @@ void HandleSingleStructRecord(const List *dataList, SymbolTable *structSymTbl) {
         int varSize = getBaseVarSize(structVar);
         char *dataTypeStr = (varSize > 1) ? "word" : "byte";
 
+        int lineNum = dataList->lineNum;
         int value = dataList->nodes[symIndex].value.num;
 
         if ((varSize == 1) && (value & 0xff00)) {
-            printf("ERROR: The value %d exceeds the size of %s (type: %s)\n", value, structVar->name, dataTypeStr);
+            printf("ERROR Line #%d: The value %d exceeds the size of %s (type: %s)\n",
+                   lineNum, value, structVar->name, dataTypeStr);
         }
         fprintf(outputFile, "\t.%s $%04X\t\t;-- %s\n", dataTypeStr, value, structVar->name);
 
