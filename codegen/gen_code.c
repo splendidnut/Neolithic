@@ -324,7 +324,55 @@ SymbolRecord *GC_GetAliasBase(const List *expr, SymbolRecord *structSymbol, enum
     }
 }
 
+/**
+ * Load property reference from an array of structs.
+ * @param expr - property ref with first node being a lookup
+ * @param destType
+ */
+void GC_LoadPropertyRefWithLookup(const List *expr, enum SymbolType destType) {
+    ListNode lookupNode = expr->nodes[1];
+    ListNode propertyNode = expr->nodes[2];
+    List *lookupExpr = lookupNode.value.list;
+    ListNode indexNode = lookupExpr->nodes[2];
+
+    // Make sure both the struct and the property exist
+    SymbolRecord *structSymbol = lookupSymbolNode(lookupExpr->nodes[1], expr->lineNum);
+    if (!structSymbol) return;      /// EXIT if invalid structure
+
+    SymbolRecord *propertySymbol = lookupProperty(structSymbol, propertyNode.value.str);
+    if (!propertySymbol) {
+        ErrorMessageWithList("GC_LoadPropertyRefWithLookup: Invalid property reference", expr);
+        return;      /// EXIT if invalid structure property
+    }
+
+    // Now we can get down to business!
+    int propertyOffset = GET_PROPERTY_OFFSET(propertySymbol);
+    char multiplier = (char) (getBaseVarSize(structSymbol) & 0x7f);
+
+    //--- set Y to be an index into struct array
+    if (indexNode.type == N_STR) {
+        SymbolRecord *indexSymbol = lookupSymbolNode(indexNode, lookupExpr->lineNum);
+
+        ICG_MultiplyVarWithConst(indexSymbol, multiplier);
+        ICG_MoveAccToIndex('Y');
+    } else if (indexNode.type == N_INT) {
+        char value = multiplier * (char)(indexNode.value.num);
+        ICG_LoadRegConst('Y', value);
+    }
+
+    ICG_LoadIndexedWithOffset(structSymbol, propertyOffset, getBaseVarSize(propertySymbol));
+}
+
 void GC_LoadPropertyRef(const List *expr, enum SymbolType destType) {
+
+    //--- Handle case where an array of structs is being accessed.
+    //---   It involves an array lookup that is nested within the property lookup.
+    ListNode firstNode = expr->nodes[1];
+    if ((firstNode.type == N_LIST) && (firstNode.value.list->nodes[0].value.parseToken == PT_LOOKUP)) {
+        GC_LoadPropertyRefWithLookup(expr, destType);
+        return;
+    }
+
     if ((expr->nodes[1].type != N_STR) || (expr->nodes[2].type != N_STR)) {
         ErrorMessageWithList("GC_LoadPropertyRef cannot handle",expr);
         return;
@@ -994,24 +1042,15 @@ SymbolRecord *getPropertySymbol(List *expr) {
 
 void GC_StoreToStructProperty(const List *expr) {
     ListNode structNameNode = expr->nodes[1];
+    char *propName = expr->nodes[2].value.str;
+    const List *structLookup = expr;
 
     /// Handle if struct is in an array
-    if ((structNameNode.type == N_LIST) && isToken(structNameNode.value.list->nodes[0], PT_LOOKUP)) {
-        List *structLookup = structNameNode.value.list;
-        structNameNode =  structLookup->nodes[1];
-        ListNode indexNode = structLookup->nodes[2];
-        switch (indexNode.type) {
-            case N_INT:
-                ICG_LoadRegConst('Y', indexNode.value.num);
-                break;
-            case N_STR: {
-                SymbolRecord *indexSym = lookupSymbolNode(indexNode, expr->lineNum);
-                ICG_LoadRegVar(indexSym, 'Y');
-            } break;
-        }
+    bool isInArray = ((structNameNode.type == N_LIST) && isToken(structNameNode.value.list->nodes[0], PT_LOOKUP));
+    if (isInArray) {
+        structLookup = structNameNode.value.list;
+        structNameNode = structLookup->nodes[1];
     }
-
-    char *propName = expr->nodes[2].value.str;
 
     SymbolRecord *structSym = lookupSymbolNode(structNameNode, expr->lineNum);
     if (structSym == NULL || !isStructDefined(structSym)) return;
@@ -1020,6 +1059,24 @@ void GC_StoreToStructProperty(const List *expr) {
     if (propertySym == NULL) {
         ErrorMessage("Property Symbol not found within struct", propName, expr->lineNum);
         return;
+    }
+
+    /// Handle indexing necessary for array of structs
+    if (isInArray) {
+        ListNode indexNode = structLookup->nodes[2];
+        char multiplier = (char) (getBaseVarSize(structSym) & 0x7f);
+        switch (indexNode.type) {
+            case N_INT: {
+                char value = multiplier * (char) (indexNode.value.num);
+                ICG_LoadRegConst('Y', value);
+                break;
+            }
+            case N_STR: {
+                // TODO:  Add multiplier logic here
+                SymbolRecord *indexSym = lookupSymbolNode(indexNode, expr->lineNum);
+                ICG_LoadRegVar(indexSym, 'Y');
+            } break;
+        }
     }
 
     int propertyOffset = GET_PROPERTY_OFFSET(propertySym);
@@ -1035,7 +1092,11 @@ void GC_StoreToStructProperty(const List *expr) {
         }
 
     } else {
-        ICG_StoreVarOffset(structSym, propertyOffset, getBaseVarSize(propertySym));
+        if (isInArray) {
+            ICG_StoreIndexedWithOffset(structSym, propertyOffset, getBaseVarSize(propertySym));
+        } else {
+            ICG_StoreVarOffset(structSym, propertyOffset, getBaseVarSize(propertySym));
+        }
     }
 }
 
