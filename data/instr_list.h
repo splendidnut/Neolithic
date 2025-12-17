@@ -70,12 +70,13 @@ extern InstrBlock* IB_GetCurrentBlock();
 extern void IB_CloseBlock();
 
 //----------------------------------------------
-//  Interface for Instruction List meta data
+//  Interface for Instruction List metadata
 
 extern void IL_ShowCycles();
 extern void IL_HideCycles();
 
 extern void IL_Init();
+extern void IL_ClearCachedIndex();
 extern void IL_Preload(const SymbolRecord *varSym);
 extern void IL_Label(Label *label);
 extern void IL_SetLineComment(const char *comment);

@@ -40,16 +40,23 @@ LastRegisterUse lastUseForXReg;
 LastRegisterUse lastUseForYReg;
 LastRegisterUse lastStoredAReg;
 
+//--------------------------------------------------
+// Variables for tracking temporary indexing
+
+const char *tempVarName = "0x80";
+char *curCachedIndexVar;
+
+
 //------------------------------------------------------------------------------
 //--- Initialization of Instruction List / Instruction Code Generator
-
-
 
 void IL_Init() {
     lastUseForAReg = REG_USED_FOR_NOTHING;
     lastStoredAReg = REG_USED_FOR_NOTHING;
     lastUseForXReg = REG_USED_FOR_NOTHING;
     lastUseForYReg = REG_USED_FOR_NOTHING;
+
+    curCachedIndexVar = "";
 
     IL_SetLineComment(NULL);
 }
@@ -143,6 +150,9 @@ void Dbg_IL_ClearOnUpdate(const char *varName, char *clearInfo) {
     }
 }
 
+void IL_ClearCachedIndex() {
+    curCachedIndexVar = "";
+}
 
 // clear out appropriate register tracker on var update
 void IL_ClearOnUpdate(const SymbolRecord *varSym) {
@@ -363,6 +373,13 @@ bool isLastYUse(const SymbolRecord *varSym, int size) {
 void ICG_LoadIndexVar(const SymbolRecord *varSym, int size) {
     const char *varName = getVarName(varSym);
 
+    if (strncmp(varName, curCachedIndexVar, SYMBOL_NAME_LIMIT)==0) {
+        IL_AddComment(
+            IL_AddInstrP(LDY, ADDR_ZP, tempVarName, PARAM_NORMAL), "load cached index");
+        lastUseForYReg = REG_USED_FOR_NOTHING;
+        return;
+    }
+
     bool needToLoad = !isLastYUse(varSym, size);
 
     if (needToLoad) {
@@ -391,6 +408,20 @@ void ICG_LoadIndexVar(const SymbolRecord *varSym, int size) {
         IL_AddCommentToCode(clearInfo);
     }
 #endif
+}
+
+void ICG_SaveIndexVar(const SymbolRecord *varSym, int size) {
+    const char *varName = getVarName(varSym);
+
+    IL_AddComment(
+            IL_AddInstrP(LDA, ADDR_ZP, varName, PARAM_NORMAL), "load array index");
+    if (size == 2) {
+        IL_AddInstrN(ASL, ADDR_ACC, 0);
+    }
+    IL_AddInstrP(STA, ADDR_ZP, tempVarName, PARAM_NORMAL);
+
+    curCachedIndexVar = varName;
+    lastUseForAReg = REG_USED_FOR_NOTHING;
 }
 
 void ICG_LoadAddr(const SymbolRecord *varSym) {
@@ -563,13 +594,18 @@ void ICG_StoreVarOffset(const SymbolRecord *varSym, int ofs, int destSize) {
     }
 }
 
+/**
+ * Store to a variable that is Indexed by the Y register
+ * @param varSym
+ */
 void ICG_StoreVarIndexed(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);
 
-    if (isPointer(varSym)) {
+    /*if (isPointer(varSym)) {
+        bool isInt = ((varSym->flags & ST_MASK) == ST_INT);
         IL_AddInstrP(STA, ADDR_IY, varName, PARAM_NORMAL);
         return;
-    }
+    }*/
 
     IL_AddInstrP(STA, ADDR_ABY, varName, PARAM_NORMAL);
     if (getBaseVarSize(varSym) == 2) {
@@ -582,6 +618,24 @@ void ICG_StoreVarIndexed(const SymbolRecord *varSym) {
         }
     }
 }
+
+/**
+ * Store a pointer (value in A+X regs) to a variable that is Indexed by the Y register
+ * @param varSym
+ */
+void ICG_StoreIndirect(const SymbolRecord *varSym, int dstSize) {
+    const char *varName = getVarName(varSym);
+    IL_AddInstrP(STA, ADDR_IY, varName, PARAM_NORMAL);
+    if (dstSize == 2) {
+        IL_AddInstrB(INY);
+        IL_AddInstrB(TXA);
+        IL_AddInstrP(STA, ADDR_IY, varName, PARAM_NORMAL);
+        //-- clear out A+Y regs, since they've been modified
+        lastUseForAReg = REG_USED_FOR_NOTHING;
+        lastUseForYReg = REG_USED_FOR_NOTHING;
+    }
+}
+
 
 void ICG_StoreVarSym(const SymbolRecord *varSym) {
     const char *varName = getVarName(varSym);

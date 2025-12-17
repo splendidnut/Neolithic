@@ -78,7 +78,7 @@ void GC_LoadVar(ListNode loadNode, int lineNum) {
 }
 
 void GC_LoadPrimitive(ListNode loadNode, enum SymbolType destType, int lineNum) {
-    int destSize = (destType == ST_INT) ? 2 : 1;
+    int destSize = ((destType == ST_INT) || (destType == ST_PTR)) ? 2 : 1;
     if (loadNode.type == N_STR) {
         GC_LoadVar(loadNode, lineNum);
     } else if (loadNode.type == N_INT) {
@@ -89,13 +89,13 @@ void GC_LoadPrimitive(ListNode loadNode, enum SymbolType destType, int lineNum) 
 }
 
 void GC_HandleLoad(ListNode loadNode, enum SymbolType destType, int lineNum) {
-    /*
+
     // Handle the special case where a 16-bit number is being set from an 8-bit value
     bool is16bitDest = ((destType == ST_INT) || (destType == ST_PTR));
-    if (is16bitDest && ((loadNode.type == N_STR) || (loadNode.type == N_INT))) {
+    /*if (is16bitDest && ((loadNode.type == N_STR) || (loadNode.type == N_INT))) {
         ICG_LoadRegConst('X',0);
-    }
-    */
+    }*/
+
     if (loadNode.type == N_LIST) {
         GC_Expression(loadNode.value.list, destType);
     } else {
@@ -1100,16 +1100,22 @@ void GC_StoreToStructProperty(const List *expr) {
     }
 }
 
+/**
+ * Process code for storing to an array:
+ *     arrayVar[idx] = expr
+ * @param expr
+ */
 void GC_StoreToArray(const List *expr) {
     SymbolRecord *arraySym = getArraySymbol(expr, expr->nodes[1]);
     if (arraySym == NULL) return;
 
     IL_SetLineComment(arraySym->name);
 
+    bool isPointerAccessedAsArray = (isPointer(arraySym) && !isArray(arraySym));
+    bool isArrayOfPointers = (isPointer(arraySym) && isArray(arraySym));
+
     if (isArrayIndexConst(expr)) {
         // Array index is a constant value (either a const variable or a numeric literal)
-
-        bool isPointerAccessedAsArray = (isPointer(arraySym) && !isArray(arraySym));
 
         int ofs = GC_GetArrayIndex(arraySym, expr);
         int varSize;
@@ -1134,7 +1140,9 @@ void GC_StoreToArray(const List *expr) {
     } else if (expr->nodes[2].type == N_STR) {
         // Array Index is an expression or a variable
         SymbolRecord *varSym = lookupSymbolNode(expr->nodes[2], expr->lineNum);
-        if (varSym) ICG_LoadIndexVar(varSym, getBaseVarSize(varSym));
+        if (varSym) {
+            ICG_LoadIndexVar(varSym, getBaseVarSize(arraySym));
+        }
         ICG_StoreVarIndexed(arraySym);
         return;
 
@@ -1174,6 +1182,37 @@ void GC_StoreToArray(const List *expr) {
 
     ErrorMessageWithNode("Unsupported array index", expr->nodes[2], expr->lineNum);
 }
+
+/**
+ * Handle any indexing utilized on the left-side of an expression
+ * @param expr
+ */
+void GC_HandleIndexedStore(const List *expr, bool needToCache) {
+    ListNode opNode = expr->nodes[0];
+    ListNode arrayNode = expr->nodes[1];
+    ListNode indexNode = expr->nodes[2];
+
+    // Check and see if this is an Array lookup.
+    if ((opNode.type == N_TOKEN) && (opNode.value.parseToken == PT_LOOKUP)) {
+
+        SymbolRecord *arraySym = getArraySymbol(expr, arrayNode);
+        if (arraySym == NULL) return;
+
+        if (indexNode.type == N_STR) {
+            // Array Index is an expression or a variable
+            SymbolRecord *varSym = lookupSymbolNode(indexNode, expr->lineNum);
+            if (!varSym) return;
+
+            if (needToCache) {
+                ICG_SaveIndexVar(varSym, getBaseVarSize(arraySym));
+            } else {
+                ICG_LoadIndexVar(varSym, getBaseVarSize(arraySym));
+            }
+        }
+    }
+}
+
+
 
 /*** Process Storage Expression - (Left-side of assignment) */
 void GC_ExpressionForStore(const List *expr, enum SymbolType destType) {
@@ -2187,6 +2226,21 @@ void GC_ProcessInitializerExpr(const List *stmt, ListNode *loadNode, ListNode *s
 }
 
 /**
+ * Scan expression for indexing ops
+ * @param expr
+ * @return count of indexing ops
+ *
+ * TODO: Expand this to actually walk thru the entire expression
+ */
+int ScanForIndexOps(const List *expr) {
+    ListNode opNode = expr->nodes[0];
+    if (isToken(opNode, PT_LOOKUP)) {
+        return 1;
+    }
+    return 0;
+}
+
+/**
  * Process assignment statement
  *
  * @param stmt - statement to process
@@ -2203,7 +2257,11 @@ void GC_Assignment(const List *stmt, enum SymbolType destType) {
     // Need to check if destination is array element
     //   if so, process without IS_POINTER check
     if (storeNode.type == N_LIST && isToken(storeNode.value.list->nodes[0], PT_LOOKUP)) {
-        destType = getType(destVar);
+        if (isPointer(destVar) && isArray(destVar)) {
+            destType = ST_PTR;
+        } else {
+            destType = getType(destVar);
+        }
     } else {
         destType = (destVar != NULL) ? getVarDestType(destVar) : ST_ERROR;
     }
@@ -2211,43 +2269,56 @@ void GC_Assignment(const List *stmt, enum SymbolType destType) {
     //printf("DEBUG line #%d: GC_Assignment -> getAsgnDestType = %d\n", stmt->lineNum, destType);
 
     // make sure we have a destination
-    if (destType != ST_ERROR) {
-
-        /*
-        // flatten out the expression before code generation
-        if (loadNode.type == N_LIST) {
-            flatten_expression(loadNode.value.list, stmt);
-        }
-        */
-
-        //------------------------------------------------------------------
-        // if (loadNode is list and dest is struct, do init struct copy)
-
-        bool isInitializerExpr = ((loadNode.type == N_LIST) && isToken(loadNode.value.list->nodes[0], PT_LIST));
-
-        if (isInitializerExpr) {
-            GC_ProcessInitializerExpr(stmt, &loadNode, &storeNode);
-        } else {
-
-            // figure out where data is coming from
-            GC_HandleLoad(loadNode, destType, stmt->lineNum);
-
-            //--------------------------------------------------------------
-            // At this point A register should have data to store...
-            //    just need to calculate destination address
-            //    and then store the data
-            switch (storeNode.type) {
-                case N_STR:
-                    GC_StoreInVar(storeNode, destType, stmt->lineNum);
-                    break;
-                case N_LIST:
-                    GC_ExpressionForStore(storeNode.value.list, destType);
-                    break;
-            }
-        }
-    } else {
+    if (destType == ST_ERROR) {
         ErrorMessageWithList("Destination type unknown\n", stmt);
+        return;
     }
+
+    //-- TODO: Check all [indexing] needs within the assignment statement
+    //           and do all indexing preparation first!
+
+    int indexingOps = 0;
+
+    if (loadNode.type == N_LIST) indexingOps = ScanForIndexOps(loadNode.value.list);
+
+    if (storeNode.type == N_LIST) {
+        GC_HandleIndexedStore(storeNode.value.list, indexingOps != 0);
+    }
+
+
+    /*
+    // flatten out the expression before code generation
+    if (loadNode.type == N_LIST) {
+        flatten_expression(loadNode.value.list, stmt);
+    }
+    */
+
+    //------------------------------------------------------------------
+    // if (loadNode is list and dest is struct, do init struct copy)
+
+    bool isInitializerExpr = ((loadNode.type == N_LIST) && isToken(loadNode.value.list->nodes[0], PT_LIST));
+
+    if (isInitializerExpr) {
+        GC_ProcessInitializerExpr(stmt, &loadNode, &storeNode);
+    } else {
+
+        // figure out where data is coming from
+        GC_HandleLoad(loadNode, destType, stmt->lineNum);
+
+        //--------------------------------------------------------------
+        // At this point A register should have data to store...
+        //    just need to calculate destination address
+        //    and then store the data
+        switch (storeNode.type) {
+            case N_STR:
+                GC_StoreInVar(storeNode, destType, stmt->lineNum);
+                break;
+            case N_LIST:
+                GC_ExpressionForStore(storeNode.value.list, destType);
+                break;
+        }
+    }
+    IL_ClearCachedIndex();
 }
 
 //-------------------------------------------------------------------
