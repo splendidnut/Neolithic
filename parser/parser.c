@@ -47,7 +47,7 @@
 #define MAX_STATEMENTS_IN_BLOCK 2000
 #define MAX_PROG_DECLARATIONS 1000
 #define STRUCT_VAR_LIMIT 200
-#define MAX_ITEMS_IN_LIST 257
+#define MAX_ITEMS_IN_LIST 1025
 #define MAX_SWITCH_CASES 32
 
 //---------------------------
