@@ -55,18 +55,7 @@ void GC_CodeBlock(List *code);
 void GC_FuncCall(const List *stmt, enum SymbolType destType);
 void GC_FuncCallExpression(const List *stmt, enum SymbolType destType);
 
-//-----------------------------------------------------------------------------
-//  Some utility functions
 
-SymbolRecord* getArraySymbol(const List *expr, ListNode arrayNode) {
-    SymbolRecord *arraySymbol = lookupSymbolNode(arrayNode, expr->lineNum);
-
-    if ((arraySymbol != NULL) && (!isArray(arraySymbol) && !isPointer(arraySymbol))) {
-        ErrorMessageWithNode("Not an array or pointer", arrayNode, expr->lineNum);
-        arraySymbol = NULL;
-    }
-    return arraySymbol;
-}
 
 //-------------------------------------------------------
 //   Simple Code Generation
@@ -625,20 +614,12 @@ void GC_OP(const List *expr, enum MnemonicCode mne, enum SymbolType destType, en
 void GC_Inc(const List *expr, enum SymbolType destType) { GC_SimpleOP(expr, INC, destType); }
 void GC_Dec(const List *expr, enum SymbolType destType) { GC_SimpleOP(expr, DEC, destType); }
 void GC_And(const List *expr, enum SymbolType destType) { GC_OP(expr, AND, destType, MNE_NONE); }
-void GC_Or(const List *expr, enum SymbolType destType) { GC_OP(expr, ORA, destType, MNE_NONE); }
+void GC_Or(const List *expr, enum SymbolType destType)  { GC_OP(expr, ORA, destType, MNE_NONE); }
 void GC_Eor(const List *expr, enum SymbolType destType) { GC_OP(expr, EOR, destType, MNE_NONE); }
-void GC_Add(const List *expr, enum SymbolType destType) {
-    GC_OP(expr, ADC, destType, CLC);
-}
-void GC_Sub(const List *expr, enum SymbolType destType) {
-    GC_OP(expr, SBC, destType, SEC);
-}
-void GC_BoolAnd(const List *expr, enum SymbolType destType) {
-    GC_OP(expr, AND, destType, MNE_NONE);
-}
-void GC_BoolOr(const List *expr, enum SymbolType destType) {
-    GC_OP(expr, ORA, destType, MNE_NONE);
-}
+void GC_Add(const List *expr, enum SymbolType destType) { GC_OP(expr, ADC, destType, CLC); }
+void GC_Sub(const List *expr, enum SymbolType destType) { GC_OP(expr, SBC, destType, SEC); }
+void GC_BoolAnd(const List *expr, enum SymbolType destType) { GC_OP(expr, AND, destType, MNE_NONE); }
+void GC_BoolOr(const List *expr, enum SymbolType destType) { GC_OP(expr, ORA, destType, MNE_NONE); }
 
 void GC_Not(const List *expr, enum SymbolType destType) {
     ListNode notNode = expr->nodes[1];
@@ -869,7 +850,7 @@ void GC_MultiplyOp(const List *expr, enum SymbolType destType) {
     ListNode secondParam = expr->nodes[2];
 
     //--------------------------------------------------------------
-    //  Replace a const var with it's value if possible
+    //  Replace a const var with its value if possible
 
     if (isConstValueNode(firstParam, expr->lineNum)) {
         firstParam = createIntNode(getConstValue(firstParam, expr->lineNum));
@@ -1026,19 +1007,6 @@ void GC_Expression(const List *expr, enum SymbolType destType) {
     }
 }
 
-SymbolRecord *getPropertySymbol(List *expr) {
-    ListNode structNameNode = expr->nodes[1];
-    char *propName = expr->nodes[2].value.str;
-
-    SymbolRecord *structSym = lookupSymbolNode(structNameNode, expr->lineNum);
-    if (structSym == NULL || !isStructDefined(structSym)) return NULL;
-
-    SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propName);
-    if (propertySym == NULL) {
-        ErrorMessage("Property Symbol not found within struct", propName, expr->lineNum);
-    }
-    return propertySym;
-}
 
 void GC_StoreToStructProperty(const List *expr) {
     ListNode structNameNode = expr->nodes[1];

@@ -92,6 +92,33 @@ SymbolRecord *lookupFunctionSymbolByNameNode(ListNode funcNameNode, int lineNum)
 }
 
 
+SymbolRecord* getArraySymbol(const List *expr, ListNode arrayNode) {
+    SymbolRecord *arraySymbol = lookupSymbolNode(arrayNode, expr->lineNum);
+
+    if ((arraySymbol != NULL) && (!isArray(arraySymbol) && !isPointer(arraySymbol))) {
+        ErrorMessageWithNode("Not an array or pointer", arrayNode, expr->lineNum);
+        arraySymbol = NULL;
+    }
+    return arraySymbol;
+}
+
+SymbolRecord *getPropertySymbol(List *expr) {
+    ListNode structNameNode = expr->nodes[1];
+    char *propName = expr->nodes[2].value.str;
+
+    SymbolRecord *structSym = lookupSymbolNode(structNameNode, expr->lineNum);
+    if (structSym == NULL || !isStructDefined(structSym)) return NULL;
+
+    SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propName);
+    if (propertySym == NULL) {
+        ErrorMessage("Property Symbol not found within struct", propName, expr->lineNum);
+    }
+    return propertySym;
+}
+
+
+
+
 /**
  * Check if provided node is a const value: numeric literal or const var
  */

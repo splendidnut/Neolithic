@@ -34,6 +34,8 @@ extern void WarningMessage(const char* warnMsg, const char* warnStr, int lineNum
 
 extern SymbolRecord *lookupSymbolNode(ListNode symbolNode, int lineNum);
 extern SymbolRecord *lookupFunctionSymbolByNameNode(ListNode funcNameNode, int lineNum);
+extern SymbolRecord* getArraySymbol(const List *expr, ListNode arrayNode);
+extern SymbolRecord *getPropertySymbol(List *expr);
 
 extern bool isConstValueNode(ListNode node, int lineNum);
 extern int getConstValue(ListNode valueNode, int lineNum);
