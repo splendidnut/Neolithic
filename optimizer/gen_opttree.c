@@ -215,10 +215,10 @@ void GOST_ProcessCodeBlock(List *code) {
 }
 
 
-void GOST_Function(const List *function, int codeNodeIndex) {
+void GOST_Function(const List *function) {
     char *funcName = function->nodes[1].value.str;
-    if (function->count >= codeNodeIndex) {
-        ListNode codeNode = function->nodes[codeNodeIndex];
+    if (function->count >= 5) {
+        ListNode codeNode = function->nodes[5];
         if (codeNode.type == N_LIST) {
             printf("Processing optimizations for function: %s\n", funcName);
             GOST_ProcessCodeBlock(codeNode.value.list);
@@ -243,8 +243,7 @@ void GOST_ProcessProgramNodes(ListNode opNode, const List *statement) {
     if (opNode.type == N_TOKEN) {
         // Only need to process functions since we're doing code optimizations
         switch (opNode.value.parseToken) {
-            case PT_DEFUN:    GOST_Function(statement, 5); break;
-            case PT_FUNCTION: GOST_Function(statement, 3); break;
+            case PT_FUNCTION:    GOST_Function(statement); break;
             default:
                 break;
         }

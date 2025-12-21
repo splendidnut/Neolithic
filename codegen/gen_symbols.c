@@ -575,7 +575,6 @@ void GS_Program(List *list, SymbolTable *workingSymTbl) {
                     case PT_DEFINE:
                         GS_Variable(statement, workingSymTbl, 0);
                         break;
-                    case PT_DEFUN:
                     case PT_FUNCTION:
                         GS_Function(statement, workingSymTbl);
                         break;

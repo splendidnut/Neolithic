@@ -827,7 +827,7 @@ ListNode parse_var_node(const char *baseType, const List *modList, const char *r
     // build a variable node
     //list = createList(6);
 
-    addNode(list, createParseToken(isFunctionDef ? PT_DEFUN : PT_DEFINE));
+    addNode(list, createParseToken(isFunctionDef ? PT_FUNCTION : PT_DEFINE));
     addNode(list, varNameNode);
     addNode(list, createListNode(typeList));
     addNode(list, (modList != NULL) ? createListNode((List *) modList) : createEmptyNode());

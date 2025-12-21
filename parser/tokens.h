@@ -24,14 +24,13 @@
 enum ParseToken {
     PT_EMPTY,
     PT_CODE,            // code block
-    PT_FUNCTION,        // define a function (JS style)
     PT_INLINE,          // define an inline function
     PT_FUNC_CALL,
     PT_PROPERTY_REF,
     PT_PROGRAM,         // program block
 
     PT_DEFINE,          // define a variable/struct
-    PT_DEFUN,           // define a function (C style)
+    PT_FUNCTION,           // define a function
     PT_VARS,
     PT_PTR,
     PT_ARRAY,

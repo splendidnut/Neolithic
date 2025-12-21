@@ -86,10 +86,10 @@ void GCT_CodeBlock(List *code, SymbolRecord *funcSym) {
 }
 
 
-void GCT_Function(List *statement, int codeNodeIndex) {
+void GCT_Function(List *statement) {
     char *funcName = statement->nodes[1].value.str;
-    if (statement->count >= codeNodeIndex) {
-        ListNode codeNode = statement->nodes[codeNodeIndex];
+    if (statement->count >= 5) {
+        ListNode codeNode = statement->nodes[5];
         if (codeNode.type == N_LIST) {
             SymbolRecord *funcSym = findSymbol(mainSymTable, funcName);
             GCT_CodeBlock(codeNode.value.list, funcSym);
@@ -105,8 +105,7 @@ void GCT_Program(List *list) {
             if (statement->nodes[0].type == N_TOKEN) {
                 enum ParseToken token = statement->nodes[0].value.parseToken;
                 switch (token) {
-                    case PT_DEFUN:    GCT_Function(statement, 5); break;
-                    case PT_FUNCTION: GCT_Function(statement, 3); break;
+                    case PT_FUNCTION:    GCT_Function(statement); break;
                     default: break;
                 }
             }

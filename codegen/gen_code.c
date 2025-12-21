@@ -2654,12 +2654,12 @@ void GC_ProcessFunction(SymbolRecord *funcSym, List *code) {
     setEvalLocalSymbolTable(NULL);
 }
 
-void GC_Function(const List *function, int codeNodeIndex) {
+void GC_Function(const List *function) {
     bool hasCode, isFuncUsed=false;
     bool forcedInclude = false;
     char *funcName = function->nodes[1].value.str;
 
-    if (function->count < codeNodeIndex) {
+    if (function->count < 5) {
         ErrorMessage("Error processing function", funcName, function->lineNum);
         return;
     }
@@ -2680,7 +2680,7 @@ void GC_Function(const List *function, int codeNodeIndex) {
         lastDirective = 0;
     }
 
-    ListNode codeNode = function->nodes[codeNodeIndex];
+    ListNode codeNode = function->nodes[5];
     hasCode = (codeNode.type == N_LIST);
 
     // only process function code, if it exists, and the function is used
@@ -2741,9 +2741,8 @@ void GC_ProcessProgram(ListNode node) {
             if (opNode.type == N_TOKEN) {
                 // Only need to process functions since variables were already processed in the symbol generator module
                 switch (opNode.value.parseToken) {
-                    case PT_DEFUN:    GC_Function(statement, 5); break;
-                    case PT_FUNCTION: GC_Function(statement, 3); break;
-                    case PT_DEFINE:   GC_Variable(statement);    break;
+                    case PT_FUNCTION:    GC_Function(statement); break;
+                    case PT_DEFINE:   GC_Variable(statement); break;
                     case PT_STRUCT:   break;
                     case PT_UNION:    break;
                     case PT_ENUM:     break;
