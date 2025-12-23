@@ -123,7 +123,7 @@ ListNode buildDirectiveWithOptionalNumeric(enum CompilerDirectiveTokens token) {
     List *bankDirList = createList(3);
     addNode(bankDirList, createParseToken(PT_DIRECTIVE));
     addNode(bankDirList, createIntNode(token));
-    TokenObject *nxtToken = peekToken();
+    peekToken();
     int nxtTokenLineNum = getProgLineNum();
     if (nxtTokenLineNum == directiveLineNum) {
         addNode(bankDirList, parse_numeric());
