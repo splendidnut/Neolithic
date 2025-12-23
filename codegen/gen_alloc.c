@@ -47,6 +47,7 @@ static int globalSize;
 static int globalAddr;
 static int stackSizes[MAX_STACK_FRAMES];       // Track the sizes of 8 stack frames
 static int stackLocs[MAX_STACK_FRAMES];        // Location of each stack frame
+static int callStackDepth;
 
 
 void initStackFrames() {
@@ -54,6 +55,7 @@ void initStackFrames() {
         stackSizes[i] = 0;
         stackLocs[i] = -1;
     }
+    callStackDepth = 0;
 }
 
 // Need to collect list of functions in order of depth
@@ -217,8 +219,12 @@ void showVariableAllocations() {
         stackAddr = stackSizes[frmNum] + stackLocs[frmNum];
     }
 
+    int callStackUsage = callStackDepth * 2;
+    int callStackAddr = 0x100 - callStackUsage;
+    printf("\t  Call Stack   allocated %2d bytes at %4X (for %d call depth)\n", callStackUsage, callStackAddr, callStackDepth);
+
     // TODO: This is currently Atari 2600 specific (where Stack and Zero Page share memory)
-    int remainingBytes = 0x100 - stackAddr;
+    int remainingBytes = 0x100 - stackAddr - callStackUsage;
     //printf("\t Stack Frame   has       %2d bytes at %4X\n", 0x100-stackAddr, stackAddr);
     printf("\n\t\t%d bytes remaining\n", remainingBytes);
     printf("\n");
@@ -315,6 +321,7 @@ void calcLocalVarAllocs() {
         int depth = GET_FUNCTION_DEPTH(curSymbol);
 
         if (depth < lastDepth) {
+            if (depth > callStackDepth) callStackDepth = depth;
             lastDepth = depth;
             lastStackSize += stackSizes[depth+1];
             if (compilerOptions.showVarAllocations) {
