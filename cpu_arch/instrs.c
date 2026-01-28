@@ -520,6 +520,12 @@ void ICG_LoadRegConst(const char destReg, int ofs) {
                 lastUseForYReg.constValue = ofs;
             }
             break;
+        case 'S':
+            IL_AddInstrN(LDA, ADDR_IMM, ofs);
+            lastUseForAReg.loadedWith = LW_CONST;
+            lastUseForAReg.constValue = ofs;
+            ICG_PushAcc();
+            break;
     }
 }
 
