@@ -42,10 +42,6 @@ enum Machines lookupMachineName(char *machineName) {
     return (enum Machines)index;
 }
 
-int getMachineStartAddr(enum Machines machine) {
-    return machineInfo[machine].startAddr;
-}
-
 void prepForMachine(enum Machines machine) {
     MemoryArea *zeropageMem = 0;
     switch (machine) {
@@ -55,9 +51,13 @@ void prepForMachine(enum Machines machine) {
             break;
 
         case Atari5200:
+            // atari7800 memory ranges:
+            //    zeropage = 0x20..0xFF         -- start after system usage
+            //      stack  = 0x100..0x1FF
+            //    mem      = 0x0300..0x3FFF     -- 15.25k  -- start after system usage
             SMA_init(1);
-            zeropageMem = SMA_addMemoryRange(0x00, 0xFF);
-            SMA_addMemoryRange(0x0200, 0x3fff);
+            zeropageMem = SMA_addMemoryRange(0x20, 0xFF);       // 0x20 to start after system usage
+            SMA_addMemoryRange(0x0300, 0x3fff);                 // 0x300 to start after system usage
             break;
 
         case Atari7800:

@@ -37,7 +37,6 @@ typedef struct {
 } MachineInfo;
 
 extern enum Machines lookupMachineName(char *machineName);
-extern int getMachineStartAddr(enum Machines machine);
 extern void prepForMachine(enum Machines machine);
 extern MachineInfo getMachineInfo(enum Machines machine);
 

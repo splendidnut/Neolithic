@@ -110,7 +110,12 @@ void WriteBIN_EndOfBlock(const OutputBlock *block) {
         } break;
 
         case Atari5200: {
-            binData[0x7FFD] = 0xFF;     //-- disable BIOS screen
+            char gameStr[24] = "ATARIGAME\0";
+            for (int i=0; i<23; i++) {
+                binData[0x7FE0+i] = gameStr[i];
+            }
+            binData[0x7FFC] = 0x58;
+            binData[0x7FFD] = 0x54;//0xFF;     //-- disable BIOS screen
             WriteBIN_WriteVector(mainLabel->location,  0x7FFE);
         } break;
 
