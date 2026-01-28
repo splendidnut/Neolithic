@@ -518,7 +518,7 @@ void parseCommandLineParameters(int argc, char *argv[]) {
 //------------------------------------------------------
 
 int main(int argc, char *argv[]) {
-    printf("\nNeolithic Compiler v%s - Simplified C Cross-compiler for the 6502\n\n", verStr);
+    printf("\nNeolithic Compiler v%s (%s) - Simplified C Cross-compiler for the 6502\n\n", verStr, __DATE__);
 
     if (argc < 2) {
         printf("Usage:\tneolithic (infile) (options)\n");
