@@ -1097,7 +1097,8 @@ void GC_StoreToArray(const List *expr) {
             if (varSize == 1) ofs = ofs >> 1;   // TODO - HACK:  need to adjust offset
 
             ICG_LoadRegConst('Y', ofs);
-            ICG_StoreVarIndexed(arraySym);
+            //ICG_StoreVarIndexed(arraySym);
+            ICG_StoreIndirect(arraySym, varSize);
 
         } else {
             varSize = getBaseVarSize(arraySym);
@@ -1106,12 +1107,20 @@ void GC_StoreToArray(const List *expr) {
         return;
 
     } else if (expr->nodes[2].type == N_STR) {
+        int varSize = IS_INT(arraySym) ? 2 : 1;
+
         // Array Index is an expression or a variable
         SymbolRecord *varSym = lookupSymbolNode(expr->nodes[2], expr->lineNum);
-        if (varSym) {
-            ICG_LoadIndexVar(varSym, getBaseVarSize(arraySym));
+
+        if (isPointerAccessedAsArray) {
+            ICG_LoadIndexVar(varSym, varSize);
+            ICG_StoreIndirect(arraySym, varSize);
+        } else {
+            if (varSym) {
+                ICG_LoadIndexVar(varSym, getBaseVarSize(arraySym));
+            }
+            ICG_StoreVarIndexed(arraySym);
         }
-        ICG_StoreVarIndexed(arraySym);
         return;
 
     } else if (expr->nodes[2].type == N_LIST) {
@@ -1166,15 +1175,17 @@ void GC_HandleIndexedStore(const List *expr, bool needToCache) {
         SymbolRecord *arraySym = getArraySymbol(expr, arrayNode);
         if (arraySym == NULL) return;
 
+        int dataSize = IS_INT(arraySym) ? 2 : 1;
+
         if (indexNode.type == N_STR) {
             // Array Index is an expression or a variable
-            SymbolRecord *varSym = lookupSymbolNode(indexNode, expr->lineNum);
-            if (!varSym) return;
+            SymbolRecord *indexSym = lookupSymbolNode(indexNode, expr->lineNum);
+            if (!indexSym) return;
 
             if (needToCache) {
-                ICG_SaveIndexVar(varSym, getBaseVarSize(arraySym));
+                ICG_SaveIndexVar(indexSym, dataSize);
             } else {
-                ICG_LoadIndexVar(varSym, getBaseVarSize(arraySym));
+                ICG_LoadIndexVar(indexSym, dataSize);
             }
         }
     }

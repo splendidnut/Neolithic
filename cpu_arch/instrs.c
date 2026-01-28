@@ -642,10 +642,12 @@ void ICG_StoreVarSym(const SymbolRecord *varSym) {
 
     bool isAregUnknown = (lastUseForAReg.loadedWith == LW_NONE);
 
+    enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(varSym);
+
     IL_ClearOnUpdate(varSym);
-    IL_AddInstrP(STA, ADDR_ZP, varName, PARAM_NORMAL);
+    IL_AddInstrP(STA, addrMode, varName, PARAM_NORMAL);
     if (getBaseVarSize(varSym) == 2) {
-        IL_AddInstrP(STX, ADDR_ZP, varName, PARAM_PLUS_ONE);
+        IL_AddInstrP(STX, addrMode, varName, PARAM_PLUS_ONE);
     }
 
     if (isAregUnknown) {
@@ -732,7 +734,8 @@ void ICG_OpWithVar(enum MnemonicCode mne, const SymbolRecord *varSym, int dataSi
     } else if (IS_PARAM_VAR(varSym)) {
         ICG_OpWithParamVar(mne, varSym);
     } else {
-        IL_AddInstrP(mne, ADDR_ZP, varName, PARAM_NORMAL);
+        enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(varSym);
+        IL_AddInstrP(mne, addrMode, varName, PARAM_NORMAL);
 
         // Handle 16-bit ops
         if (dataSize > 1) ICG_OpHighByte(mne, varName);
