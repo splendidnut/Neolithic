@@ -981,6 +981,40 @@ void ICG_CompareVar(const SymbolRecord *varSym) {
     }
 }
 
+void ICG_CompareVarOffset(const SymbolRecord *varSym, int ofs, int destSize) {
+    const char *varName = getVarName(varSym);
+
+    if (isPointer(varSym) && isStructDefined(varSym)) {
+        ICG_LoadRegConst('Y', ofs);
+        IL_AddInstrP(CMP, ADDR_IY, varName, PARAM_NORMAL);
+        /*if (destSize == 2) {
+            IL_AddInstrB(TXA);
+            IL_AddInstrB(INY);
+            IL_AddInstrP(STA, ADDR_IY, varName, PARAM_NORMAL);
+        }*/
+    } else {
+        enum AddrModes addrMode = CALC_SYMBOL_ADDR_MODE(varSym);
+        enum ParamExt paramExt = ((addrMode == ADDR_ZP) ? PARAM_LO : PARAM_NORMAL);
+
+        /*if (destSize == 2) {
+            IL_AddInstrS(STX, addrMode, varName, numToStr(ofs), paramExt + PARAM_ADD + PARAM_PLUS_ONE);
+        }*/
+        IL_AddInstrS(CMP, addrMode, varName, numToStr(ofs), paramExt + PARAM_ADD);
+    }
+}
+
+void ICG_CompareIndexedWithOffset(const SymbolRecord *varSym, int ofs, int varSize) {
+    const char *varName = getVarName(varSym);
+    IL_AddComment(
+            IL_AddInstrS(CMP, ADDR_ABY, varName, numToStr(ofs), PARAM_NORMAL + PARAM_ADD),
+            "store to array using index with offset");
+    if (varSize == 2) {
+        //IL_AddInstrB(TXA);
+        IL_AddInstrS(CPX, ADDR_ABY, varName, numToStr(ofs), PARAM_PLUS_ONE + PARAM_ADD);
+    }
+}
+
+
 void ICG_Jump(const Label *label, const char *comment) {
     Label *jumpLabel = (label->link != NULL) ? label->link : (Label *)label;  // use linked label if available
     addLabelRef(jumpLabel);

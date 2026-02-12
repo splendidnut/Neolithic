@@ -99,9 +99,12 @@ extern void ICG_AddToInt(const SymbolRecord *varSym);
 extern void ICG_AddOffsetToInt(int ofs);
 extern void ICG_AddTempVarToInt(int addr);
 extern void ICG_AddAddr(const SymbolRecord *varSym);
+
 extern void ICG_CompareConstName(const char *constName);
 extern void ICG_CompareConst(int constValue);
 extern void ICG_CompareVar(const SymbolRecord *varSym);
+extern void ICG_CompareVarOffset(const SymbolRecord *varSym, int ofs, int destSize);
+extern void ICG_CompareIndexedWithOffset(const SymbolRecord *varSym, int ofs, int varSize);
 
 extern void ICG_Jump(const Label *label, const char* comment);
 extern void ICG_Call(const char *funcName);

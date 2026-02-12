@@ -23,4 +23,10 @@ void main() {
     objs[0].timer = 0x40;
     char curTimer = objs[1].timer;
 	const GameObject enemy = {0,0,0,0};	// too many values
+
+    char t;
+    if (objs[0].x != objs[1].y) {
+        t=2;
+    }
+    t=3;
 }

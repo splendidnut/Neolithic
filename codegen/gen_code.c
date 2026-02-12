@@ -1326,6 +1326,66 @@ enum SymbolType getExprType(const ListNode arg1, const ListNode arg2, int lineNu
  * */
 
 
+void GC_CompareToStructProperty(const List *expr) {
+    ListNode structNameNode = expr->nodes[1];
+    char *propName = expr->nodes[2].value.str;
+    const List *structLookup = expr;
+
+    /// Handle if struct is in an array
+    bool isInArray = ((structNameNode.type == N_LIST) && isToken(structNameNode.value.list->nodes[0], PT_LOOKUP));
+    if (isInArray) {
+        structLookup = structNameNode.value.list;
+        structNameNode = structLookup->nodes[1];
+    }
+
+    SymbolRecord *structSym = lookupSymbolNode(structNameNode, expr->lineNum);
+    if (structSym == NULL || !isStructDefined(structSym)) return;
+
+    SymbolRecord *propertySym = findSymbol(getStructSymbolSet(structSym), propName);
+    if (propertySym == NULL) {
+        ErrorMessage("Property Symbol not found within struct", propName, expr->lineNum);
+        return;
+    }
+
+    /// Handle indexing necessary for array of structs
+    if (isInArray) {
+        ListNode indexNode = structLookup->nodes[2];
+        char multiplier = (char) (getBaseVarSize(structSym) & 0x7f);
+        switch (indexNode.type) {
+            case N_INT: {
+                char value = multiplier * (char) (indexNode.value.num);
+                ICG_LoadRegConst('Y', value);
+                break;
+            }
+            case N_STR: {
+                // TODO:  Add multiplier logic here
+                SymbolRecord *indexSym = lookupSymbolNode(indexNode, expr->lineNum);
+                ICG_LoadRegVar(indexSym, 'Y');
+            } break;
+        }
+    }
+
+    int propertyOffset = GET_PROPERTY_OFFSET(propertySym);
+
+    if (IS_ALIAS(structSym)) {
+
+        enum ParseToken aliasType = GC_LoadAlias(expr, structSym);
+        SymbolRecord *baseSymbol = GC_GetAliasBase(expr, structSym, aliasType);
+        if (aliasType == PT_LOOKUP) {
+            ICG_CompareIndexedWithOffset(baseSymbol, propertyOffset, getBaseVarSize(propertySym));
+        } else if (aliasType == PT_INIT) {
+            ICG_CompareVarOffset(baseSymbol, propertyOffset, getBaseVarSize(propertySym));
+        }
+
+    } else {
+        if (isInArray) {
+            ICG_CompareIndexedWithOffset(structSym, propertyOffset, getBaseVarSize(propertySym));
+        } else {
+            ICG_CompareVarOffset(structSym, propertyOffset, getBaseVarSize(propertySym));
+        }
+    }
+}
+
 /**
  * Handle If conditional expression separately for optimization purposes
  * @param expr
@@ -1338,14 +1398,15 @@ void GC_Compare(ListNode arg, int lineNum) {
             SymbolRecord *varSym = lookupSymbolNode(arg, lineNum);
             if (varSym != NULL) ICG_CompareVar(varSym);
         } break;
-        case N_LIST: {
+        case N_LIST: {  // TODO: add support for struct references
             // attempt to evaluate expression here
             EvalResult evalResult = evaluate_expression(arg.value.list);
             if (evalResult.hasResult) {
                 IL_SetLineComment(get_expression(arg.value.list));
                 ICG_CompareConst(evalResult.value);
             } else {
-                ErrorMessageWithList("Cannot evaluate for compare: ", arg.value.list);
+                GC_CompareToStructProperty(arg.value.list);
+                //ErrorMessageWithList("Cannot evaluate for compare: ", arg.value.list);
             }
         } break;
         default:
