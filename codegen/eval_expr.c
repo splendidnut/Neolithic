@@ -274,7 +274,7 @@ char* get_node(const ListNode node) {
                 if (varSym != NULL) {
                     result = (char *) getVarName(varSym);
                 } else {
-                    result = "ERROR";
+                    result = strdup(varName);
                 }
             } else {
                 result = Ident_lookup(node.value.str);

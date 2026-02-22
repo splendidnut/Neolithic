@@ -163,7 +163,7 @@ const char *GC_Asm_getParamStr(ListNode instrParamNode, List *instr) {
                     paramAddrMode = CALC_SYMBOL_ADDR_MODE(varSym);
                     paramStr = getVarName(varSym);
                 } else {
-                    paramStr = "";
+                    paramStr = NULL;
                 }
             }
         } break;
@@ -195,6 +195,7 @@ void GC_AsmInstr(List *instr) {
         addrMode = instr->nodes[1].value.addrMode;
         if (addrMode > 1) {
             paramStr = GC_Asm_getParamStr(instr->nodes[2], instr);
+            if (paramStr == NULL) return;
         }
     }
 
