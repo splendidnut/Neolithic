@@ -1175,7 +1175,14 @@ void GC_HandleIndexedStore(const List *expr, bool needToCache) {
         SymbolRecord *arraySym = getArraySymbol(expr, arrayNode);
         if (arraySym == NULL) return;
 
-        int dataSize = IS_INT(arraySym) ? 2 : 1;
+        int dataSize = 1;
+
+        bool isPointerAccessedAsArray = (isPointer(arraySym) && !isArray(arraySym));
+        if (isPointerAccessedAsArray) {
+            dataSize = IS_INT(arraySym) ? 2 : 1;
+        } else {
+            dataSize = getBaseVarSize(arraySym);
+        }
 
         if (indexNode.type == N_STR) {
             // Array Index is an expression or a variable
