@@ -77,6 +77,11 @@ void GC_LoadPrimitive(ListNode loadNode, enum SymbolType destType, int lineNum) 
     }
 }
 
+bool isIncDecExpr(struct ListStruct *pStruct) {
+    ListNode opNode = pStruct->nodes[0];
+    return isToken(opNode, PT_INC) || isToken(opNode, PT_DEC);
+}
+
 void GC_HandleLoad(ListNode loadNode, enum SymbolType destType, int lineNum) {
 
     // Handle the special case where a 16-bit number is being set from an 8-bit value
@@ -87,6 +92,12 @@ void GC_HandleLoad(ListNode loadNode, enum SymbolType destType, int lineNum) {
 
     if (loadNode.type == N_LIST) {
         GC_Expression(loadNode.value.list, destType);
+
+        // If there's an INC/DEC tagged onto the load, make sure to actually load the value
+        if (isIncDecExpr(loadNode.value.list)) {
+            ListNode incDecParam = loadNode.value.list->nodes[1];
+            GC_LoadPrimitive(incDecParam, destType, lineNum);
+        }
     } else {
         GC_LoadPrimitive(loadNode, destType, lineNum);
     }
