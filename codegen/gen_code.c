@@ -1051,9 +1051,16 @@ void GC_StoreToStructProperty(const List *expr) {
                 break;
             }
             case N_STR: {
-                // TODO:  Add multiplier logic here
                 SymbolRecord *indexSym = lookupSymbolNode(indexNode, expr->lineNum);
-                ICG_LoadRegVar(indexSym, 'Y');
+                // TODO:  Find a way to compute this before the assignment expression is processed.
+                if (multiplier > 1) {
+                    ICG_PushAcc();
+                    ICG_MultiplyVarWithConst(indexSym, multiplier);
+                    ICG_MoveAccToIndex('Y');
+                    ICG_PullAcc();
+                } else {
+                    ICG_LoadRegVar(indexSym, 'Y');
+                }
             } break;
         }
     }
