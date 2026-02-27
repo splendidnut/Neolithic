@@ -36,6 +36,8 @@
 
 //#define DEBUG_GEN_SYMBOLS
 
+bool allocParamsAsLocalVars = false;        // TODO: Finish implementing this
+
 /**
  * Get definition name from a definition list
  * @param def
@@ -524,9 +526,15 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
 
         if (paramCnt > 3) printf("\tToo many function parameters defined\n");
 
+        int paramFlags = MF_PARAM | MF_LOCAL;
+        if (allocParamsAsLocalVars) {
+            // TODO: Figure out what should be done here, or whether this is even needed.
+            paramFlags |= SS_ZEROPAGE;
+        }
+
         // go thru parameter list and process entry as a variable
         for_range ( paramIndex, 1, paramList->count) {
-            GS_Variable(paramList->nodes[paramIndex].value.list, localVarTbl, MF_PARAM | MF_LOCAL);
+            GS_Variable(paramList->nodes[paramIndex].value.list, localVarTbl, paramFlags);
         }
     }
 
@@ -560,7 +568,7 @@ void GS_Function(List *funcDef, SymbolTable *symbolTable) {
     funcSym->symbolTbl = localVarTbl;
 
     // If we have parameters, make sure to do the allocations
-    if (paramCnt > 0) GS_FuncParamAlloc(funcSym);
+    if (!allocParamsAsLocalVars && paramCnt > 0) GS_FuncParamAlloc(funcSym);
 }
 
 

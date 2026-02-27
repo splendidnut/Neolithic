@@ -187,7 +187,8 @@ void allocateStackFrameStorage() {
         printf("\nStack Frames:\n");
     }
     for_range(frmNum, 0, MAX_STACK_FRAMES-1) if (stackSizes[frmNum] > 0) {
-        MemoryAllocation newVarAlloc = SMA_allocateMemory(0, stackSizes[frmNum]);
+        // TODO: For the future, figure out whether we always want to allocate to zeropage or not.
+        MemoryAllocation newVarAlloc = SMA_allocateMemory(SMA_getZeropageArea(), stackSizes[frmNum]);
         stackLocs[frmNum] = newVarAlloc.addr;
         if (compilerOptions.showVarAllocations) {
             printf("\tFrame %d allocated %2d bytes at %4X\n", frmNum, stackSizes[frmNum], newVarAlloc.addr);
