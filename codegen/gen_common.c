@@ -106,6 +106,12 @@ SymbolRecord *getPropertySymbol(List *expr) {
     ListNode structNameNode = expr->nodes[1];
     char *propName = expr->nodes[2].value.str;
 
+    /// Handle if struct is in an array
+    bool isInArray = ((structNameNode.type == N_LIST) && isToken(structNameNode.value.list->nodes[0], PT_LOOKUP));
+    if (isInArray) {
+        structNameNode = structNameNode.value.list->nodes[1];
+    }
+
     SymbolRecord *structSym = lookupSymbolNode(structNameNode, expr->lineNum);
     if (structSym == NULL || !isStructDefined(structSym)) return NULL;
 
