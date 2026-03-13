@@ -121,6 +121,7 @@ void FM_followChainsToCalculateDepth(FuncCallMapEntry *funcMapEntry, int depth) 
 int FM_calculateCallTree() {
     FuncCallMapEntry *funcMapEntry = FM_findFunction("main");
     if (funcMapEntry != NULL) {
+        funcMapEntry->funcSym->cntUses = 1;     //--- Make sure main() has its usage set
         FM_followChainsToCalculateDepth(funcMapEntry, 1);
     }
     return deepestDepth;
@@ -155,11 +156,19 @@ void FM_displayCallTree() {
     FuncCallMapEntry *funcMapEntry = firstFuncCallEntry;
     while (funcMapEntry != NULL) {
         SymbolRecord *funcSym = funcMapEntry->funcSym;
-        printf(" * %s (depth %d, used %d):\n",
-               funcMapEntry->srcFuncName,
-               funcMapEntry->deepestSpotCalled,
-               funcSym->cntUses);
+        int cntUses = funcSym->cntUses;
 
+        //--- Print message depending on usage count
+        if (cntUses > 0) {
+            printf(" * %-32s (depth %d, used %d):\n",
+                   funcMapEntry->srcFuncName,
+                   funcMapEntry->deepestSpotCalled,
+                   cntUses);
+        } else {
+            printf(" * %-32s (not used):\n", funcMapEntry->srcFuncName);
+        }
+
+        //--- List all functions called from this function
         int cntDestFunc;
         for (cntDestFunc = 0; cntDestFunc < funcMapEntry->cntFuncsCalled; cntDestFunc++) {
             printf("    - %2dx - %s\n",

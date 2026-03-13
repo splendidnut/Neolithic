@@ -108,6 +108,9 @@ void collectFunctionsInOrder(const SymbolTable *symbolTable) {
         for (int idx = 0; idx < cntDepthSymbols; idx++) {
             printf("  %d %s\n", depthSymbolList[idx].depth, depthSymbolList[idx].symbol->name);
         }
+        // NOTE:  Simple hack to make sure main() gets listed, since it's always required
+        //        to compile and is always at depth 0.
+        printf("  0 main\n");
     }
 }
 
